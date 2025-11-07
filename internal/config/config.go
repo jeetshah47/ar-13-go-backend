@@ -14,14 +14,13 @@ type Config struct {
 	Port    int
 	NodeEnv string
 
-	// Firebase
-	FirebaseWebAPIKey   string
-	FirebaseProjectID   string
-	FirebaseClientEmail string
-	FirebasePrivateKey  string
+	// DynamoDB
+	AWSRegion string
 
 	// JWT
-	JWTSecret string
+	JWTSecret        string
+	JWTExpiration   int // in hours
+	RefreshExpiration int // in days
 
 	// Email
 	EmailHost     string
@@ -60,12 +59,11 @@ func LoadConfig() (*Config, error) {
 		Port:    port,
 		NodeEnv: getEnv("NODE_ENV", "development"),
 
-		FirebaseWebAPIKey:   getEnv("FIREBASE_WEB_API_KEY", ""),
-		FirebaseProjectID:   getEnv("FIREBASE_PROJECT_ID", ""),
-		FirebaseClientEmail: getEnv("FIREBASE_CLIENT_EMAIL", ""),
-		FirebasePrivateKey:  getEnv("FIREBASE_PRIVATE_KEY", ""),
+		AWSRegion: getEnv("AWS_REGION", "us-east-1"),
 
-		JWTSecret: getEnv("JWT_SECRET", ""),
+		JWTSecret:        getEnv("JWT_SECRET", ""),
+		JWTExpiration:   getEnvAsInt("JWT_EXPIRATION_HOURS", 24),
+		RefreshExpiration: getEnvAsInt("REFRESH_EXPIRATION_DAYS", 30),
 
 		EmailHost:     getEnv("EMAIL_HOST", ""),
 		EmailPort:     emailPort,
@@ -88,6 +86,16 @@ func LoadConfig() (*Config, error) {
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsInt gets an environment variable as int or returns a default value
+func getEnvAsInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
 	}
 	return defaultValue
 }

@@ -2,204 +2,218 @@ package repos
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
-	"cloud.google.com/go/firestore"
 	"github.com/ar-13-go-backend/internal/models"
-	"google.golang.org/api/iterator"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/google/uuid"
 )
 
 // InfoPortalRepo handles info portal data operations
 type InfoPortalRepo struct {
-	*BaseRepo
+	*DynamoBaseRepo
 }
 
 // NewInfoPortalRepo creates a new info portal repository
 func NewInfoPortalRepo() *InfoPortalRepo {
 	return &InfoPortalRepo{
-		BaseRepo: NewBaseRepo("info-portal"),
+		DynamoBaseRepo: NewDynamoBaseRepo("info-portal"),
 	}
-}
-
-// Helper methods to get subcollections
-func (r *InfoPortalRepo) getFolderCollection() *firestore.CollectionRef {
-	return r.collection.Doc("data").Collection("folders")
-}
-
-func (r *InfoPortalRepo) getPageCollection() *firestore.CollectionRef {
-	return r.collection.Doc("data").Collection("pages")
-}
-
-func (r *InfoPortalRepo) getAttachmentCollection() *firestore.CollectionRef {
-	return r.collection.Doc("data").Collection("attachments")
 }
 
 // Folder operations
 func (r *InfoPortalRepo) GetAllFolders(ctx context.Context) ([]models.Folder, error) {
-	iter := r.getFolderCollection().Documents(ctx)
-	var folders []models.Folder
+	items, err := r.ScanItems(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
+	folders := make([]models.Folder, 0)
+	for _, item := range items {
+		// Filter by type = "folder"
+		if itemType, ok := item["type"].(*types.AttributeValueMemberS); ok && itemType.Value == "folder" {
+			var folder models.Folder
+			if err := UnmarshalItem(item, &folder); err != nil {
+				continue
+			}
+			folders = append(folders, folder)
 		}
-		if err != nil {
-			return nil, err
-		}
-
-		var folder models.Folder
-		if err := doc.DataTo(&folder); err != nil {
-			return nil, err
-		}
-		folder.ID = doc.Ref.ID
-		folders = append(folders, folder)
 	}
 
 	return folders, nil
 }
 
 func (r *InfoPortalRepo) GetFolderByID(ctx context.Context, folderID string) (*models.Folder, error) {
-	doc, err := r.getFolderCollection().Doc(folderID).Get(ctx)
+	// Use prefix if not already present
+	id := folderID
+	if !strings.HasPrefix(id, "folder-") {
+		id = "folder-" + folderID
+	}
+
+	item, err := r.DynamoBaseRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if !doc.Exists() {
+	if item == nil {
 		return nil, nil
 	}
 
 	var folder models.Folder
-	if err := doc.DataTo(&folder); err != nil {
-		return nil, err
+	if err := UnmarshalItem(item, &folder); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal folder: %w", err)
 	}
-	folder.ID = doc.Ref.ID
+
 	return &folder, nil
 }
 
 func (r *InfoPortalRepo) CreateFolder(ctx context.Context, folder *models.Folder) error {
-	newDocRef := r.getFolderCollection().NewDoc()
-	folder.ID = newDocRef.ID
-	folder.Created = time.Now()
+	now := time.Now()
+	if folder.ID == "" {
+		folder.ID = "folder-" + uuid.New().String()
+	} else if !strings.HasPrefix(folder.ID, "folder-") {
+		folder.ID = "folder-" + folder.ID
+	}
+	folder.Created = now
 
 	data := map[string]interface{}{
 		"id":      folder.ID,
+		"type":    "folder",
 		"name":    folder.Name,
 		"color":   folder.Color,
-		"created": folder.Created,
+		"created": folder.Created.Format(time.RFC3339),
 	}
 
-	_, err := newDocRef.Set(ctx, data)
-	return err
+	return r.PutItem(ctx, data)
 }
 
 func (r *InfoPortalRepo) UpdateFolder(ctx context.Context, folderID string, updates map[string]interface{}) error {
-	now := time.Now()
-	updates["updated"] = now
+	id := folderID
+	if !strings.HasPrefix(id, "folder-") {
+		id = "folder-" + folderID
+	}
 
-	_, err := r.getFolderCollection().Doc(folderID).Update(ctx, []firestore.Update{
-		{Path: "name", Value: updates["name"]},
-		{Path: "color", Value: updates["color"]},
-		{Path: "updated", Value: now},
-	})
-	return err
+	// Remove type from updates if present
+	delete(updates, "type")
+	return r.UpdateItem(ctx, id, updates)
 }
 
 func (r *InfoPortalRepo) DeleteFolder(ctx context.Context, folderID string) error {
-	_, err := r.getFolderCollection().Doc(folderID).Delete(ctx)
-	return err
+	id := folderID
+	if !strings.HasPrefix(id, "folder-") {
+		id = "folder-" + folderID
+	}
+	return r.DeleteByID(ctx, id)
 }
 
 // Page operations
 func (r *InfoPortalRepo) GetPageByID(ctx context.Context, pageID string) (*models.Page, error) {
-	doc, err := r.getPageCollection().Doc(pageID).Get(ctx)
+	// Use prefix if not already present
+	id := pageID
+	if !strings.HasPrefix(id, "page-") {
+		id = "page-" + pageID
+	}
+
+	item, err := r.DynamoBaseRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if !doc.Exists() {
+	if item == nil {
 		return nil, nil
 	}
 
 	var page models.Page
-	if err := doc.DataTo(&page); err != nil {
-		return nil, err
+	if err := UnmarshalItem(item, &page); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal page: %w", err)
 	}
-	page.ID = doc.Ref.ID
+
 	return &page, nil
 }
 
 func (r *InfoPortalRepo) CreatePage(ctx context.Context, folderID string, page *models.Page) error {
-	newDocRef := r.getPageCollection().NewDoc()
-	page.ID = newDocRef.ID
+	now := time.Now()
+	if page.ID == "" {
+		page.ID = "page-" + uuid.New().String()
+	} else if !strings.HasPrefix(page.ID, "page-") {
+		page.ID = "page-" + page.ID
+	}
 	page.FolderID = folderID
-	page.Created = time.Now()
+	page.Created = now
 
 	data := map[string]interface{}{
 		"id":       page.ID,
+		"type":     "page",
 		"title":    page.Title,
 		"isActive": page.IsActive,
 		"folderId": page.FolderID,
-		"created":  page.Created,
+		"created":  page.Created.Format(time.RFC3339),
 	}
 
-	_, err := newDocRef.Set(ctx, data)
-	return err
+	return r.PutItem(ctx, data)
 }
 
 func (r *InfoPortalRepo) UpdatePage(ctx context.Context, pageID string, updates map[string]interface{}) error {
-	now := time.Now()
-	updates["updated"] = now
-
-	updateList := []firestore.Update{
-		{Path: "updated", Value: now},
-	}
-	if title, ok := updates["title"].(string); ok {
-		updateList = append(updateList, firestore.Update{Path: "title", Value: title})
-	}
-	if isActive, ok := updates["isActive"].(bool); ok {
-		updateList = append(updateList, firestore.Update{Path: "isActive", Value: isActive})
+	id := pageID
+	if !strings.HasPrefix(id, "page-") {
+		id = "page-" + pageID
 	}
 
-	_, err := r.getPageCollection().Doc(pageID).Update(ctx, updateList)
-	return err
+	// Remove type from updates if present
+	delete(updates, "type")
+	return r.UpdateItem(ctx, id, updates)
 }
 
 func (r *InfoPortalRepo) DeletePage(ctx context.Context, pageID string) error {
-	_, err := r.getPageCollection().Doc(pageID).Delete(ctx)
-	return err
+	id := pageID
+	if !strings.HasPrefix(id, "page-") {
+		id = "page-" + pageID
+	}
+	return r.DeleteByID(ctx, id)
 }
 
 func (r *InfoPortalRepo) UpdatePageSections(ctx context.Context, pageID string, sections []models.Section) error {
-	now := time.Now()
-	_, err := r.getPageCollection().Doc(pageID).Update(ctx, []firestore.Update{
-		{Path: "sections", Value: sections},
-		{Path: "updated", Value: now},
-	})
-	return err
+	id := pageID
+	if !strings.HasPrefix(id, "page-") {
+		id = "page-" + pageID
+	}
+
+	updates := map[string]interface{}{
+		"sections": sections,
+	}
+	return r.UpdateItem(ctx, id, updates)
 }
 
 // Attachment operations
 func (r *InfoPortalRepo) CreateAttachment(ctx context.Context, pageID string, attachment *models.Attachment) error {
-	newDocRef := r.getAttachmentCollection().NewDoc()
-	attachment.ID = newDocRef.ID
+	now := time.Now()
+	if attachment.ID == "" {
+		attachment.ID = "attachment-" + uuid.New().String()
+	} else if !strings.HasPrefix(attachment.ID, "attachment-") {
+		attachment.ID = "attachment-" + attachment.ID
+	}
 	attachment.PageID = pageID
-	attachment.Created = time.Now()
+	attachment.Created = now
 
 	data := map[string]interface{}{
 		"id":       attachment.ID,
+		"type":     "attachment",
 		"name":     attachment.Name,
 		"imageUrl": attachment.ImageURL,
 		"fileUrl":  attachment.FileURL,
 		"fileType": attachment.FileType,
 		"fileSize": attachment.FileSize,
 		"pageId":   attachment.PageID,
-		"created":  attachment.Created,
+		"created":  attachment.Created.Format(time.RFC3339),
 	}
 
-	_, err := newDocRef.Set(ctx, data)
-	return err
+	return r.PutItem(ctx, data)
 }
 
 func (r *InfoPortalRepo) DeleteAttachment(ctx context.Context, attachmentID string) error {
-	_, err := r.getAttachmentCollection().Doc(attachmentID).Delete(ctx)
-	return err
+	id := attachmentID
+	if !strings.HasPrefix(id, "attachment-") {
+		id = "attachment-" + attachmentID
+	}
+	return r.DeleteByID(ctx, id)
 }

@@ -24,21 +24,32 @@ func NewAuthHandler(cfg *config.Config) *AuthHandler {
 
 // Register handles user registration
 func (h *AuthHandler) Register(c *gin.Context) {
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var req struct {
+		Name        string `json:"name" binding:"required"`
+		Email       string `json:"email" binding:"required,email"`
+		Password    string `json:"password" binding:"required,min=6"`
+		PhoneNumber string `json:"phoneNumber"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Get config from context or use a default (this is a workaround - ideally config should be passed)
-	// For now, we'll create a service without email for registration
-	userService := services.NewUserService(nil)
-	if err := userService.Add(c.Request.Context(), &user); err != nil {
+	registerReq := models.RegisterRequest{
+		Name:        req.Name,
+		Email:       req.Email,
+		Password:    req.Password,
+		PhoneNumber: req.PhoneNumber,
+	}
+
+	response, err := h.authService.Register(c.Request.Context(), registerReq)
+	if err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(constants.StatusCreated, gin.H{"message": "User registered successfully"})
+	c.JSON(constants.StatusCreated, response)
 }
 
 // Login handles user login
@@ -49,13 +60,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.authService.Login(c.Request.Context(), req)
+	response, err := h.authService.Login(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(constants.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"token": token})
+	c.JSON(constants.StatusOK, response)
 }
 
 // Logout handles user logout

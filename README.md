@@ -45,25 +45,40 @@ migration/
    ```
 
 4. **Set up environment variables:**
-   Create a `.env` file in the root directory with:
+   Create a `.env` file in the root directory (copy from `.env.example`):
    ```
    PORT=3000
    NODE_ENV=development
-   FIREBASE_PROJECT_ID=your-project-id
-   FIREBASE_CLIENT_EMAIL=your-client-email
-   FIREBASE_PRIVATE_KEY=your-private-key
-   FIREBASE_WEB_API_KEY=your-web-api-key
-   JWT_SECRET=your-jwt-secret
+   
+   # AWS DynamoDB
+   AWS_REGION=us-east-1
+   
+   # JWT Configuration
+   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+   JWT_EXPIRATION_HOURS=24
+   REFRESH_EXPIRATION_DAYS=30
+   
+   # Email Configuration
    EMAIL_HOST=smtp.example.com
    EMAIL_PORT=587
-   EMAIL_USER=your-email
-   EMAIL_PASSWORD=your-password
+   EMAIL_USER=your-email@example.com
+   EMAIL_PASSWORD=your-email-password
    EMAIL_FROM=noreply@example.com
    EMAIL_FROM_NAME=AR-13
    FRONTEND_URL=http://localhost:3000
    GOOGLE_CLIENT_ID=your-google-client-id
    GOOGLE_CLIENT_SECRET=your-google-client-secret
+   
+   # AWS Credentials (for local development)
+   # For EC2, use IAM role instead
+   # AWS_ACCESS_KEY_ID=your-access-key
+   # AWS_SECRET_ACCESS_KEY=your-secret-key
    ```
+   
+   **Important Notes:**
+   - **JWT_SECRET**: Use a strong random string (at least 32 characters)
+   - **AWS_REGION**: Should match your DynamoDB tables region (default: us-east-1)
+   - **AWS Credentials**: For local development, set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. For EC2 deployment, use IAM roles instead.
 
    **Important Notes for Google OAuth:**
    - **GOOGLE_CLIENT_ID**: Should be in the format `123456789-abcdefghijklmnop.apps.googleusercontent.com` (found in Google Cloud Console → APIs & Services → Credentials)

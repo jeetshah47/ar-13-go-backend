@@ -2,57 +2,46 @@ package repos
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
-	"google.golang.org/api/iterator"
 )
 
 // CalendarEventRepo handles calendar event data operations
+// TODO: Migrate to DynamoDB
 type CalendarEventRepo struct {
-	*BaseRepo
+	*DynamoBaseRepo
 }
 
 // NewCalendarEventRepo creates a new calendar event repository
 func NewCalendarEventRepo() *CalendarEventRepo {
 	return &CalendarEventRepo{
-		BaseRepo: NewBaseRepo("calendarEvents"),
+		DynamoBaseRepo: NewDynamoBaseRepo("calendar_events"),
 	}
 }
 
 // GetByMonth gets calendar events for a given month
 func (r *CalendarEventRepo) GetByMonth(ctx context.Context, month, year int) ([]models.CalendarEvent, error) {
-	// Create start date: first day of the month
+	// TODO: Implement DynamoDB scan with filter by date range
+	items, err := r.ScanItems(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-	// Create end date: first day of next month (exclusive)
 	endDate := time.Date(year, time.Month(month+1), 1, 0, 0, 0, 0, time.UTC)
 
-	iter := r.collection.Where("start", ">=", startDate).
-		Where("start", "<", endDate).
-		Documents(ctx)
-
 	var events []models.CalendarEvent
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		data := doc.Data()
-		// Convert time fields from strings/timestamps to time.Time
-		if err := ConvertTimeFieldsInMap(data, []string{"start", "end", "created", "updated"}); err != nil {
-			return nil, err
-		}
-
+	for _, item := range items {
 		var event models.CalendarEvent
-		if err := doc.DataTo(&event); err != nil {
-			return nil, err
+		if err := UnmarshalItem(item, &event); err != nil {
+			continue
 		}
-		event.ID = doc.Ref.ID
-		events = append(events, event)
+		// Filter by date range
+		if event.Start.After(startDate) && event.Start.Before(endDate) {
+			events = append(events, event)
+		}
 	}
 
 	return events, nil
@@ -60,32 +49,27 @@ func (r *CalendarEventRepo) GetByMonth(ctx context.Context, month, year int) ([]
 
 // GetByID gets a calendar event by ID
 func (r *CalendarEventRepo) GetByID(ctx context.Context, id string) (*models.CalendarEvent, error) {
-	doc, err := r.collection.Doc(id).Get(ctx)
+	item, err := r.DynamoBaseRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if !doc.Exists() {
+	if item == nil {
 		return nil, nil
 	}
 
-	data := doc.Data()
-	// Convert time fields from strings/timestamps to time.Time
-	if err := ConvertTimeFieldsInMap(data, []string{"start", "end", "created", "updated"}); err != nil {
-		return nil, err
-	}
-
 	var event models.CalendarEvent
-	if err := doc.DataTo(&event); err != nil {
+	if err := UnmarshalItem(item, &event); err != nil {
 		return nil, err
 	}
-	event.ID = doc.Ref.ID
 	return &event, nil
 }
 
 // Add creates a new calendar event
 func (r *CalendarEventRepo) Add(ctx context.Context, event *models.CalendarEvent) error {
-	newDocRef := r.collection.NewDoc()
-	event.ID = newDocRef.ID
+	// TODO: Generate ID if not set
+	if event.ID == "" {
+		event.ID = fmt.Sprintf("event-%d", time.Now().UnixNano())
+	}
 	event.Created = time.Now()
 
 	data := map[string]interface{}{
@@ -93,11 +77,11 @@ func (r *CalendarEventRepo) Add(ctx context.Context, event *models.CalendarEvent
 		"title":       event.Title,
 		"category":    event.Category,
 		"priority":    event.Priority,
-		"start":       event.Start,
-		"end":         event.End,
+		"start":       event.Start.Format(time.RFC3339),
+		"end":         event.End.Format(time.RFC3339),
 		"isRepeating": event.IsRepeating,
 		"createdBy":   event.CreatedBy,
-		"created":     event.Created,
+		"created":     event.Created.Format(time.RFC3339),
 	}
 	if event.Time != nil {
 		data["time"] = *event.Time
@@ -130,8 +114,7 @@ func (r *CalendarEventRepo) Add(ctx context.Context, event *models.CalendarEvent
 		data["googleMeetLink"] = *event.GoogleMeetLink
 	}
 
-	_, err := newDocRef.Set(ctx, data)
-	return err
+	return r.PutItem(ctx, data)
 }
 
 // Update updates a calendar event
@@ -139,54 +122,50 @@ func (r *CalendarEventRepo) Update(ctx context.Context, event *models.CalendarEv
 	now := time.Now()
 	event.Updated = &now
 
-	data := map[string]interface{}{
-		"id":          event.ID,
+	updates := map[string]interface{}{
 		"title":       event.Title,
 		"category":    event.Category,
 		"priority":    event.Priority,
-		"start":       event.Start,
-		"end":         event.End,
+		"start":       event.Start.Format(time.RFC3339),
+		"end":         event.End.Format(time.RFC3339),
 		"isRepeating": event.IsRepeating,
 		"createdBy":   event.CreatedBy,
-		"updated":     now,
 	}
 	if event.Time != nil {
-		data["time"] = *event.Time
+		updates["time"] = *event.Time
 	}
 	if event.Description != nil {
-		data["description"] = *event.Description
+		updates["description"] = *event.Description
 	}
 	if event.RepeatFrequency != nil {
-		data["repeatFrequency"] = string(*event.RepeatFrequency)
+		updates["repeatFrequency"] = string(*event.RepeatFrequency)
 	}
 	if event.RepeatDays != nil {
-		data["repeatDays"] = event.RepeatDays
+		updates["repeatDays"] = event.RepeatDays
 	}
 	if event.AddToGoogleCalendar != nil {
-		data["addToGoogleCalendar"] = *event.AddToGoogleCalendar
+		updates["addToGoogleCalendar"] = *event.AddToGoogleCalendar
 	}
 	if event.GoogleCalendarEventID != nil {
-		data["googleCalendarEventId"] = *event.GoogleCalendarEventID
+		updates["googleCalendarEventId"] = *event.GoogleCalendarEventID
 	}
 	if event.EventType != nil {
-		data["eventType"] = string(*event.EventType)
+		updates["eventType"] = string(*event.EventType)
 	}
 	if event.InvitedMemberIds != nil && len(event.InvitedMemberIds) > 0 {
-		data["invitedMemberIds"] = event.InvitedMemberIds
+		updates["invitedMemberIds"] = event.InvitedMemberIds
 	}
 	if event.Duration != nil {
-		data["duration"] = *event.Duration
+		updates["duration"] = *event.Duration
 	}
 	if event.GoogleMeetLink != nil {
-		data["googleMeetLink"] = *event.GoogleMeetLink
+		updates["googleMeetLink"] = *event.GoogleMeetLink
 	}
 
-	_, err := r.collection.Doc(event.ID).Set(ctx, data)
-	return err
+	return r.UpdateItem(ctx, event.ID, updates)
 }
 
 // Delete deletes a calendar event
 func (r *CalendarEventRepo) Delete(ctx context.Context, id string) error {
-	_, err := r.collection.Doc(id).Delete(ctx)
-	return err
+	return r.DeleteByID(ctx, id)
 }

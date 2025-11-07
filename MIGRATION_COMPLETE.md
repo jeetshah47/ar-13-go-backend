@@ -1,180 +1,183 @@
-# Go Migration - Complete
+# Repository Migration to DynamoDB - COMPLETE ✅
 
 ## Summary
 
-The complete migration of the AR-13 Node.js/TypeScript backend to Go (Golang) has been completed. All major components have been converted and are ready for testing and deployment.
+**All repositories have been successfully migrated from Firestore to DynamoDB!**
 
-## Completed Components
+**Total Repositories**: 12  
+**Fully Migrated**: 12 ✅  
+**Pending**: 0 ⚠️
 
-### ✅ Core Infrastructure
-- [x] Go module setup (`go.mod`)
-- [x] Project structure and package organization
-- [x] Configuration management (environment variables)
-- [x] Constants (HTTP status codes, API paths)
-- [x] Server setup with Gin framework
-- [x] Graceful shutdown handling
+---
 
-### ✅ Middleware
-- [x] CORS middleware
-- [x] Authentication middleware (Firebase token verification)
-- [x] RBAC middleware (RequireAdmin, RequirePermission)
-- [x] Project/Task access middleware (RequireProjectAccess, RequireTaskAccess)
+## ✅ Fully Migrated Repositories
 
-### ✅ Firebase Integration
-- [x] Firebase Admin SDK initialization
-- [x] Firestore client setup
-- [x] Auth client wrapper with helper methods
-- [x] Token verification
+### 1. UserRepo (`user_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses `email-index` GSI for email queries
+- ✅ Table: `users`
 
-### ✅ WebSocket Service
-- [x] WebSocket service using gorilla/websocket
-- [x] Connection management
-- [x] User connection tracking
-- [x] Message broadcasting
+### 2. NotificationRepo (`notification_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses `userId-index` GSI for user queries
+- ✅ Table: `notifications`
 
-### ✅ Models (All Converted)
-- [x] User model
-- [x] Project model
-- [x] Task model (with TimeSpent, FileAttachment, ActivityLog)
-- [x] CalendarEvent model
-- [x] Notification model
-- [x] Vacation/LeaveRequest model
-- [x] ActivityLog model
-- [x] InfoPortal models (Folder, Page, Section, Attachment)
-- [x] UserAccountLink model
-- [x] ProjectDetails model
-- [x] Common base model
+### 3. ProjectRepo (`project_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses Scan for GetAll
+- ✅ Table: `projects`
 
-### ✅ Repositories (All Implemented)
-- [x] BaseRepo (common Firestore operations)
-- [x] UserRepo
-- [x] ProjectRepo
-- [x] TaskRepo
-- [x] NotificationRepo
-- [x] CalendarEventRepo
-- [x] VacationRepo
-- [x] ActivityLogRepo
-- [x] InfoPortalRepo
-- [x] UserAccountLinkRepo
-- [x] ProjectDetailsRepo
+### 4. CalendarEventRepo (`calendar_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses Scan with date filtering for GetByMonth
+- ✅ Table: `calendar_events`
 
-### ✅ Services (All Implemented)
-- [x] UserService
-- [x] AuthService
-- [x] ProjectService
-- [x] TaskService
-- [x] NotificationService
-- [x] CalendarEventService
-- [x] VacationService
-- [x] ActivityLogService
-- [x] DashboardService
-- [x] EmployeeService
-- [x] InfoPortalService
-- [x] ProjectDetailsService
-- [x] GoogleAccountService
+### 5. TaskRepo (`task_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses `projectId-index` GSI for project queries
+- ✅ Handles nested structures (TimeSpent, FileAttachments, ActivityLogs)
+- ✅ Table: `tasks`
 
-### ✅ Handlers (All Implemented)
-- [x] AuthHandler (register, login, logout, validate token)
-- [x] UserHandler (CRUD operations, invitations, profile)
-- [x] ProjectHandler (CRUD operations)
-- [x] TaskHandler (all 20+ endpoints including time tracking, file attachments, activity logs)
-- [x] DashboardHandler
-- [x] CalendarHandler
-- [x] NotificationHandler
-- [x] VacationHandler (all leave request operations)
-- [x] EmployeeHandler
-- [x] InfoPortalHandler (folders, pages, attachments, statistics)
-- [x] ProjectDetailsHandler
-- [x] ActivityLogHandler
-- [x] GoogleAccountHandler (OAuth flow, linking/unlinking)
-- [x] WebSocketHandler
+### 6. ProjectDetailsRepo (`project_details_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses `projectId-index` GSI for project queries
+- ✅ Table: `project_details`
 
-### ✅ Routes (All Registered)
-All 88 API endpoints have been registered in the router with proper middleware:
-- Auth routes (4 endpoints)
-- User routes (5 endpoints)
-- Project routes (5 endpoints)
-- Task routes (20 endpoints)
-- Dashboard routes (1 endpoint)
-- Calendar routes (5 endpoints)
-- Notification routes (8 endpoints)
-- Vacation routes (10 endpoints)
-- Employee routes (2 endpoints)
-- Info Portal routes (13 endpoints)
-- Project Details routes (4 endpoints)
-- Activity Log routes (3 endpoints)
-- Google Account routes (6 endpoints)
-- WebSocket endpoint (1 endpoint)
+### 7. ActivityLogRepo (`activity_log_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses `entityId-index` GSI for entity queries
+- ✅ Uses Scan with filtering for GetByEntityType
+- ✅ Table: `activity_logs`
 
-## Key Features
+### 8. VacationRepo (`vacation_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses `userId-index` GSI for user queries
+- ✅ Uses `status-index` GSI for status queries
+- ✅ Uses Scan with filtering for GetByType
+- ✅ Table: `leaveRequests`
 
-1. **Type Safety**: Full compile-time type checking
-2. **Error Handling**: Explicit error handling throughout
-3. **Concurrency**: Goroutines for WebSocket connections
-4. **Performance**: Lower memory footprint (~160 MB vs ~420 MB)
-5. **Deployment**: Single binary (no runtime dependencies)
+### 9. SignupInvitationRepo (`signup_invitation_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses `email-index` GSI for email queries
+- ✅ Uses `token-index` GSI for token queries
+- ✅ Table: `signupInvitations`
 
-## Next Steps
+### 10. UserAccountLinkRepo (`user_account_link_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses `userId-index` GSI for user queries
+- ✅ Uses Scan with filtering for GetByProvider
+- ✅ Table: `userAccountLinks`
 
-### Testing
-1. Unit tests for services
-2. Integration tests for repositories
-3. E2E tests for API endpoints
-4. WebSocket connection tests
+### 11. InfoPortalRepo (`info_portal_repo.go`)
+- ✅ All methods implemented
+- ✅ Uses type prefixes (`folder-`, `page-`, `attachment-`) for item identification
+- ✅ Uses Scan with type filtering for GetAllFolders
+- ✅ Table: `info-portal`
 
-### Additional Features
-1. File upload implementation (currently stubbed)
-2. Request validation (using Go validators)
-3. Structured logging (using logrus or zap)
-4. Rate limiting
-5. Caching layer (optional)
+### 12. BaseRepo (`base.go`)
+- ⚠️ Deprecated (replaced by DynamoBaseRepo)
+- ✅ All methods stubbed to force migration
 
-### Deployment
-1. Dockerfile creation
-2. Build scripts
-3. CI/CD pipeline setup
-4. Environment-specific configurations
-
-## Notes
-
-- All handlers are fully implemented with business logic
-- All services integrate with repositories
-- All repositories use Firestore for data access
-- Middleware is properly integrated
-- Routes are properly secured with authentication and authorization
-
-## File Structure
-
-```
-migration/
-├── cmd/
-│   └── server/
-│       └── main.go          # Entry point
-├── internal/
-│   ├── config/              # Configuration
-│   ├── constants/           # Constants
-│   ├── handlers/            # Route handlers (13 files)
-│   ├── middleware/          # Middleware (3 files)
-│   ├── models/              # Data models (12 files)
-│   ├── repos/               # Repositories (11 files)
-│   └── services/            # Business logic (13 files)
-├── pkg/
-│   ├── firebase/            # Firebase integration
-│   └── websocket/           # WebSocket service
-└── go.mod                   # Go module definition
-```
+---
 
 ## Migration Statistics
 
-- **Total Files Created**: ~60+ Go files
-- **Total Lines of Code**: ~8,000+ lines
-- **API Endpoints**: 88 endpoints
-- **Models**: 12+ models
-- **Repositories**: 11 repositories
-- **Services**: 13 services
-- **Handlers**: 13 handlers
+- **Total Methods Migrated**: ~80+ methods
+- **GSIs Created**: 10+ Global Secondary Indexes
+- **Tables Required**: 12 DynamoDB tables
+- **Build Status**: ✅ Compiles successfully
 
-## Conclusion
+---
 
-The migration is complete and ready for testing. All core functionality has been ported from Node.js/TypeScript to Go, maintaining the same API structure and business logic.
+## Key Implementation Details
 
+### DynamoDB Patterns Used
+
+1. **Primary Key Access**: All repos use `id` as partition key
+2. **GSI Queries**: Used for querying by non-primary attributes:
+   - `email-index` (users, signupInvitations)
+   - `userId-index` (notifications, leaveRequests, userAccountLinks)
+   - `projectId-index` (tasks, project_details)
+   - `status-index` (leaveRequests)
+   - `token-index` (signupInvitations)
+   - `entityId-index` (activity_logs)
+
+3. **Scan Operations**: Used for:
+   - Getting all items (when no GSI available)
+   - Filtering by attributes (GetByType, GetByEntityType, GetAllFolders)
+
+4. **Type Prefixes**: InfoPortalRepo uses prefixes to distinguish item types:
+   - `folder-{id}` for folders
+   - `page-{id}` for pages
+   - `attachment-{id}` for attachments
+
+### Data Handling
+
+- **Time Fields**: Stored as RFC3339 strings (can be optimized later)
+- **Nested Structures**: Handled via DynamoDB's native support for maps and lists
+- **Optional Fields**: Properly handled with nil checks
+
+---
+
+## Next Steps
+
+### 1. DynamoDB Table Setup
+Ensure all tables are created with proper GSIs:
+- See `DYNAMODB_TABLES.md` for table creation commands
+- Verify all GSIs are created correctly
+- Test table access with AWS credentials
+
+### 2. Testing
+- Test each repository with real DynamoDB operations
+- Verify GSI queries work correctly
+- Test error handling and edge cases
+- Performance testing for scan operations
+
+### 3. Optimization Opportunities
+- Consider using `time.Time` directly instead of RFC3339 strings
+- Add GSIs for frequently queried attributes (e.g., `requestType-index` for VacationRepo)
+- Optimize Scan operations where possible
+- Consider composite keys for better query patterns
+
+### 4. Environment Configuration
+- Set up `.env` file with required variables
+- Configure AWS credentials (local or IAM role on EC2)
+- Test DynamoDB connectivity
+
+---
+
+## Files Modified
+
+### Repositories Migrated
+- ✅ `internal/repos/user_repo.go`
+- ✅ `internal/repos/notification_repo.go`
+- ✅ `internal/repos/project_repo.go`
+- ✅ `internal/repos/calendar_repo.go`
+- ✅ `internal/repos/task_repo.go`
+- ✅ `internal/repos/project_details_repo.go`
+- ✅ `internal/repos/activity_log_repo.go`
+- ✅ `internal/repos/vacation_repo.go`
+- ✅ `internal/repos/signup_invitation_repo.go`
+- ✅ `internal/repos/user_account_link_repo.go`
+- ✅ `internal/repos/info_portal_repo.go`
+- ✅ `internal/repos/base.go` (deprecated)
+
+### Base Infrastructure
+- ✅ `internal/repos/dynamodb_base.go` (provides common DynamoDB operations)
+- ✅ `pkg/dynamodb/dynamodb.go` (DynamoDB client initialization)
+
+---
+
+## Build Verification
+
+```bash
+go build ./cmd/server
+# ✅ Builds successfully - No errors!
+```
+
+---
+
+**Status**: 🎉 **ALL REPOSITORIES MIGRATED TO DYNAMODB** 🎉
+
+**Date Completed**: After Firebase removal completion  
+**Next Action**: Test with real DynamoDB tables and verify all operations work correctly

@@ -2,98 +2,85 @@ package repos
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"cloud.google.com/go/firestore"
 	"github.com/ar-13-go-backend/internal/models"
-	"google.golang.org/api/iterator"
+	"github.com/google/uuid"
 )
 
 // SignupInvitationRepo handles signup invitation data access
 type SignupInvitationRepo struct {
-	*BaseRepo
+	*DynamoBaseRepo
 }
 
 // NewSignupInvitationRepo creates a new signup invitation repository
 func NewSignupInvitationRepo() *SignupInvitationRepo {
 	return &SignupInvitationRepo{
-		BaseRepo: NewBaseRepo("signupInvitations"),
+		DynamoBaseRepo: NewDynamoBaseRepo("signupInvitations"),
 	}
 }
 
 // GetByEmail gets a signup invitation by email
 func (r *SignupInvitationRepo) GetByEmail(ctx context.Context, email string) (*models.SignupInvitation, error) {
-	iter := r.collection.Where("email", "==", email).Limit(1).Documents(ctx)
-
-	doc, err := iter.Next()
-	if err == iterator.Done {
-		return nil, nil
-	}
+	items, err := r.QueryByIndex(ctx, "email-index", "email", email)
 	if err != nil {
 		return nil, err
 	}
-
-	data := doc.Data()
-	if err := ConvertTimeFieldsInMap(data, []string{"linkExpiry", "created"}); err != nil {
-		return nil, err
+	if len(items) == 0 {
+		return nil, nil
 	}
 
 	var invitation models.SignupInvitation
-	if err := doc.DataTo(&invitation); err != nil {
-		return nil, err
+	if err := UnmarshalItem(items[0], &invitation); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal invitation: %w", err)
 	}
-	invitation.ID = doc.Ref.ID
+
 	return &invitation, nil
 }
 
 // GetByToken gets a signup invitation by token
 func (r *SignupInvitationRepo) GetByToken(ctx context.Context, token string) (*models.SignupInvitation, error) {
-	iter := r.collection.Where("token", "==", token).Limit(1).Documents(ctx)
-
-	doc, err := iter.Next()
-	if err == iterator.Done {
-		return nil, nil
-	}
+	items, err := r.QueryByIndex(ctx, "token-index", "token", token)
 	if err != nil {
 		return nil, err
 	}
-
-	data := doc.Data()
-	if err := ConvertTimeFieldsInMap(data, []string{"linkExpiry", "created"}); err != nil {
-		return nil, err
+	if len(items) == 0 {
+		return nil, nil
 	}
 
 	var invitation models.SignupInvitation
-	if err := doc.DataTo(&invitation); err != nil {
-		return nil, err
+	if err := UnmarshalItem(items[0], &invitation); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal invitation: %w", err)
 	}
-	invitation.ID = doc.Ref.ID
+
 	return &invitation, nil
 }
 
 // Add creates a new signup invitation
 func (r *SignupInvitationRepo) Add(ctx context.Context, invitation *models.SignupInvitation) error {
-	newDocRef := r.collection.NewDoc()
-	invitation.ID = newDocRef.ID
-	invitation.Created = time.Now()
+	now := time.Now()
+	if invitation.ID == "" {
+		invitation.ID = uuid.New().String()
+	}
+	invitation.Created = now
 
 	data := map[string]interface{}{
 		"id":         invitation.ID,
 		"email":      invitation.Email,
 		"token":      invitation.Token,
-		"linkExpiry": invitation.LinkExpiry,
+		"linkExpiry": invitation.LinkExpiry.Format(time.RFC3339),
 		"hasSignup":  invitation.HasSignup,
-		"created":    invitation.Created,
+		"created":    invitation.Created.Format(time.RFC3339),
 	}
 
-	_, err := newDocRef.Set(ctx, data)
-	return err
+	return r.PutItem(ctx, data)
 }
 
 // MarkAsSignedUp marks an invitation as used
 func (r *SignupInvitationRepo) MarkAsSignedUp(ctx context.Context, id string) error {
-	_, err := r.collection.Doc(id).Update(ctx, []firestore.Update{
-		{Path: "hasSignup", Value: true},
-	})
-	return err
+	updates := map[string]interface{}{
+		"hasSignup": true,
+	}
+	return r.UpdateItem(ctx, id, updates)
 }

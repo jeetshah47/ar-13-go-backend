@@ -2,58 +2,39 @@ package repos
 
 import (
 	"context"
+	"fmt"
+	"time"
 
-	"cloud.google.com/go/firestore"
 	"github.com/ar-13-go-backend/internal/models"
-	"github.com/ar-13-go-backend/pkg/firebase"
-	"google.golang.org/api/iterator"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 // ActivityLogRepo handles activity log data operations
 type ActivityLogRepo struct {
-	*BaseRepo
+	*DynamoBaseRepo
 }
 
 // NewActivityLogRepo creates a new activity log repository
 func NewActivityLogRepo() *ActivityLogRepo {
 	return &ActivityLogRepo{
-		BaseRepo: NewBaseRepo("activityLogs"),
+		DynamoBaseRepo: NewDynamoBaseRepo("activity_logs"),
 	}
-}
-
-// getSubCollection gets the sub-collection for an entity type
-func (r *ActivityLogRepo) getSubCollection(entityType models.ActivityLogEntityType) *firestore.CollectionRef {
-	subCollectionName := ""
-	switch entityType {
-	case models.ActivityLogEntityTypeTask:
-		subCollectionName = "taskActivityLogs"
-	case models.ActivityLogEntityTypeProject:
-		subCollectionName = "projectActivityLogs"
-	case models.ActivityLogEntityTypeUser:
-		subCollectionName = "userActivityLogs"
-	case models.ActivityLogEntityTypeCalendarEvent:
-		subCollectionName = "calendarEventActivityLogs"
-	}
-
-	return firebase.GetCollection("activityLogs").
-		Doc("logs").
-		Collection(subCollectionName)
 }
 
 // Add adds an activity log
 func (r *ActivityLogRepo) Add(ctx context.Context, log *models.ActivityLogBase) error {
-	subCollection := r.getSubCollection(log.EntityType)
-	newDocRef := subCollection.NewDoc()
-	log.ID = newDocRef.ID
+	if log.ID == "" {
+		log.ID = fmt.Sprintf("%s-%s-%d", log.EntityType, log.EntityID, time.Now().Unix())
+	}
 
 	data := map[string]interface{}{
 		"id":         log.ID,
 		"entityType": string(log.EntityType),
 		"entityId":   log.EntityID,
 		"action":     string(log.Action),
-		"createdAt":  log.CreatedAt,
+		"createdAt":  log.CreatedAt.Format(time.RFC3339),
 		"createdBy":  log.CreatedBy,
-		"created":    log.Created,
+		"created":    log.Created.Format(time.RFC3339),
 	}
 	if log.Description != nil {
 		data["description"] = *log.Description
@@ -65,38 +46,22 @@ func (r *ActivityLogRepo) Add(ctx context.Context, log *models.ActivityLogBase) 
 		data["metadata"] = log.Metadata
 	}
 
-	_, err := newDocRef.Set(ctx, data)
-	return err
+	return r.PutItem(ctx, data)
 }
 
 // GetByEntity gets activity logs for a specific entity
 func (r *ActivityLogRepo) GetByEntity(ctx context.Context, entityType models.ActivityLogEntityType, entityID string) ([]models.ActivityLogBase, error) {
-	subCollection := r.getSubCollection(entityType)
-	iter := subCollection.Where("entityId", "==", entityID).
-		OrderBy("createdAt", firestore.Desc).
-		Documents(ctx)
+	items, err := r.QueryByIndex(ctx, "entityId-index", "entityId", entityID)
+	if err != nil {
+		return nil, err
+	}
 
-	var logs []models.ActivityLogBase
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		data := doc.Data()
-		// Convert time fields from strings/timestamps to time.Time
-		if err := ConvertTimeFieldsInMap(data, []string{"createdAt", "created", "updated"}); err != nil {
-			return nil, err
-		}
-
+	logs := make([]models.ActivityLogBase, 0, len(items))
+	for _, item := range items {
 		var log models.ActivityLogBase
-		if err := doc.DataTo(&log); err != nil {
+		if err := UnmarshalItem(item, &log); err != nil {
 			return nil, err
 		}
-		log.ID = doc.Ref.ID
 		logs = append(logs, log)
 	}
 
@@ -105,36 +70,27 @@ func (r *ActivityLogRepo) GetByEntity(ctx context.Context, entityType models.Act
 
 // GetByEntityType gets activity logs by entity type
 func (r *ActivityLogRepo) GetByEntityType(ctx context.Context, entityType models.ActivityLogEntityType, limit *int) ([]models.ActivityLogBase, error) {
-	subCollection := r.getSubCollection(entityType)
-	query := subCollection.OrderBy("createdAt", firestore.Desc)
+	var limitInt32 *int32
 	if limit != nil {
-		query = query.Limit(*limit)
+		l := int32(*limit)
+		limitInt32 = &l
 	}
 
-	iter := query.Documents(ctx)
-	var logs []models.ActivityLogBase
+	items, err := r.ScanItems(ctx, limitInt32)
+	if err != nil {
+		return nil, err
+	}
 
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
+	logs := make([]models.ActivityLogBase, 0)
+	for _, item := range items {
+		// Filter by entityType
+		if et, ok := item["entityType"].(*types.AttributeValueMemberS); ok && et.Value == string(entityType) {
+			var log models.ActivityLogBase
+			if err := UnmarshalItem(item, &log); err != nil {
+				return nil, err
+			}
+			logs = append(logs, log)
 		}
-		if err != nil {
-			return nil, err
-		}
-
-		data := doc.Data()
-		// Convert time fields from strings/timestamps to time.Time
-		if err := ConvertTimeFieldsInMap(data, []string{"createdAt", "created", "updated"}); err != nil {
-			return nil, err
-		}
-
-		var log models.ActivityLogBase
-		if err := doc.DataTo(&log); err != nil {
-			return nil, err
-		}
-		log.ID = doc.Ref.ID
-		logs = append(logs, log)
 	}
 
 	return logs, nil

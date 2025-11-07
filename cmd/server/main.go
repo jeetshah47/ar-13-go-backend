@@ -13,7 +13,8 @@ import (
 	"github.com/ar-13-go-backend/internal/config"
 	"github.com/ar-13-go-backend/internal/handlers"
 	"github.com/ar-13-go-backend/internal/middleware"
-	"github.com/ar-13-go-backend/pkg/firebase"
+	"github.com/ar-13-go-backend/pkg/dynamodb"
+	"github.com/ar-13-go-backend/pkg/jwt"
 	"github.com/ar-13-go-backend/pkg/websocket"
 	"github.com/gin-gonic/gin"
 )
@@ -30,11 +31,18 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// Initialize Firebase
-	_, err = firebase.InitializeFirebase(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize Firebase: %v", err)
+	// Initialize JWT
+	if cfg.JWTSecret == "" {
+		log.Fatal("JWT_SECRET is required")
 	}
+	jwt.InitializeJWT(cfg.JWTSecret)
+
+	// Initialize DynamoDB
+	_, err = dynamodb.InitializeDynamoDB(cfg.AWSRegion)
+	if err != nil {
+		log.Fatalf("Failed to initialize DynamoDB: %v", err)
+	}
+	log.Println("DynamoDB initialized successfully")
 
 	// Create router
 	router := gin.New()

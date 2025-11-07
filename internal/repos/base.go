@@ -5,21 +5,18 @@ import (
 	"fmt"
 	"strconv"
 	"time"
-
-	"cloud.google.com/go/firestore"
-	"github.com/ar-13-go-backend/pkg/firebase"
 )
 
-// BaseRepo provides common repository functionality
+// BaseRepo provides common repository functionality (DEPRECATED - Use DynamoBaseRepo instead)
+// This is kept for backward compatibility but should not be used for new code
 type BaseRepo struct {
-	collection *firestore.CollectionRef
+	// Deprecated: Use DynamoBaseRepo instead
 }
 
-// NewBaseRepo creates a new base repository
+// NewBaseRepo creates a new base repository (DEPRECATED)
+// Use NewDynamoBaseRepo instead
 func NewBaseRepo(collectionName string) *BaseRepo {
-	return &BaseRepo{
-		collection: firebase.GetCollection(collectionName),
-	}
+	return &BaseRepo{}
 }
 
 // SetTimestamps sets created and updated timestamps
@@ -31,29 +28,24 @@ func (r *BaseRepo) SetTimestamps(data map[string]interface{}, isUpdate bool) {
 	data["updated"] = now
 }
 
-// GetCollection returns the collection reference
-func (r *BaseRepo) GetCollection() *firestore.CollectionRef {
-	return r.collection
+// GetCollection returns the collection reference (DEPRECATED)
+func (r *BaseRepo) GetCollection() interface{} {
+	return nil
 }
 
-// GetByID gets a document by ID
-func (r *BaseRepo) GetByID(ctx context.Context, id string) (*firestore.DocumentSnapshot, error) {
-	return r.collection.Doc(id).Get(ctx)
+// GetByID gets a document by ID (DEPRECATED)
+func (r *BaseRepo) GetByID(ctx context.Context, id string) (interface{}, error) {
+	return nil, fmt.Errorf("BaseRepo is deprecated, use DynamoBaseRepo instead")
 }
 
-// DeleteByID deletes a document by ID
+// DeleteByID deletes a document by ID (DEPRECATED)
 func (r *BaseRepo) DeleteByID(ctx context.Context, id string) error {
-	_, err := r.collection.Doc(id).Delete(ctx)
-	return err
+	return fmt.Errorf("BaseRepo is deprecated, use DynamoBaseRepo instead")
 }
 
-// Exists checks if a document exists
+// Exists checks if a document exists (DEPRECATED)
 func (r *BaseRepo) Exists(ctx context.Context, id string) (bool, error) {
-	doc, err := r.collection.Doc(id).Get(ctx)
-	if err != nil {
-		return false, err
-	}
-	return doc.Exists(), nil
+	return false, fmt.Errorf("BaseRepo is deprecated, use DynamoBaseRepo instead")
 }
 
 // ConvertToTime converts a value to time.Time, handling strings, time.Time, Unix timestamps, and Firestore timestamps

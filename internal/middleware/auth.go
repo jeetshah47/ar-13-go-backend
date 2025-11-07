@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/ar-13-go-backend/internal/constants"
-	"github.com/ar-13-go-backend/pkg/firebase"
+	"github.com/ar-13-go-backend/pkg/jwt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,7 +15,7 @@ type UserKey string
 const UserIDKey UserKey = "userId"
 const UserEmailKey UserKey = "userEmail"
 
-// AuthenticateUser middleware validates Firebase ID token
+// AuthenticateUser middleware validates JWT token
 func AuthenticateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -40,9 +40,8 @@ func AuthenticateUser() gin.HandlerFunc {
 			return
 		}
 
-		// Verify token with Firebase
-		authClient := firebase.GetFirebaseClient()
-		decodedToken, err := authClient.VerifyIDToken(c.Request.Context(), token)
+		// Verify JWT token
+		claims, err := jwt.VerifyToken(token)
 		if err != nil {
 			c.JSON(constants.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
@@ -50,11 +49,8 @@ func AuthenticateUser() gin.HandlerFunc {
 		}
 
 		// Store user info in context
-		userID := decodedToken.UID
-		email := ""
-		if e, ok := decodedToken.Claims["email"].(string); ok {
-			email = e
-		}
+		userID := claims.UserID
+		email := claims.Email
 
 		ctx := context.WithValue(c.Request.Context(), UserIDKey, userID)
 		ctx = context.WithValue(ctx, UserEmailKey, email)
@@ -62,6 +58,7 @@ func AuthenticateUser() gin.HandlerFunc {
 
 		c.Set("userId", userID)
 		c.Set("userEmail", email)
+		c.Set("userRole", claims.Role)
 
 		c.Next()
 	}

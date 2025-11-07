@@ -2,77 +2,56 @@ package repos
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"cloud.google.com/go/firestore"
 	"github.com/ar-13-go-backend/internal/models"
-	"github.com/ar-13-go-backend/pkg/firebase"
-	"google.golang.org/api/iterator"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/google/uuid"
 )
 
 // NotificationRepo handles notification data operations
 type NotificationRepo struct {
-	*BaseRepo
+	*DynamoBaseRepo
 }
 
 // NewNotificationRepo creates a new notification repository
 func NewNotificationRepo() *NotificationRepo {
 	return &NotificationRepo{
-		BaseRepo: NewBaseRepo("notifications"),
+		DynamoBaseRepo: NewDynamoBaseRepo("notifications"),
 	}
 }
 
 // GetByID gets a notification by ID
 func (r *NotificationRepo) GetByID(ctx context.Context, id string) (*models.Notification, error) {
-	doc, err := r.collection.Doc(id).Get(ctx)
+	item, err := r.DynamoBaseRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if !doc.Exists() {
+	if item == nil {
 		return nil, nil
 	}
 
-	data := doc.Data()
-	// Convert time fields from strings/timestamps to time.Time
-	if err := ConvertTimeFieldsInMap(data, []string{"createdAt", "created", "updated"}); err != nil {
-		return nil, err
-	}
-
 	var notification models.Notification
-	if err := doc.DataTo(&notification); err != nil {
+	if err := UnmarshalItem(item, &notification); err != nil {
 		return nil, err
 	}
-	notification.ID = doc.Ref.ID
 	return &notification, nil
 }
 
 // GetAll gets all notifications for a user
 func (r *NotificationRepo) GetAll(ctx context.Context, userID string) ([]models.Notification, error) {
-	// Use "created" field for ordering as it's part of Model and more likely to be indexed
-	iter := r.collection.Where("userId", "==", userID).OrderBy("created", firestore.Desc).Documents(ctx)
-	var notifications []models.Notification
+	// Query by userId using GSI
+	items, err := r.QueryByIndex(ctx, "userId-index", "userId", userID)
+	if err != nil {
+		return nil, err
+	}
 
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		data := doc.Data()
-		// Convert time fields from strings/timestamps to time.Time
-		if err := ConvertTimeFieldsInMap(data, []string{"createdAt", "created", "updated"}); err != nil {
-			return nil, err
-		}
-
+	notifications := make([]models.Notification, 0, len(items))
+	for _, item := range items {
 		var notification models.Notification
-		if err := doc.DataTo(&notification); err != nil {
+		if err := UnmarshalItem(item, &notification); err != nil {
 			return nil, err
 		}
-		notification.ID = doc.Ref.ID
 		notifications = append(notifications, notification)
 	}
 
@@ -80,73 +59,43 @@ func (r *NotificationRepo) GetAll(ctx context.Context, userID string) ([]models.
 }
 
 // GetUnread gets unread notifications for a user
-// Note: This query requires a composite index on (userId, isRead, created) in Firestore
-// If the index doesn't exist, Firestore will return an error with instructions to create it
 func (r *NotificationRepo) GetUnread(ctx context.Context, userID string) ([]models.Notification, error) {
-	// Use "created" field for ordering as it's part of Model and more likely to be indexed
-	// Query order: filter fields first, then order by
-	query := r.collection.Where("userId", "==", userID).Where("isRead", "==", false).OrderBy("created", firestore.Desc)
-	iter := query.Documents(ctx)
-	var notifications []models.Notification
+	// Query by userId using GSI, then filter by isRead
+	items, err := r.QueryByIndex(ctx, "userId-index", "userId", userID)
+	if err != nil {
+		return nil, err
+	}
 
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
+	notifications := make([]models.Notification, 0)
+	for _, item := range items {
+		// Filter by isRead
+		if isRead, ok := item["isRead"].(*types.AttributeValueMemberBOOL); ok && !isRead.Value {
+			var notification models.Notification
+			if err := UnmarshalItem(item, &notification); err != nil {
+				return nil, err
+			}
+			notifications = append(notifications, notification)
 		}
-		if err != nil {
-			return nil, err
-		}
-
-		data := doc.Data()
-		// Convert time fields from strings/timestamps to time.Time
-		if err := ConvertTimeFieldsInMap(data, []string{"createdAt", "created", "updated"}); err != nil {
-			return nil, err
-		}
-
-		var notification models.Notification
-		if err := doc.DataTo(&notification); err != nil {
-			return nil, err
-		}
-		notification.ID = doc.Ref.ID
-		notifications = append(notifications, notification)
 	}
 
 	return notifications, nil
 }
 
 // GetCount gets notification count for a user
-// Optimized: Uses Select() to only fetch the isRead field, reducing data transfer by ~90%
-// IMPORTANT: This still counts as document reads in Firestore quota
-//
-// To prevent quota exhaustion:
-// 1. Implement caching on the frontend/backend (cache for 30-60 seconds)
-// 2. Consider implementing a counter document that gets updated when notifications change
-// 3. Monitor Firestore quotas in Google Cloud Console
-// 4. For users with >1000 notifications, consider pagination or archiving old notifications
 func (r *NotificationRepo) GetCount(ctx context.Context, userID string) (total, unread int, err error) {
-	// Use Select() to only fetch the isRead field - reduces data transfer significantly
-	// This still counts as document reads but minimizes bandwidth (only ~10 bytes per doc vs full doc)
-	iter := r.collection.Where("userId", "==", userID).Select("isRead").Documents(ctx)
+	// Query by userId using GSI
+	items, err := r.QueryByIndex(ctx, "userId-index", "userId", userID)
+	if err != nil {
+		return 0, 0, err
+	}
 
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return 0, 0, err
-		}
-
-		total++
-
+	total = len(items)
+	for _, item := range items {
 		// Check if notification is unread
-		// With Select(), only the isRead field is available
-		data := doc.Data()
-		if isRead, ok := data["isRead"].(bool); ok && !isRead {
+		if isRead, ok := item["isRead"].(*types.AttributeValueMemberBOOL); ok && !isRead.Value {
 			unread++
-		} else if isReadVal, ok := data["isRead"]; !ok || isReadVal == nil {
-			// If isRead field doesn't exist or is nil, treat as unread
+		} else if _, ok := item["isRead"]; !ok {
+			// If isRead field doesn't exist, treat as unread
 			unread++
 		}
 	}
@@ -156,12 +105,12 @@ func (r *NotificationRepo) GetCount(ctx context.Context, userID string) (total, 
 
 // Add creates a new notification
 func (r *NotificationRepo) Add(ctx context.Context, notification *models.Notification) error {
-	newDocRef := r.collection.NewDoc()
 	now := time.Now()
-	notification.ID = newDocRef.ID
+	if notification.ID == "" {
+		notification.ID = uuid.New().String()
+	}
 	notification.Created = now
 	notification.CreatedAt = now
-	// Initialize Updated as nil for new documents
 	notification.Updated = nil
 
 	data := map[string]interface{}{
@@ -173,67 +122,41 @@ func (r *NotificationRepo) Add(ctx context.Context, notification *models.Notific
 		"relatedEntityId":   notification.RelatedEntityID,
 		"relatedEntityType": string(notification.RelatedEntityType),
 		"isRead":            notification.IsRead,
-		"createdAt":         notification.CreatedAt,
-		"created":           notification.Created,
-		// Don't set "updated" for new documents
+		"createdAt":         notification.CreatedAt.Format(time.RFC3339),
+		"created":           notification.Created.Format(time.RFC3339),
 	}
 
-	_, err := newDocRef.Set(ctx, data)
-	return err
+	return r.PutItem(ctx, data)
 }
 
 // MarkAsRead marks a notification as read
 func (r *NotificationRepo) MarkAsRead(ctx context.Context, id string) error {
-	// Check if document exists first
-	doc, err := r.collection.Doc(id).Get(ctx)
-	if err != nil {
-		return err
+	updates := map[string]interface{}{
+		"isRead": true,
 	}
-	if !doc.Exists() {
-		return fmt.Errorf("notification not found")
-	}
-
-	_, err = r.collection.Doc(id).Update(ctx, []firestore.Update{
-		{Path: "isRead", Value: true},
-		{Path: "updated", Value: time.Now()},
-	})
-	return err
+	return r.UpdateItem(ctx, id, updates)
 }
 
 // MarkAllAsRead marks all notifications as read for a user
 func (r *NotificationRepo) MarkAllAsRead(ctx context.Context, userID string) error {
-	iter := r.collection.Where("userId", "==", userID).Where("isRead", "==", false).Documents(ctx)
-	batch := firebase.GetFirestoreClient().Batch()
-	updateCount := 0
-
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		batch.Update(doc.Ref, []firestore.Update{
-			{Path: "isRead", Value: true},
-			{Path: "updated", Value: time.Now()},
-		})
-		updateCount++
-
-		// Firestore batch limit is 500
-		if updateCount >= 500 {
-			if _, err := batch.Commit(ctx); err != nil {
-				return err
-			}
-			batch = firebase.GetFirestoreClient().Batch()
-			updateCount = 0
-		}
+	// Get all unread notifications
+	items, err := r.QueryByIndex(ctx, "userId-index", "userId", userID)
+	if err != nil {
+		return err
 	}
 
-	if updateCount > 0 {
-		_, err := batch.Commit(ctx)
-		return err
+	// Update each unread notification
+	for _, item := range items {
+		if isRead, ok := item["isRead"].(*types.AttributeValueMemberBOOL); ok && !isRead.Value {
+			if id, ok := item["id"].(*types.AttributeValueMemberS); ok {
+				updates := map[string]interface{}{
+					"isRead": true,
+				}
+				if err := r.UpdateItem(ctx, id.Value, updates); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
@@ -241,41 +164,24 @@ func (r *NotificationRepo) MarkAllAsRead(ctx context.Context, userID string) err
 
 // Delete deletes a notification
 func (r *NotificationRepo) Delete(ctx context.Context, id string) error {
-	_, err := r.collection.Doc(id).Delete(ctx)
-	return err
+	return r.DeleteByID(ctx, id)
 }
 
 // DeleteAllForUser deletes all notifications for a user
 func (r *NotificationRepo) DeleteAllForUser(ctx context.Context, userID string) error {
-	iter := r.collection.Where("userId", "==", userID).Documents(ctx)
-	batch := firebase.GetFirestoreClient().Batch()
-	deleteCount := 0
-
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		batch.Delete(doc.Ref)
-		deleteCount++
-
-		// Firestore batch limit is 500
-		if deleteCount >= 500 {
-			if _, err := batch.Commit(ctx); err != nil {
-				return err
-			}
-			batch = firebase.GetFirestoreClient().Batch()
-			deleteCount = 0
-		}
+	// Get all notifications for user
+	items, err := r.QueryByIndex(ctx, "userId-index", "userId", userID)
+	if err != nil {
+		return err
 	}
 
-	if deleteCount > 0 {
-		_, err := batch.Commit(ctx)
-		return err
+	// Delete each notification
+	for _, item := range items {
+		if id, ok := item["id"].(*types.AttributeValueMemberS); ok {
+			if err := r.DeleteByID(ctx, id.Value); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

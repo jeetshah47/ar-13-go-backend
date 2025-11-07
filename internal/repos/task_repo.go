@@ -3,237 +3,58 @@ package repos
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
-	"cloud.google.com/go/firestore"
 	"github.com/ar-13-go-backend/internal/models"
-	"github.com/ar-13-go-backend/pkg/firebase"
-	"google.golang.org/api/iterator"
+	"github.com/google/uuid"
 )
 
 // TaskRepo handles task data operations
 type TaskRepo struct {
-	*BaseRepo
+	*DynamoBaseRepo
 }
 
 // NewTaskRepo creates a new task repository
 func NewTaskRepo() *TaskRepo {
 	return &TaskRepo{
-		BaseRepo: NewBaseRepo("tasks"), // Will use subcollection
+		DynamoBaseRepo: NewDynamoBaseRepo("tasks"),
 	}
-}
-
-// getCollection gets the tasks collection for a project
-func (r *TaskRepo) getCollection(projectID string) *firestore.CollectionRef {
-	return firebase.GetCollection("projects").Doc(projectID).Collection("tasks")
-}
-
-// dataToTask converts a data map to a Task struct
-func (r *TaskRepo) dataToTask(data map[string]interface{}, id string) (*models.Task, error) {
-	task := &models.Task{}
-	task.ID = id
-
-	// Convert time fields from strings/timestamps to time.Time
-	timeFields := []string{"duration", "created", "updated"}
-	if err := ConvertTimeFieldsInMap(data, timeFields); err != nil {
-		return nil, err
-	}
-
-	// Populate basic fields
-	if subject, ok := data["subject"].(string); ok {
-		task.Subject = subject
-	}
-	if code, ok := data["code"].(string); ok {
-		task.Code = code
-	}
-	if status, ok := data["status"].(string); ok {
-		task.Status = status
-	}
-	if priority, ok := data["priority"].(string); ok {
-		task.Priority = priority
-	}
-	if projectID, ok := data["projectId"].(string); ok {
-		task.ProjectID = projectID
-	}
-	if description, ok := data["description"].(string); ok {
-		task.Description = &description
-	}
-
-	// Handle duration
-	if durationVal, ok := data["duration"]; ok && durationVal != nil {
-		if duration, err := ConvertToTime(durationVal); err == nil {
-			task.Duration = duration
-		}
-	}
-
-	// Handle created
-	if createdVal, ok := data["created"]; ok && createdVal != nil {
-		if created, err := ConvertToTime(createdVal); err == nil {
-			task.Created = created
-		}
-	}
-
-	// Handle updated
-	if updatedVal, ok := data["updated"]; ok && updatedVal != nil {
-		if updated, err := ConvertToTime(updatedVal); err == nil {
-			task.Updated = &updated
-		}
-	}
-
-	// Handle assignTo
-	if assignTo, ok := data["assignTo"].([]interface{}); ok {
-		task.AssignTo = make([]string, 0, len(assignTo))
-		for _, id := range assignTo {
-			if strID, ok := id.(string); ok {
-				task.AssignTo = append(task.AssignTo, strID)
-			}
-		}
-	}
-
-	// Handle timeSpent
-	if timeSpent, ok := data["timeSpent"].([]interface{}); ok {
-		task.TimeSpent = make([]models.TimeSpent, 0, len(timeSpent))
-		for _, ts := range timeSpent {
-			if tsMap, ok := ts.(map[string]interface{}); ok {
-				timeSpentItem := models.TimeSpent{}
-				if date, ok := tsMap["date"].(string); ok {
-					timeSpentItem.Date = date
-				}
-				if timeSpentVal, ok := tsMap["timeSpent"].(int64); ok {
-					timeSpentItem.TimeSpent = int(timeSpentVal)
-				} else if timeSpentVal, ok := tsMap["timeSpent"].(int); ok {
-					timeSpentItem.TimeSpent = timeSpentVal
-				}
-				if userID, ok := tsMap["userId"].(string); ok {
-					timeSpentItem.UserID = userID
-				}
-				if desc, ok := tsMap["description"].(string); ok {
-					timeSpentItem.Description = &desc
-				}
-				task.TimeSpent = append(task.TimeSpent, timeSpentItem)
-			}
-		}
-	}
-
-	// Handle fileAttachments
-	if fileAttachments, ok := data["fileAttachments"].([]interface{}); ok {
-		task.FileAttachments = make([]models.FileAttachment, 0, len(fileAttachments))
-		for _, fa := range fileAttachments {
-			if faMap, ok := fa.(map[string]interface{}); ok {
-				// Convert uploadDate
-				if err := ConvertTimeFieldsInMap(faMap, []string{"uploadDate"}); err != nil {
-					return nil, err
-				}
-
-				attachment := models.FileAttachment{}
-				if fileName, ok := faMap["fileName"].(string); ok {
-					attachment.FileName = fileName
-				}
-				if originalName, ok := faMap["originalName"].(string); ok {
-					attachment.OriginalName = originalName
-				}
-				if fileSize, ok := faMap["fileSize"].(int64); ok {
-					attachment.FileSize = fileSize
-				}
-				if mimeType, ok := faMap["mimeType"].(string); ok {
-					attachment.MimeType = mimeType
-				}
-				if uploadDateVal, ok := faMap["uploadDate"]; ok && uploadDateVal != nil {
-					if uploadDate, err := ConvertToTime(uploadDateVal); err == nil {
-						attachment.UploadDate = uploadDate
-					}
-				}
-				if uploadedBy, ok := faMap["uploadedBy"].(string); ok {
-					attachment.UploadedBy = uploadedBy
-				}
-				if fileURL, ok := faMap["fileUrl"].(string); ok {
-					attachment.FileURL = fileURL
-				}
-				task.FileAttachments = append(task.FileAttachments, attachment)
-			}
-		}
-	}
-
-	// Handle activityLogs
-	if activityLogs, ok := data["activityLogs"].([]interface{}); ok {
-		task.ActivityLogs = make([]models.ActivityLog, 0, len(activityLogs))
-		for _, al := range activityLogs {
-			if alMap, ok := al.(map[string]interface{}); ok {
-				// Convert timestamp
-				if err := ConvertTimeFieldsInMap(alMap, []string{"timestamp"}); err != nil {
-					return nil, err
-				}
-
-				log := models.ActivityLog{}
-				if logID, ok := alMap["id"].(string); ok {
-					log.ID = logID
-				}
-				if logType, ok := alMap["type"].(string); ok {
-					log.Type = models.ActivityType(logType)
-				}
-				if timestampVal, ok := alMap["timestamp"]; ok && timestampVal != nil {
-					if timestamp, err := ConvertToTime(timestampVal); err == nil {
-						log.Timestamp = timestamp
-					}
-				}
-				if userID, ok := alMap["userId"].(string); ok {
-					log.UserID = userID
-				}
-				if userName, ok := alMap["userName"].(string); ok {
-					log.UserName = &userName
-				}
-				if description, ok := alMap["description"].(string); ok {
-					log.Description = description
-				}
-				if metadata, ok := alMap["metadata"].(map[string]interface{}); ok {
-					log.Metadata = metadata
-				}
-				task.ActivityLogs = append(task.ActivityLogs, log)
-			}
-		}
-	}
-
-	return task, nil
 }
 
 // GetByID gets a task by ID
+// Note: projectID parameter is kept for API compatibility but not used in DynamoDB query
 func (r *TaskRepo) GetByID(ctx context.Context, projectID, taskID string) (*models.Task, error) {
-	doc, err := r.getCollection(projectID).Doc(taskID).Get(ctx)
+	item, err := r.DynamoBaseRepo.GetByID(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}
-	if !doc.Exists() {
+	if item == nil {
 		return nil, nil
 	}
 
-	data := doc.Data()
-	task, err := r.dataToTask(data, doc.Ref.ID)
-	if err != nil {
-		return nil, err
+	var task models.Task
+	if err := UnmarshalItem(item, &task); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal task: %w", err)
 	}
-	return task, nil
+
+	return &task, nil
 }
 
 // GetAll gets all tasks for a project
 func (r *TaskRepo) GetAll(ctx context.Context, projectID string) ([]models.Task, error) {
-	iter := r.getCollection(projectID).Documents(ctx)
-	var tasks []models.Task
+	items, err := r.QueryByIndex(ctx, "projectId-index", "projectId", projectID)
+	if err != nil {
+		return nil, err
+	}
 
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
+	tasks := make([]models.Task, 0, len(items))
+	for _, item := range items {
+		var task models.Task
+		if err := UnmarshalItem(item, &task); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal task: %w", err)
 		}
-		if err != nil {
-			return nil, err
-		}
-
-		data := doc.Data()
-		task, err := r.dataToTask(data, doc.Ref.ID)
-		if err != nil {
-			return nil, err
-		}
-		tasks = append(tasks, *task)
+		tasks = append(tasks, task)
 	}
 
 	return tasks, nil
@@ -241,10 +62,13 @@ func (r *TaskRepo) GetAll(ctx context.Context, projectID string) ([]models.Task,
 
 // Add creates a new task
 func (r *TaskRepo) Add(ctx context.Context, task *models.Task) error {
-	newDocRef := r.getCollection(task.ProjectID).NewDoc()
-	task.ID = newDocRef.ID
-	task.Created = time.Now()
+	now := time.Now()
+	if task.ID == "" {
+		task.ID = uuid.New().String()
+	}
+	task.Created = now
 
+	// Initialize empty slices if nil
 	if task.TimeSpent == nil {
 		task.TimeSpent = []models.TimeSpent{}
 	}
@@ -254,27 +78,30 @@ func (r *TaskRepo) Add(ctx context.Context, task *models.Task) error {
 	if task.ActivityLogs == nil {
 		task.ActivityLogs = []models.ActivityLog{}
 	}
+	if task.AssignTo == nil {
+		task.AssignTo = []string{}
+	}
 
 	data := map[string]interface{}{
 		"id":              task.ID,
 		"subject":         task.Subject,
 		"code":            task.Code,
 		"status":          task.Status,
-		"duration":        task.Duration,
+		"duration":        task.Duration.Format(time.RFC3339),
 		"priority":        task.Priority,
 		"assignTo":        task.AssignTo,
 		"projectId":       task.ProjectID,
 		"timeSpent":       task.TimeSpent,
 		"fileAttachments": task.FileAttachments,
 		"activityLogs":    task.ActivityLogs,
-		"created":         task.Created,
+		"created":         task.Created.Format(time.RFC3339),
 	}
+
 	if task.Description != nil {
 		data["description"] = *task.Description
 	}
 
-	_, err := newDocRef.Set(ctx, data)
-	return err
+	return r.PutItem(ctx, data)
 }
 
 // Update updates a task
@@ -282,59 +109,55 @@ func (r *TaskRepo) Update(ctx context.Context, task *models.Task) error {
 	now := time.Now()
 	task.Updated = &now
 
-	data := map[string]interface{}{
-		"id":              task.ID,
+	updates := map[string]interface{}{
 		"subject":         task.Subject,
 		"code":            task.Code,
 		"status":          task.Status,
-		"duration":        task.Duration,
+		"duration":        task.Duration.Format(time.RFC3339),
 		"priority":        task.Priority,
 		"assignTo":        task.AssignTo,
 		"projectId":       task.ProjectID,
 		"timeSpent":       task.TimeSpent,
 		"fileAttachments": task.FileAttachments,
 		"activityLogs":    task.ActivityLogs,
-		"updated":         now,
-	}
-	if task.Description != nil {
-		data["description"] = *task.Description
+		"updated":         task.Updated.Format(time.RFC3339),
 	}
 
-	_, err := r.getCollection(task.ProjectID).Doc(task.ID).Set(ctx, data)
-	return err
+	if task.Description != nil {
+		updates["description"] = *task.Description
+	}
+
+	return r.UpdateItem(ctx, task.ID, updates)
 }
 
 // Delete deletes a task
+// Note: projectID parameter is kept for API compatibility but not used in DynamoDB query
 func (r *TaskRepo) Delete(ctx context.Context, projectID, taskID string) error {
-	_, err := r.getCollection(projectID).Doc(taskID).Delete(ctx)
-	return err
+	return r.DeleteByID(ctx, taskID)
 }
 
 // UpdateDuration updates task duration
 func (r *TaskRepo) UpdateDuration(ctx context.Context, projectID, taskID string, duration time.Time) error {
-	_, err := r.getCollection(projectID).Doc(taskID).Update(ctx, []firestore.Update{
-		{Path: "duration", Value: duration},
-		{Path: "updated", Value: time.Now()},
-	})
-	return err
+	updates := map[string]interface{}{
+		"duration": duration.Format(time.RFC3339),
+	}
+	return r.UpdateItem(ctx, taskID, updates)
 }
 
 // UpdateDescription updates task description
 func (r *TaskRepo) UpdateDescription(ctx context.Context, projectID, taskID string, description string) error {
-	_, err := r.getCollection(projectID).Doc(taskID).Update(ctx, []firestore.Update{
-		{Path: "description", Value: description},
-		{Path: "updated", Value: time.Now()},
-	})
-	return err
+	updates := map[string]interface{}{
+		"description": description,
+	}
+	return r.UpdateItem(ctx, taskID, updates)
 }
 
 // UpdateStatus updates task status
 func (r *TaskRepo) UpdateStatus(ctx context.Context, projectID, taskID, status string) error {
-	_, err := r.getCollection(projectID).Doc(taskID).Update(ctx, []firestore.Update{
-		{Path: "status", Value: status},
-		{Path: "updated", Value: time.Now()},
-	})
-	return err
+	updates := map[string]interface{}{
+		"status": status,
+	}
+	return r.UpdateItem(ctx, taskID, updates)
 }
 
 // AddTimeSpent adds a time spent entry
@@ -348,11 +171,10 @@ func (r *TaskRepo) AddTimeSpent(ctx context.Context, projectID, taskID string, t
 	}
 
 	task.TimeSpent = append(task.TimeSpent, timeSpent)
-	_, err = r.getCollection(projectID).Doc(taskID).Update(ctx, []firestore.Update{
-		{Path: "timeSpent", Value: task.TimeSpent},
-		{Path: "updated", Value: time.Now()},
-	})
-	return err
+	updates := map[string]interface{}{
+		"timeSpent": task.TimeSpent,
+	}
+	return r.UpdateItem(ctx, taskID, updates)
 }
 
 // UpdateTimeSpent updates a time spent entry
@@ -370,11 +192,10 @@ func (r *TaskRepo) UpdateTimeSpent(ctx context.Context, projectID, taskID string
 	}
 
 	task.TimeSpent[index] = timeSpent
-	_, err = r.getCollection(projectID).Doc(taskID).Update(ctx, []firestore.Update{
-		{Path: "timeSpent", Value: task.TimeSpent},
-		{Path: "updated", Value: time.Now()},
-	})
-	return err
+	updates := map[string]interface{}{
+		"timeSpent": task.TimeSpent,
+	}
+	return r.UpdateItem(ctx, taskID, updates)
 }
 
 // RemoveTimeSpent removes a time spent entry
@@ -392,11 +213,10 @@ func (r *TaskRepo) RemoveTimeSpent(ctx context.Context, projectID, taskID string
 	}
 
 	task.TimeSpent = append(task.TimeSpent[:index], task.TimeSpent[index+1:]...)
-	_, err = r.getCollection(projectID).Doc(taskID).Update(ctx, []firestore.Update{
-		{Path: "timeSpent", Value: task.TimeSpent},
-		{Path: "updated", Value: time.Now()},
-	})
-	return err
+	updates := map[string]interface{}{
+		"timeSpent": task.TimeSpent,
+	}
+	return r.UpdateItem(ctx, taskID, updates)
 }
 
 // AddFileAttachment adds a file attachment
@@ -410,11 +230,10 @@ func (r *TaskRepo) AddFileAttachment(ctx context.Context, projectID, taskID stri
 	}
 
 	task.FileAttachments = append(task.FileAttachments, attachment)
-	_, err = r.getCollection(projectID).Doc(taskID).Update(ctx, []firestore.Update{
-		{Path: "fileAttachments", Value: task.FileAttachments},
-		{Path: "updated", Value: time.Now()},
-	})
-	return err
+	updates := map[string]interface{}{
+		"fileAttachments": task.FileAttachments,
+	}
+	return r.UpdateItem(ctx, taskID, updates)
 }
 
 // RemoveFileAttachment removes a file attachment
@@ -432,11 +251,10 @@ func (r *TaskRepo) RemoveFileAttachment(ctx context.Context, projectID, taskID s
 	}
 
 	task.FileAttachments = append(task.FileAttachments[:index], task.FileAttachments[index+1:]...)
-	_, err = r.getCollection(projectID).Doc(taskID).Update(ctx, []firestore.Update{
-		{Path: "fileAttachments", Value: task.FileAttachments},
-		{Path: "updated", Value: time.Now()},
-	})
-	return err
+	updates := map[string]interface{}{
+		"fileAttachments": task.FileAttachments,
+	}
+	return r.UpdateItem(ctx, taskID, updates)
 }
 
 // GetTimeSpent gets time spent entries

@@ -1,18 +1,17 @@
 package services
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/ar-13-go-backend/internal/config"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/repos"
-	"github.com/ar-13-go-backend/pkg/firebase"
+	"github.com/ar-13-go-backend/pkg/jwt"
+	"github.com/ar-13-go-backend/pkg/password"
+	"github.com/google/uuid"
 )
 
 // AuthService handles authentication business logic
@@ -31,78 +30,80 @@ func NewAuthService(cfg *config.Config) *AuthService {
 	}
 }
 
-// FirebaseAuthResponse represents Firebase auth response
-type FirebaseAuthResponse struct {
-	IDToken      string `json:"idToken"`
-	Email        string `json:"email"`
+// LoginResponse represents login response with tokens
+type LoginResponse struct {
+	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
-	ExpiresIn    string `json:"expiresIn"`
-	LocalID      string `json:"localId"`
-	Registered   bool   `json:"registered"`
+	ExpiresIn    int    `json:"expiresIn"` // in seconds
 }
 
 // Login logs in a user
-func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (string, error) {
-	url := fmt.Sprintf("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=%s", s.config.FirebaseWebAPIKey)
-
-	payload := map[string]interface{}{
-		"email":             req.Email,
-		"password":          req.Password,
-		"returnSecureToken": true,
-	}
-
-	jsonData, err := json.Marshal(payload)
+func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*LoginResponse, error) {
+	// Get user by email
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+	if user == nil {
+		return nil, errors.New("invalid credentials")
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	// Verify password
+	if !password.CheckPasswordHash(req.Password, user.Password) {
+		return nil, errors.New("invalid credentials")
+	}
+
+	// Generate JWT token
+	expirationHours := s.config.JWTExpiration
+	if expirationHours == 0 {
+		expirationHours = 24 // default 24 hours
+	}
+	
+	accessToken, err := jwt.GenerateToken(user.ID, user.Email, string(user.Role), time.Duration(expirationHours)*time.Hour)
 	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", errors.New("invalid credentials")
+		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
-	var authResp FirebaseAuthResponse
-	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
-		return "", err
+	// Generate refresh token
+	refreshExpirationDays := s.config.RefreshExpiration
+	if refreshExpirationDays == 0 {
+		refreshExpirationDays = 30 // default 30 days
+	}
+	
+	refreshToken, err := jwt.GenerateRefreshToken(user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
 
 	// Create login notification (non-blocking)
 	go func() {
-		// Get user ID from token
-		authClient := firebase.GetFirebaseClient()
-		token, err := authClient.VerifyIDToken(context.Background(), authResp.IDToken)
-		if err == nil && token != nil {
-			userID := token.UID
-			_ = s.notificationRepo.Add(context.Background(), &models.Notification{
-				Title:             "Login Successful",
-				Message:           fmt.Sprintf("You logged in at %s", time.Now().Format("2006-01-02 15:04:05")),
-				Type:              models.NotificationTypeUserLogin,
-				UserID:            userID,
-				RelatedEntityID:   userID,
-				RelatedEntityType: models.RelatedEntityTypeUser,
-				IsRead:            false,
-			})
-		}
+		_ = s.notificationRepo.Add(context.Background(), &models.Notification{
+			Title:             "Login Successful",
+			Message:           fmt.Sprintf("You logged in at %s", time.Now().Format("2006-01-02 15:04:05")),
+			Type:              models.NotificationTypeUserLogin,
+			UserID:            user.ID,
+			RelatedEntityID:   user.ID,
+			RelatedEntityType: models.RelatedEntityTypeUser,
+			IsRead:            false,
+		})
 	}()
 
-	return authResp.IDToken, nil
+	return &LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    expirationHours * 3600, // convert hours to seconds
+	}, nil
 }
 
 // Logout logs out a user
-func (s *AuthService) Logout(ctx context.Context, idToken string) error {
+func (s *AuthService) Logout(ctx context.Context, tokenString string) error {
 	// Verify token to get user info
-	authClient := firebase.GetFirebaseClient()
-	token, err := authClient.VerifyIDToken(ctx, idToken)
+	claims, err := jwt.VerifyToken(tokenString)
 	if err != nil {
 		return err
 	}
 
-	userID := token.UID
+	userID := claims.UserID
 
 	// Create logout notification (non-blocking)
 	go func() {
@@ -118,4 +119,59 @@ func (s *AuthService) Logout(ctx context.Context, idToken string) error {
 	}()
 
 	return nil
+}
+
+// Register registers a new user
+func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) (*LoginResponse, error) {
+	// Check if user already exists
+	existingUser, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, err
+	}
+	if existingUser != nil {
+		return nil, errors.New("user with this email already exists")
+	}
+
+	// Hash password
+	hashedPassword, err := password.HashPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Create user
+	user := &models.User{
+		ID:          uuid.New().String(),
+		Name:        req.Name,
+		Email:       req.Email,
+		Password:    hashedPassword,
+		PhoneNumber: req.PhoneNumber,
+		Role:        models.UserRoleStandard, // default role
+		CreatedAt:   time.Now(),
+	}
+
+	if err := s.userRepo.Add(ctx, user); err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	// Generate tokens
+	expirationHours := s.config.JWTExpiration
+	if expirationHours == 0 {
+		expirationHours = 24
+	}
+
+	accessToken, err := jwt.GenerateToken(user.ID, user.Email, string(user.Role), time.Duration(expirationHours)*time.Hour)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	refreshToken, err := jwt.GenerateRefreshToken(user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	return &LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    expirationHours * 3600,
+	}, nil
 }
