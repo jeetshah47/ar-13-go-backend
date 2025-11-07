@@ -1,0 +1,216 @@
+{
+  "collection": "projects",
+  "documents": [
+    {
+      "id": "proj1_office_building",
+      "data": {
+        "id": "proj1_office_building",
+        "title": "Modern Office Building Construction",
+        "description": "Construction of a 5-story modern office building with sustainable design features",
+        "ownerId": "user1_jeetshahajwa",
+        "membersIds": [
+          "user1_jeetshahajwa",
+          "user2_jeetworks",
+          "user3_jeetapple"
+        ],
+        "deadLine": "2025-12-31T23:59:59.000Z",
+        "created": "2025-01-20T09:00:00.000Z"
+      },
+      "subCollections": {
+        "tasks": {
+          "collection": "tasks",
+          "documents": [
+            {
+              "id": "task1_floor_plans",
+              "data": {
+                "id": "task1_floor_plans",
+                "subject": "Floor Plans (Concept)",
+                "code": "TS0002001",
+                "status": "In Progress",
+                "duration": "2025-02-15T18:00:00.000Z",
+                "priority": "High",
+                "assignTo": [
+                  "user1_jeetshahajwa",
+                  "user2_jeetworks"
+                ],
+                "projectId": "proj1_office_building",
+                "description": "Create initial floor plan concepts for all 5 floors",
+                "timeSpent": [
+                  {
+                    "date": "2025-01-25",
+                    "description": "Initial floor plan sketches",
+                    "timeSpent": 480,
+                    "userId": "user1_jeetshahajwa"
+                  },
+                  {
+                    "date": "2025-01-26",
+                    "description": "Refinement and review",
+                    "timeSpent": 360,
+                    "userId": "user2_jeetworks"
+                  }
+                ],
+                "fileAttachments": [],
+                "activityLogs": [
+                  {
+                    "id": "activity_1",
+                    "type": "time_spent_added",
+                    "description": "Added 8h 0m on 2025-01-25: Initial floor plan sketches",
+                    "timestamp": "2025-01-25T10:00:00.000Z",
+                    "userId": "user1_jeetshahajwa",
+                    "metadata": {
+                      "date": "2025-01-25",
+                      "description": "Initial floor plan sketches",
+                      "timeSpent": 480
+                    }
+                  }
+                ],
+                "created": "2025-01-20T10:00:00.000Z"
+              }
+            },
+            {
+              "id": "task2_site_plan",
+              "data": {
+                "id": "task2_site_plan",
+                "subject": "Site Plan (Conceptual)",
+                "code": "TS0002002",
+                "status": "To Do",
+                "duration": "2025-02-20T18:00:00.000Z",
+                "priority": "Medium",
+                "assignTo": [
+                  "user3_jeetapple"
+                ],
+                "projectId": "proj1_office_building",
+                "description": "Develop conceptual site plan with parking and landscaping",
+                "timeSpent": [],
+                "fileAttachments": [],
+                "activityLogs": [],
+                "created": "2025-01-20T11:00:00.000Z"
+              }
+            },
+            {
+              "id": "task3_3d_view",
+              "data": {
+                "id": "task3_3d_view",
+                "subject": "Massing Study / 3D View",
+                "code": "TS0002003",
+                "status": "Backlog",
+                "duration": "2025-03-01T18:00:00.000Z",
+                "priority": "Medium",
+                "assignTo": [
+                  "user1_jeetshahajwa"
+                ],
+                "projectId": "proj1_office_building",
+                "description": "Create 3D massing study and renderings",
+                "timeSpent": [],
+                "fileAttachments": [],
+                "activityLogs": [],
+                "created": "2025-01-20T12:00:00.000Z"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "proj2_residential_complex",
+      "data": {
+        "id": "proj2_residential_complex",
+        "title": "Residential Complex Development",
+        "description": "Design and construction of a 50-unit residential complex",
+        "ownerId": "user2_jeetworks",
+        "membersIds": [
+          "user2_jeetworks",
+          "user4_jeetshahajwa2",
+          "user5_jeetworks2"
+        ],
+        "deadLine": "2026-06-30T23:59:59.000Z",
+        "created": "2025-01-22T09:00:00.000Z"
+      },
+      "subCollections": {
+        "tasks": {
+          "collection": "tasks",
+          "documents": [
+            {
+              "id": "task4_key_plan",
+              "data": {
+                "id": "task4_key_plan",
+                "subject": "Key Plan / Location Plan",
+                "code": "TS0002004",
+                "status": "Done",
+                "duration": "2025-01-30T18:00:00.000Z",
+                "priority": "High",
+                "assignTo": [
+                  "user4_jeetshahajwa2"
+                ],
+                "projectId": "proj2_residential_complex",
+                "description": "Create key plan showing location and context",
+                "timeSpent": [
+                  {
+                    "date": "2025-01-22",
+                    "description": "Location research and mapping",
+                    "timeSpent": 240,
+                    "userId": "user4_jeetshahajwa2"
+                  }
+                ],
+                "fileAttachments": [],
+                "activityLogs": [],
+                "created": "2025-01-22T10:00:00.000Z"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "proj3_warehouse",
+      "data": {
+        "id": "proj3_warehouse",
+        "title": "Warehouse Facility Expansion",
+        "description": "Expansion of existing warehouse facility with new loading docks",
+        "ownerId": "user3_jeetapple",
+        "membersIds": [
+          "user3_jeetapple",
+          "user6_jeetapple2",
+          "user1_jeetshahajwa"
+        ],
+        "deadLine": "2025-11-30T23:59:59.000Z",
+        "created": "2025-01-25T09:00:00.000Z"
+      },
+      "subCollections": {
+        "tasks": {
+          "collection": "tasks",
+          "documents": [
+            {
+              "id": "task5_electrical",
+              "data": {
+                "id": "task5_electrical",
+                "subject": "Electrical System Design",
+                "code": "TS0002005",
+                "status": "In Review",
+                "duration": "2025-02-28T18:00:00.000Z",
+                "priority": "High",
+                "assignTo": [
+                  "user6_jeetapple2"
+                ],
+                "projectId": "proj3_warehouse",
+                "description": "Design electrical systems for expanded warehouse",
+                "timeSpent": [
+                  {
+                    "date": "2025-01-25",
+                    "description": "Load calculations",
+                    "timeSpent": 300,
+                    "userId": "user6_jeetapple2"
+                  }
+                ],
+                "fileAttachments": [],
+                "activityLogs": [],
+                "created": "2025-01-25T10:00:00.000Z"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+

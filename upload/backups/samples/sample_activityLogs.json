@@ -1,0 +1,132 @@
+{
+  "collection": "activityLogs",
+  "documents": [
+    {
+      "id": "activity1_task_created",
+      "data": {
+        "id": "activity1_task_created",
+        "entityType": "task",
+        "entityId": "task1_floor_plans",
+        "action": "created",
+        "createdAt": "2025-01-20T10:00:00.000Z",
+        "createdBy": "user1_jeetshahajwa",
+        "description": "Task 'Floor Plans (Concept)' was created",
+        "fields": {
+          "subject": "Floor Plans (Concept)",
+          "projectId": "proj1_office_building",
+          "priority": "High"
+        },
+        "created": "2025-01-20T10:00:00.000Z"
+      }
+    },
+    {
+      "id": "activity2_task_assigned",
+      "data": {
+        "id": "activity2_task_assigned",
+        "entityType": "task",
+        "entityId": "task1_floor_plans",
+        "action": "assigned",
+        "createdAt": "2025-01-20T10:05:00.000Z",
+        "createdBy": "user1_jeetshahajwa",
+        "description": "Task assigned to Jeet Shah and Jeet Works",
+        "fields": {
+          "assignTo": [
+            "user1_jeetshahajwa",
+            "user2_jeetworks"
+          ]
+        },
+        "created": "2025-01-20T10:05:00.000Z"
+      }
+    },
+    {
+      "id": "activity3_time_spent",
+      "data": {
+        "id": "activity3_time_spent",
+        "entityType": "task",
+        "entityId": "task1_floor_plans",
+        "action": "time_spent_added",
+        "createdAt": "2025-01-25T10:00:00.000Z",
+        "createdBy": "user1_jeetshahajwa",
+        "description": "Added 8 hours of time spent",
+        "metadata": {
+          "date": "2025-01-25",
+          "timeSpent": 480,
+          "description": "Initial floor plan sketches"
+        },
+        "created": "2025-01-25T10:00:00.000Z"
+      }
+    },
+    {
+      "id": "activity4_project_created",
+      "data": {
+        "id": "activity4_project_created",
+        "entityType": "project",
+        "entityId": "proj1_office_building",
+        "action": "created",
+        "createdAt": "2025-01-20T09:00:00.000Z",
+        "createdBy": "user1_jeetshahajwa",
+        "description": "Project 'Modern Office Building Construction' was created",
+        "fields": {
+          "title": "Modern Office Building Construction",
+          "ownerId": "user1_jeetshahajwa"
+        },
+        "created": "2025-01-20T09:00:00.000Z"
+      }
+    },
+    {
+      "id": "activity5_task_status_changed",
+      "data": {
+        "id": "activity5_task_status_changed",
+        "entityType": "task",
+        "entityId": "task4_key_plan",
+        "action": "status_changed",
+        "createdAt": "2025-01-30T16:00:00.000Z",
+        "createdBy": "user4_jeetshahajwa2",
+        "description": "Task status changed from 'In Progress' to 'Done'",
+        "fields": {
+          "oldStatus": "In Progress",
+          "newStatus": "Done"
+        },
+        "created": "2025-01-30T16:00:00.000Z"
+      }
+    },
+    {
+      "id": "activity6_user_profile_updated",
+      "data": {
+        "id": "activity6_user_profile_updated",
+        "entityType": "user",
+        "entityId": "user2_jeetworks",
+        "action": "profile_updated",
+        "createdAt": "2025-01-21T14:00:00.000Z",
+        "createdBy": "user2_jeetworks",
+        "description": "User profile updated",
+        "fields": {
+          "updatedFields": [
+            "phoneNumber",
+            "designation"
+          ]
+        },
+        "created": "2025-01-21T14:00:00.000Z"
+      }
+    },
+    {
+      "id": "activity7_calendar_event_created",
+      "data": {
+        "id": "activity7_calendar_event_created",
+        "entityType": "calendarEvent",
+        "entityId": "calendar1_project_meeting",
+        "action": "event_created",
+        "createdAt": "2025-01-25T09:00:00.000Z",
+        "createdBy": "user1_jeetshahajwa",
+        "description": "Calendar event 'Project Kickoff Meeting' was created",
+        "fields": {
+          "title": "Project Kickoff Meeting",
+          "start": "2025-02-01T10:00:00.000Z",
+          "end": "2025-02-01T11:30:00.000Z"
+        },
+        "created": "2025-01-25T09:00:00.000Z"
+      }
+    }
+  ]
+}
+

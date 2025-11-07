@@ -1,0 +1,96 @@
+{
+  "collection": "users",
+  "documents": [
+    {
+      "id": "user1_jeetshahajwa",
+      "data": {
+        "id": "user1_jeetshahajwa",
+        "name": "Jeet Shah",
+        "email": "jeetshahajwa@gmail.com",
+        "phoneNumber": "9876543210",
+        "role": "Admin",
+        "password": "$2a$10$hashedpassword123",
+        "designation": "Project Manager",
+        "created": "2025-01-15T10:30:00.000Z",
+        "createdAt": "2025-01-15T10:30:00.000Z",
+        "updatedAt": "2025-01-15T10:30:00.000Z"
+      }
+    },
+    {
+      "id": "user2_jeetworks",
+      "data": {
+        "id": "user2_jeetworks",
+        "name": "Jeet Works",
+        "email": "jeetworks4@gmail.com",
+        "phoneNumber": "9876543211",
+        "role": "Admin",
+        "password": "$2a$10$hashedpassword456",
+        "designation": "Construction Manager",
+        "created": "2025-01-16T11:00:00.000Z",
+        "createdAt": "2025-01-16T11:00:00.000Z",
+        "updatedAt": "2025-01-16T11:00:00.000Z"
+      }
+    },
+    {
+      "id": "user3_jeetapple",
+      "data": {
+        "id": "user3_jeetapple",
+        "name": "Jeet Apple",
+        "email": "jeetapple35@gmail.com",
+        "phoneNumber": "9876543212",
+        "role": "Standard",
+        "password": "$2a$10$hashedpassword789",
+        "designation": "Engineer",
+        "created": "2025-01-17T12:00:00.000Z",
+        "createdAt": "2025-01-17T12:00:00.000Z",
+        "updatedAt": "2025-01-17T12:00:00.000Z"
+      }
+    },
+    {
+      "id": "user4_jeetshahajwa2",
+      "data": {
+        "id": "user4_jeetshahajwa2",
+        "name": "Jeet Shah Developer",
+        "email": "jeetshahajwa@gmail.com",
+        "phoneNumber": "9876543213",
+        "role": "Standard",
+        "password": "$2a$10$hashedpassword101",
+        "designation": "Architect",
+        "created": "2025-01-18T13:00:00.000Z",
+        "createdAt": "2025-01-18T13:00:00.000Z",
+        "updatedAt": "2025-01-18T13:00:00.000Z"
+      }
+    },
+    {
+      "id": "user5_jeetworks2",
+      "data": {
+        "id": "user5_jeetworks2",
+        "name": "Jeet Works Designer",
+        "email": "jeetworks4@gmail.com",
+        "phoneNumber": "9876543214",
+        "role": "Standard",
+        "password": "$2a$10$hashedpassword202",
+        "designation": "Supervisor",
+        "created": "2025-01-19T14:00:00.000Z",
+        "createdAt": "2025-01-19T14:00:00.000Z",
+        "updatedAt": "2025-01-19T14:00:00.000Z"
+      }
+    },
+    {
+      "id": "user6_jeetapple2",
+      "data": {
+        "id": "user6_jeetapple2",
+        "name": "Jeet Apple Manager",
+        "email": "jeetapple35@gmail.com",
+        "phoneNumber": "9876543215",
+        "role": "Standard",
+        "password": "$2a$10$hashedpassword303",
+        "designation": "Electrician",
+        "created": "2025-01-20T15:00:00.000Z",
+        "createdAt": "2025-01-20T15:00:00.000Z",
+        "updatedAt": "2025-01-20T15:00:00.000Z"
+      }
+    }
+  ]
+}
+

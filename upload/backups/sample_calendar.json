@@ -1,0 +1,127 @@
+{
+  "collection": "calendar",
+  "documents": [
+    {
+      "id": "calendar1_project_meeting",
+      "data": {
+        "id": "calendar1_project_meeting",
+        "title": "Project Kickoff Meeting",
+        "category": "Meeting",
+        "priority": "High",
+        "start": "2025-02-01T10:00:00.000Z",
+        "end": "2025-02-01T11:30:00.000Z",
+        "time": "10:00 AM",
+        "description": "Initial project kickoff meeting for Modern Office Building Construction",
+        "isRepeating": false,
+        "createdBy": "user1_jeetshahajwa",
+        "addToGoogleCalendar": true,
+        "googleCalendarEventId": "google_cal_event_123",
+        "eventType": "online",
+        "invitedMemberIds": [
+          "user1_jeetshahajwa",
+          "user2_jeetworks",
+          "user3_jeetapple"
+        ],
+        "duration": 90,
+        "googleMeetLink": "https://meet.google.com/abc-defg-hij",
+        "created": "2025-01-25T09:00:00.000Z"
+      }
+    },
+    {
+      "id": "calendar2_design_review",
+      "data": {
+        "id": "calendar2_design_review",
+        "title": "Design Review Session",
+        "category": "Review",
+        "priority": "Medium",
+        "start": "2025-02-05T14:00:00.000Z",
+        "end": "2025-02-05T16:00:00.000Z",
+        "time": "2:00 PM",
+        "description": "Review floor plans and site plans with the team",
+        "isRepeating": false,
+        "createdBy": "user2_jeetworks",
+        "addToGoogleCalendar": true,
+        "eventType": "offline",
+        "created": "2025-01-26T10:00:00.000Z"
+      }
+    },
+    {
+      "id": "calendar3_weekly_standup",
+      "data": {
+        "id": "calendar3_weekly_standup",
+        "title": "Weekly Team Standup",
+        "category": "Meeting",
+        "priority": "Medium",
+        "start": "2025-02-03T09:00:00.000Z",
+        "end": "2025-02-03T09:30:00.000Z",
+        "time": "9:00 AM",
+        "description": "Weekly team standup meeting",
+        "isRepeating": true,
+        "repeatFrequency": "weekly",
+        "repeatDays": [
+          "Monday"
+        ],
+        "createdBy": "user1_jeetshahajwa",
+        "addToGoogleCalendar": true,
+        "eventType": "online",
+        "invitedMemberIds": [
+          "user1_jeetshahajwa",
+          "user2_jeetworks",
+          "user3_jeetapple",
+          "user4_jeetshahajwa2"
+        ],
+        "duration": 30,
+        "googleMeetLink": "https://meet.google.com/xyz-uvwx-rst",
+        "created": "2025-01-27T08:00:00.000Z"
+      }
+    },
+    {
+      "id": "calendar4_client_presentation",
+      "data": {
+        "id": "calendar4_client_presentation",
+        "title": "Client Presentation",
+        "category": "Presentation",
+        "priority": "High",
+        "start": "2025-02-10T15:00:00.000Z",
+        "end": "2025-02-10T17:00:00.000Z",
+        "time": "3:00 PM",
+        "description": "Present initial designs to client",
+        "isRepeating": false,
+        "createdBy": "user3_jeetapple",
+        "addToGoogleCalendar": true,
+        "eventType": "offline",
+        "created": "2025-01-28T11:00:00.000Z"
+      }
+    },
+    {
+      "id": "calendar5_monthly_review",
+      "data": {
+        "id": "calendar5_monthly_review",
+        "title": "Monthly Project Review",
+        "category": "Review",
+        "priority": "Medium",
+        "start": "2025-02-28T13:00:00.000Z",
+        "end": "2025-02-28T15:00:00.000Z",
+        "time": "1:00 PM",
+        "description": "Monthly project progress review",
+        "isRepeating": true,
+        "repeatFrequency": "monthly",
+        "repeatDays": [
+          "Last Friday"
+        ],
+        "createdBy": "user2_jeetworks",
+        "addToGoogleCalendar": true,
+        "eventType": "online",
+        "invitedMemberIds": [
+          "user1_jeetshahajwa",
+          "user2_jeetworks",
+          "user5_jeetworks2"
+        ],
+        "duration": 120,
+        "googleMeetLink": "https://meet.google.com/monthly-review-123",
+        "created": "2025-01-29T10:00:00.000Z"
+      }
+    }
+  ]
+}
+

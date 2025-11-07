@@ -1,0 +1,891 @@
+{
+  "collection": "projects",
+  "documents": [
+    {
+      "id": "5CqqY56u8ZQ4oFBm9eAl",
+      "data": {
+        "created": "2025-08-20T16:55:32.936Z",
+        "deadLine": "2025-10-15T14:27:29.809Z",
+        "description": "A sample project for testing the drag and drop board",
+        "id": "5CqqY56u8ZQ4oFBm9eAl",
+        "membersIds": [
+          "user1",
+          "user2",
+          "user3",
+          "user4"
+        ],
+        "ownerId": "user1",
+        "title": "Sample Project"
+      },
+      "subCollections": {
+        "tasks": {
+          "collection": "tasks",
+          "documents": [
+            {
+              "id": "0SIXj6g85c0dOF5jSO9P",
+              "data": {
+                "activityLogs": [
+                  {
+                    "description": "Added 6h 30m on 2025-09-17: new day new things",
+                    "id": "activity_1758038160121_pzjgzull1",
+                    "metadata": {
+                      "date": "2025-09-17",
+                      "description": "new day new things",
+                      "timeSpent": 390
+                    },
+                    "timestamp": "2025-09-16T15:56:00.121Z",
+                    "type": "time_spent_added",
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "description": "Uploaded file \"1758039688425_1edrl74jy93_Bitmap.jpg\" (0.03 MB)",
+                    "id": "activity_1758039688719_a8w6tnuuf",
+                    "metadata": {
+                      "fileName": "1758039688425_1edrl74jy93_Bitmap.jpg",
+                      "fileSize": 26852
+                    },
+                    "timestamp": "2025-09-16T16:21:28.719Z",
+                    "type": "file_uploaded",
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "description": "Uploaded file \"1758169223514_3oberrzc7un_unnamed__1_.jpg\" (0.12 MB)",
+                    "id": "activity_1758169223653_3o5g4lqpq",
+                    "metadata": {
+                      "fileName": "1758169223514_3oberrzc7un_unnamed__1_.jpg",
+                      "fileSize": 124595
+                    },
+                    "timestamp": "2025-09-18T04:20:23.653Z",
+                    "type": "file_uploaded",
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "description": "Added 6h 30m on 2025-09-19: wefwewefwef",
+                    "id": "activity_1758169237978_hsaohxrxx",
+                    "metadata": {
+                      "date": "2025-09-19",
+                      "description": "wefwewefwef",
+                      "timeSpent": 390
+                    },
+                    "timestamp": "2025-09-18T04:20:37.979Z",
+                    "type": "time_spent_added",
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  }
+                ],
+                "assignTo": [
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "TS0001249",
+                "duration": "2025-09-17T18:27:29.809Z",
+                "fileAttachments": [
+                  {
+                    "fileName": "1758039688425_1edrl74jy93_Bitmap.jpg",
+                    "fileSize": 26852,
+                    "fileUrl": "/uploads/tasks/1758039688425_1edrl74jy93_Bitmap.jpg",
+                    "mimeType": "image/jpeg",
+                    "originalName": "Bitmap.jpg",
+                    "uploadDate": "2025-09-16T16:21:28.429Z",
+                    "uploadedBy": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "fileName": "1758169223514_3oberrzc7un_unnamed__1_.jpg",
+                    "fileSize": 124595,
+                    "fileUrl": "/uploads/tasks/1758169223514_3oberrzc7un_unnamed__1_.jpg",
+                    "mimeType": "image/jpeg",
+                    "originalName": "unnamed (1).jpg",
+                    "uploadDate": "2025-09-18T04:20:23.517Z",
+                    "uploadedBy": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  }
+                ],
+                "priority": "Medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "Backlog",
+                "subject": "Mind Map",
+                "timeSpent": [
+                  {
+                    "date": "2025-09-16",
+                    "description": "dwdwdwd",
+                    "timeSpent": 390,
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "date": "2025-09-17",
+                    "description": "new day new things",
+                    "timeSpent": 390,
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "date": "2025-09-19",
+                    "description": "wefwewefwef",
+                    "timeSpent": 390,
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "3HUfmxS5vUO1uWjy92Bn",
+              "data": {
+                "assignTo": [
+                  "user1"
+                ],
+                "code": "TS0001246",
+                "duration": "2025-09-15T22:27:29.809Z",
+                "priority": "Low",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "In Review",
+                "subject": "Animation for Landing page"
+              }
+            },
+            {
+              "id": "4sOYHkqUtgUdCr51lXrk",
+              "data": {
+                "assignTo": [
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "TN00011123422",
+                "createdAt": {
+                  "_nanoseconds": 475000000,
+                  "_seconds": 1758285718
+                },
+                "duration": "2025-09-19T00:00:00.000Z",
+                "id": "4sOYHkqUtgUdCr51lXrk",
+                "priority": "Medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "In Review",
+                "subject": "NEw tASk222",
+                "updatedAt": "2025-09-21T13:24:25.149Z"
+              }
+            },
+            {
+              "id": "5P0TWkiDX3wsn4fa5DrN",
+              "data": {
+                "_id": "",
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+                ],
+                "code": "TN00015",
+                "created": "2025-09-19T12:19:09.291Z",
+                "createdAt": "2025-09-19T12:19:09.171Z",
+                "description": "",
+                "duration": "2025-09-20T12:18:00.000Z",
+                "fileAttachments": [],
+                "id": "5P0TWkiDX3wsn4fa5DrN",
+                "priority": "Medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "Backlog",
+                "subject": "Checking websockets part 2 ",
+                "timeSpent": [],
+                "updatedAt": "2025-09-19T12:19:09.171Z"
+              }
+            },
+            {
+              "id": "9P3cnAemnClaExR4yPN9",
+              "data": {
+                "_id": "",
+                "assignTo": [
+                  "74y4Y6ulSDgkmaVbsCK8cskN9rD3",
+                  "6XZzWPKalvTvQFwg0ttuMVlE2t42"
+                ],
+                "code": "TN00015",
+                "created": "2025-09-18T04:21:59.128Z",
+                "createdAt": "2025-09-18T04:21:59.055Z",
+                "description": "",
+                "duration": "2025-09-19T18:23:00.000Z",
+                "fileAttachments": [],
+                "id": "9P3cnAemnClaExR4yPN9",
+                "priority": "Medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "In Progress",
+                "subject": "NEw tASk",
+                "timeSpent": [],
+                "updatedAt": "2025-09-18T04:21:59.055Z"
+              }
+            },
+            {
+              "id": "AqB2ULvA1i5X9M8usC3g",
+              "data": {
+                "assignTo": [
+                  "user3"
+                ],
+                "code": "TS0001252",
+                "duration": "2025-09-19T14:27:29.809Z",
+                "priority": "Medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "Done",
+                "subject": "Research"
+              }
+            },
+            {
+              "id": "B2G4T2vkncNfm5dIFPUR",
+              "data": {
+                "assignTo": [
+                  "user4"
+                ],
+                "code": "TS0001254",
+                "duration": "2025-09-16T20:27:29.809Z",
+                "priority": "Medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "In Progress",
+                "subject": "UI Login + Registration\n(+ other screens)"
+              }
+            },
+            {
+              "id": "IiqsPxNX9xUSB61aNPK7",
+              "data": {
+                "assignTo": [
+                  "user3"
+                ],
+                "code": "TS0001251",
+                "duration": "2025-09-17T14:27:29.809Z",
+                "priority": "Medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "Done",
+                "subject": "Research reports"
+              }
+            },
+            {
+              "id": "MhZ4j0TuCYwTovnuVP6N",
+              "data": {
+                "assignTo": [
+                  "user3"
+                ],
+                "code": "TS0001253",
+                "duration": "2025-09-15T20:27:29.809Z",
+                "priority": "Low",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "Done",
+                "subject": "Research reports (presentation for client)"
+              }
+            },
+            {
+              "id": "NryR5Y2k8e9MGY5ZheqR",
+              "data": {
+                "_id": "",
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+                ],
+                "code": "TN000111",
+                "created": "2025-09-19T12:15:32.072Z",
+                "createdAt": "2025-09-19T12:15:31.938Z",
+                "description": "",
+                "duration": "2025-09-19T12:15:00.000Z",
+                "fileAttachments": [],
+                "id": "NryR5Y2k8e9MGY5ZheqR",
+                "priority": "Low",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "To Do",
+                "subject": "Checking websockets",
+                "timeSpent": [],
+                "updatedAt": "2025-09-19T12:15:31.938Z"
+              }
+            },
+            {
+              "id": "PHsOVlLfjSGJGLnkMsBI",
+              "data": {
+                "assignTo": [
+                  "user2"
+                ],
+                "code": "TS0001248",
+                "duration": "2025-09-19T14:27:29.809Z",
+                "priority": "Medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "In Progress",
+                "subject": "UX sketches"
+              }
+            },
+            {
+              "id": "QYDeJaGGVGcXcdACQxPx",
+              "data": {
+                "assignTo": [
+                  "6XZzWPKalvTvQFwg0ttuMVlE2t42",
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+                ],
+                "code": "TS0002",
+                "created": "2025-08-21T04:01:04.688Z",
+                "duration": "2025-08-28T09:25:17.678Z",
+                "id": "QYDeJaGGVGcXcdACQxPx",
+                "priority": "medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "pending",
+                "subject": "Create Drawing two2"
+              }
+            },
+            {
+              "id": "REbqVYEWatcpP5ZfIMSw",
+              "data": {
+                "assignTo": [
+                  "6XZzWPKalvTvQFwg0ttuMVlE2t42",
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+                ],
+                "code": "TS0001",
+                "created": "2025-08-21T04:00:50.426Z",
+                "duration": "2025-08-28T09:25:17.678Z",
+                "id": "REbqVYEWatcpP5ZfIMSw",
+                "priority": "medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "pending",
+                "subject": "Create Drawing one"
+              }
+            },
+            {
+              "id": "TD5iJViKkQWdzErNPGUq",
+              "data": {
+                "assignTo": [
+                  "6XZzWPKalvTvQFwg0ttuMVlE2t42",
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+                ],
+                "code": "TS0002",
+                "created": "2025-08-21T04:01:07.898Z",
+                "duration": "2025-08-28T09:25:17.678Z",
+                "id": "TD5iJViKkQWdzErNPGUq",
+                "priority": "medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "pending",
+                "subject": "Create Drawing two3"
+              }
+            },
+            {
+              "id": "UEhPkWUa3CKriMCIFONw",
+              "data": {
+                "assignTo": [
+                  "user1"
+                ],
+                "code": "TS0001247",
+                "duration": "2025-09-15T20:27:29.809Z",
+                "priority": "Low",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "To Do",
+                "subject": "Preloader"
+              }
+            },
+            {
+              "id": "UjuzIhlV0ZyEEqCxHyNk",
+              "data": {
+                "assignTo": [
+                  "6XZzWPKalvTvQFwg0ttuMVlE2t42",
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+                ],
+                "code": "TS0002",
+                "created": "2025-08-21T04:01:11.902Z",
+                "duration": "2025-08-28T09:25:17.678Z",
+                "id": "UjuzIhlV0ZyEEqCxHyNk",
+                "priority": "medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "pending",
+                "subject": "Create Drawing two4"
+              }
+            },
+            {
+              "id": "aPXfJgIE1l4KrNj2QQfu",
+              "data": {
+                "_id": "",
+                "assignTo": [
+                  "7FWIcpNDmgU9kNDneZQlGeiPFRG2"
+                ],
+                "code": "TN000152222",
+                "created": "2025-09-19T12:26:50.603Z",
+                "createdAt": "2025-09-19T12:26:50.462Z",
+                "description": "",
+                "duration": "2025-09-19T12:26:00.000Z",
+                "fileAttachments": [],
+                "id": "aPXfJgIE1l4KrNj2QQfu",
+                "priority": "Low",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "In Progress",
+                "subject": "NEw tASk1111",
+                "timeSpent": [],
+                "updatedAt": "2025-09-19T12:26:50.462Z"
+              }
+            },
+            {
+              "id": "uMlUblw5JUj4RboIdk4Z",
+              "data": {
+                "assignTo": [
+                  "user1"
+                ],
+                "code": "TS0001245",
+                "duration": "2025-09-15T22:27:29.809Z",
+                "priority": "Low",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "In Progress",
+                "subject": "Animation for buttons"
+              }
+            },
+            {
+              "id": "wjaukY9Xbt6FaXOiBjX4",
+              "data": {
+                "assignTo": [
+                  "user2"
+                ],
+                "code": "TS0001250",
+                "duration": "2025-09-17T14:27:29.809Z",
+                "priority": "Medium",
+                "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+                "status": "Done",
+                "subject": "UX Login + Registration"
+              }
+            }
+          ],
+          "backedUpAt": "2025-11-07T18:44:41.526697756+05:30"
+        }
+      }
+    },
+    {
+      "id": "7XRHCmGrtddndrSKOGWK",
+      "data": {
+        "created": "2025-08-20T16:55:32.936Z",
+        "deadLine": "1736165099000",
+        "description": "Ergonomic footrest for easier pedicure treatment.",
+        "id": "7XRHCmGrtddndrSKOGWK",
+        "membersIds": null,
+        "ownerId": "pG1GDuDZ2jUYdH6XrCSXV94a2Mk1",
+        "title": "Performance"
+      }
+    },
+    {
+      "id": "EOS1AxNrOEU8mGy8Yby1",
+      "data": {
+        "created": "2025-09-11T10:05:53.041Z",
+        "deadLine": "2025-09-17T18:30:00.000Z",
+        "description": "new simple project for managing project and task",
+        "id": "EOS1AxNrOEU8mGy8Yby1",
+        "membersIds": [
+          "74y4Y6ulSDgkmaVbsCK8cskN9rD3",
+          "7FWIcpNDmgU9kNDneZQlGeiPFRG2",
+          "7YFwNq90ywfAdDfP6QQC8VM3Tza2"
+        ],
+        "ownerId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "title": "Ar draft first project"
+      }
+    },
+    {
+      "id": "L5kn04LGXvw2yf5h0peN",
+      "data": {
+        "created": "2025-08-20T16:55:32.935Z",
+        "deadLine": "1759459876000",
+        "description": "Challenging puzzle game set for family entertainment.",
+        "id": "L5kn04LGXvw2yf5h0peN",
+        "membersIds": null,
+        "ownerId": "pG1GDuDZ2jUYdH6XrCSXV94a2Mk1",
+        "title": "Ghost and Mr. Chicken, The"
+      }
+    },
+    {
+      "id": "QR5G3wyxtnC66jTbDKpm",
+      "data": {
+        "created": "2025-08-20T16:55:32.936Z",
+        "deadLine": "1739711319000",
+        "description": "Sliced black olives, perfect for salads and pizzas.",
+        "id": "QR5G3wyxtnC66jTbDKpm",
+        "membersIds": null,
+        "ownerId": "pG1GDuDZ2jUYdH6XrCSXV94a2Mk1",
+        "title": "Hard Times"
+      }
+    },
+    {
+      "id": "SBJVj3CNCniyiTOeHbC3",
+      "data": {
+        "created": "2025-08-20T16:55:32.936Z",
+        "deadLine": "1758140374000",
+        "description": "Stone-ground mustard infused with craft beer for a gourmet touch.",
+        "id": "SBJVj3CNCniyiTOeHbC3",
+        "membersIds": null,
+        "ownerId": "zjVhVy6IiCecqaaRnxys2DgGtZm2",
+        "title": "Daar"
+      }
+    },
+    {
+      "id": "T6INj6992cKGASEMLUJG",
+      "data": {
+        "created": "2025-08-20T16:55:32.936Z",
+        "deadLine": "1760964140000",
+        "description": "Perfect dipping sauce or stir-fry addition for a sweet and tangy flavor.",
+        "id": "T6INj6992cKGASEMLUJG",
+        "membersIds": null,
+        "ownerId": "v0v8UpOfELbtK8uIGv5Lv0VhLCq1",
+        "title": "Incredibles, The"
+      }
+    },
+    {
+      "id": "qfrqkzrLP8xzvL3ba9oC",
+      "data": {
+        "created": "2025-08-20T16:55:32.936Z",
+        "deadLine": "1738220333000",
+        "description": "Delicious muffins filled with apples and a hint of cinnamon for breakfast.",
+        "id": "qfrqkzrLP8xzvL3ba9oC",
+        "membersIds": null,
+        "ownerId": "pG1GDuDZ2jUYdH6XrCSXV94a2Mk1",
+        "title": "Cirque du Freak: The Vampire's Assistant"
+      }
+    },
+    {
+      "id": "rsBftF1aTKCMsCOETuU7",
+      "data": {
+        "created": "2025-08-20T16:55:32.936Z",
+        "deadLine": "1728873323000",
+        "description": "Convenient water bottle for pets on the go.",
+        "id": "rsBftF1aTKCMsCOETuU7",
+        "membersIds": null,
+        "ownerId": "v0v8UpOfELbtK8uIGv5Lv0VhLCq1",
+        "title": "Things Change"
+      }
+    },
+    {
+      "id": "rvid1grRga1fmtY465Ea",
+      "data": {
+        "created": "2025-09-11T10:20:40.379Z",
+        "deadLine": "2025-09-29T18:30:00.000Z",
+        "description": "new simple project for managing coffee",
+        "id": "rvid1grRga1fmtY465Ea",
+        "logoUrl": "Icon5",
+        "membersIds": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+          "6XZzWPKalvTvQFwg0ttuMVlE2t42",
+          "74y4Y6ulSDgkmaVbsCK8cskN9rD3"
+        ],
+        "ownerId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "title": "Sudeesh Coffee Project"
+      },
+      "subCollections": {
+        "tasks": {
+          "collection": "tasks",
+          "documents": [
+            {
+              "id": "0L5C83LhQsiz3uTmqs2D",
+              "data": {
+                "activityLogs": [
+                  {
+                    "description": "Status changed from \"To Do\" to \"pending\"",
+                    "id": "activity_1761925940708_qop8y5od4",
+                    "metadata": {
+                      "newStatus": "pending",
+                      "oldStatus": "To Do"
+                    },
+                    "timestamp": "2025-10-31T15:52:20.708Z",
+                    "type": "status_changed",
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "description": "Status changed from \"pending\" to \"in-progress\"",
+                    "id": "activity_1761925943234_pkym28991",
+                    "metadata": {
+                      "newStatus": "in-progress",
+                      "oldStatus": "pending"
+                    },
+                    "timestamp": "2025-10-31T15:52:23.234Z",
+                    "type": "status_changed",
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "description": "Status changed from \"in-progress\" to \"done\"",
+                    "id": "activity_1761926038540_66udkq7ai",
+                    "metadata": {
+                      "newStatus": "done",
+                      "oldStatus": "in-progress"
+                    },
+                    "timestamp": "2025-10-31T15:53:58.54Z",
+                    "type": "status_changed",
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "description": "Added 6h 30m on 2025-10-30: New Task Defination and uploaed all drawings",
+                    "id": "activity_1761927363562_zs6bhgcbi",
+                    "metadata": {
+                      "date": "2025-10-30",
+                      "description": "New Task Defination and uploaed all drawings",
+                      "timeSpent": 390
+                    },
+                    "timestamp": "2025-10-31T16:16:03.562Z",
+                    "type": "time_spent_added",
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  }
+                ],
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "DWG-FLOOR_PLAN_CONCEPT",
+                "created": "2025-10-31T07:52:42.625Z",
+                "createdAt": "2025-10-31T07:52:42.158Z",
+                "description": "",
+                "duration": "2025-10-31T07:52:42.158Z",
+                "fileAttachments": [],
+                "id": "0L5C83LhQsiz3uTmqs2D",
+                "priority": "Low",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "Floor Plans (Concept)",
+                "timeSpent": [
+                  {
+                    "date": "2025-10-30",
+                    "description": "New Task Defination and uploaed all drawings",
+                    "timeSpent": 390,
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  }
+                ],
+                "updatedAt": "2025-10-31T07:52:42.158Z"
+              }
+            },
+            {
+              "id": "6kgj8ApYEB1I5M9qfh8f",
+              "data": {
+                "_id": "",
+                "assignTo": [
+                  "74y4Y6ulSDgkmaVbsCK8cskN9rD3",
+                  "6XZzWPKalvTvQFwg0ttuMVlE2t42"
+                ],
+                "code": "246931",
+                "created": "2025-09-14T04:58:20.803Z",
+                "createdAt": "2025-09-14T04:58:20.447Z",
+                "duration": "2001-02-04T18:30:00.000Z",
+                "id": "6kgj8ApYEB1I5M9qfh8f",
+                "priority": "Medium",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "task 1 for projects",
+                "updatedAt": "2025-09-14T04:58:20.447Z"
+              }
+            },
+            {
+              "id": "9nrAgjrnz3GRfD8KiBp3",
+              "data": {
+                "activityLogs": [],
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+                  "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "DWG-FLOOR_PLAN_CONCEPT",
+                "created": "2025-11-07T05:11:38.525842Z",
+                "duration": "2025-11-07T05:11:00Z",
+                "fileAttachments": [],
+                "id": "9nrAgjrnz3GRfD8KiBp3",
+                "priority": "Low",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "Floor Plans (Concept)",
+                "timeSpent": []
+              }
+            },
+            {
+              "id": "Hiz4KTbow6aOAUtbFl80",
+              "data": {
+                "activityLogs": [],
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+                  "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "DWG-MASSING_STUDY",
+                "created": "2025-11-07T05:11:38.59608Z",
+                "duration": "2025-11-07T05:11:00Z",
+                "fileAttachments": [],
+                "id": "Hiz4KTbow6aOAUtbFl80",
+                "priority": "Low",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "Massing Study / 3D View",
+                "timeSpent": []
+              }
+            },
+            {
+              "id": "KoaErH9zM6E95aR1mzQA",
+              "data": {
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "DWG-KEY_PLAN",
+                "created": "2025-10-31T07:52:42.624Z",
+                "createdAt": "2025-10-31T07:52:42.158Z",
+                "description": "",
+                "duration": "2025-10-31T07:52:42.158Z",
+                "fileAttachments": [],
+                "id": "KoaErH9zM6E95aR1mzQA",
+                "priority": "Low",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "Key Plan / Location Plan",
+                "timeSpent": [
+                  {
+                    "date": "2025-11-03",
+                    "description": "nwemqwe",
+                    "timeSpent": 90,
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  }
+                ],
+                "updatedAt": "2025-10-31T07:52:42.158Z"
+              }
+            },
+            {
+              "id": "SyvqBatTFqn1TCn86ACS",
+              "data": {
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "DWG-MASSING_STUDY",
+                "created": "2025-10-31T07:52:42.625Z",
+                "createdAt": "2025-10-31T07:52:42.158Z",
+                "description": "",
+                "duration": "2025-10-31T07:52:42.158Z",
+                "fileAttachments": [
+                  {
+                    "fileName": "1761931816855_5dsbnuk6ucj_Screenshot__1_.png",
+                    "fileSize": 742811,
+                    "fileUrl": "/uploads/tasks/1761931816855_5dsbnuk6ucj_Screenshot__1_.png",
+                    "mimeType": "image/png",
+                    "originalName": "Screenshot (1).png",
+                    "uploadDate": "2025-10-31T17:30:16.861Z",
+                    "uploadedBy": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  }
+                ],
+                "id": "SyvqBatTFqn1TCn86ACS",
+                "priority": "Low",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "Massing Study / 3D View",
+                "timeSpent": [
+                  {
+                    "date": "2025-10-31",
+                    "description": "testing new feature for my projects",
+                    "timeSpent": 630,
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  },
+                  {
+                    "date": "2025-10-31",
+                    "description": "also did some ui updates",
+                    "timeSpent": 90,
+                    "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                  }
+                ],
+                "updatedAt": "2025-10-31T07:52:42.158Z"
+              }
+            },
+            {
+              "id": "XJzSElJRoZXDML8meDzo",
+              "data": {
+                "activityLogs": [],
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+                  "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "DWG-KEY_PLAN",
+                "created": "2025-11-07T05:11:38.639641Z",
+                "duration": "2025-11-07T05:11:00Z",
+                "fileAttachments": [],
+                "id": "XJzSElJRoZXDML8meDzo",
+                "priority": "Low",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "Key Plan / Location Plan",
+                "timeSpent": []
+              }
+            },
+            {
+              "id": "aIfF5o3TPxe8ODQQy7a3",
+              "data": {
+                "activityLogs": [],
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+                  "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "DWG-ELEVATION_CONCEPT",
+                "created": "2025-11-07T05:11:38.554615Z",
+                "duration": "2025-11-07T05:11:00Z",
+                "fileAttachments": [],
+                "id": "aIfF5o3TPxe8ODQQy7a3",
+                "priority": "Low",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "Elevations (Concept)",
+                "timeSpent": []
+              }
+            },
+            {
+              "id": "bs23akIEcx4TZJfR2dhq",
+              "data": {
+                "activityLogs": [],
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+                  "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "DWG-SITE_PLAN_CONCEPT",
+                "created": "2025-11-07T05:11:38.297319Z",
+                "duration": "2025-11-07T05:11:00Z",
+                "fileAttachments": [],
+                "id": "bs23akIEcx4TZJfR2dhq",
+                "priority": "Low",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "Site Plan (Conceptual)",
+                "timeSpent": []
+              }
+            },
+            {
+              "id": "nS9ppzMulW23XsYulcju",
+              "data": {
+                "assignTo": [
+                  "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+                  "30EpwymEH1RMMNjk58zOfwqLgyE2"
+                ],
+                "code": "DWG-SITE_PLAN_CONCEPT",
+                "created": "2025-10-31T07:52:42.62Z",
+                "createdAt": "2025-10-31T07:52:42.158Z",
+                "description": "",
+                "duration": "2025-10-31T07:52:42.158Z",
+                "fileAttachments": [],
+                "id": "nS9ppzMulW23XsYulcju",
+                "priority": "Low",
+                "projectId": "rvid1grRga1fmtY465Ea",
+                "status": "completed",
+                "subject": "Site Plan (Conceptual)",
+                "timeSpent": [
+                  {
+                    "date": "2025-11-07",
+                    "description": "dddddddddddddddd",
+                    "timeSpent": 390,
+                    "userId": ""
+                  }
+                ],
+                "updated": "2025-11-07T05:22:26.804005Z",
+                "updatedAt": "2025-10-31T07:52:42.158Z"
+              }
+            }
+          ],
+          "backedUpAt": "2025-11-07T18:44:42.254461277+05:30"
+        }
+      }
+    },
+    {
+      "id": "v42ZGWjPhDqfjGlN94iP",
+      "data": {
+        "created": "2025-08-20T16:55:32.936Z",
+        "deadLine": "1733387882000",
+        "description": "Complete kit for crafting your own scented soaps.",
+        "id": "v42ZGWjPhDqfjGlN94iP",
+        "membersIds": null,
+        "ownerId": "zjVhVy6IiCecqaaRnxys2DgGtZm2",
+        "title": "Lt. Robin Crusoe, U.S.N."
+      }
+    },
+    {
+      "id": "wn7ewdYBK6e0pNi29L57",
+      "data": {
+        "created": "2025-08-20T16:55:32.934Z",
+        "deadLine": "1730484766000",
+        "description": "All-in-one kit for making delicious chicken salad.",
+        "id": "wn7ewdYBK6e0pNi29L57",
+        "membersIds": null,
+        "ownerId": "zjVhVy6IiCecqaaRnxys2DgGtZm2",
+        "title": "Ruby \u0026 Quentin (Tais-toi!)"
+      }
+    }
+  ],
+  "backedUpAt": "2025-11-07T18:44:42.349482161+05:30"
+}

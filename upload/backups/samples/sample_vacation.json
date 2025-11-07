@@ -1,0 +1,102 @@
+{
+  "collection": "vacation",
+  "documents": [
+    {
+      "id": "vacation1",
+      "data": {
+        "id": "vacation1",
+        "userId": "user1_jeetshahajwa",
+        "requestType": "vacation",
+        "startDate": "2025-02-10T00:00:00.000Z",
+        "endDate": "2025-02-15T00:00:00.000Z",
+        "duration": 5,
+        "durationType": "days",
+        "status": "approved",
+        "comments": "Family vacation trip",
+        "requestedAt": "2025-01-25T10:00:00.000Z",
+        "reviewedBy": "user2_jeetworks",
+        "reviewedAt": "2025-01-26T14:00:00.000Z",
+        "reviewComments": "Approved. Enjoy your vacation!",
+        "created": "2025-01-25T10:00:00.000Z"
+      }
+    },
+    {
+      "id": "vacation2",
+      "data": {
+        "id": "vacation2",
+        "userId": "user3_jeetapple",
+        "requestType": "sick_leave",
+        "startDate": "2025-02-05T00:00:00.000Z",
+        "endDate": "2025-02-05T00:00:00.000Z",
+        "duration": 1,
+        "durationType": "days",
+        "status": "pending",
+        "comments": "Medical appointment",
+        "requestedAt": "2025-01-28T09:00:00.000Z",
+        "created": "2025-01-28T09:00:00.000Z"
+      }
+    },
+    {
+      "id": "vacation3",
+      "data": {
+        "id": "vacation3",
+        "userId": "user2_jeetworks",
+        "requestType": "work_remotely",
+        "startDate": "2025-02-20T00:00:00.000Z",
+        "endDate": "2025-02-22T00:00:00.000Z",
+        "duration": 3,
+        "durationType": "days",
+        "status": "approved",
+        "comments": "Working from home due to personal reasons",
+        "requestedAt": "2025-01-27T11:00:00.000Z",
+        "reviewedBy": "user1_jeetshahajwa",
+        "reviewedAt": "2025-01-27T15:00:00.000Z",
+        "reviewComments": "Approved",
+        "workingHours": {
+          "from": "9:00 AM",
+          "to": "6:00 PM"
+        },
+        "created": "2025-01-27T11:00:00.000Z"
+      }
+    },
+    {
+      "id": "vacation4",
+      "data": {
+        "id": "vacation4",
+        "userId": "user4_jeetshahajwa2",
+        "requestType": "vacation",
+        "startDate": "2025-03-01T00:00:00.000Z",
+        "endDate": "2025-03-05T00:00:00.000Z",
+        "duration": 4,
+        "durationType": "days",
+        "status": "pending",
+        "comments": "Personal time off",
+        "requestedAt": "2025-01-29T10:00:00.000Z",
+        "created": "2025-01-29T10:00:00.000Z"
+      }
+    },
+    {
+      "id": "vacation5",
+      "data": {
+        "id": "vacation5",
+        "userId": "user5_jeetworks2",
+        "requestType": "work_remotely",
+        "startDate": "2025-02-12T00:00:00.000Z",
+        "endDate": "2025-02-12T00:00:00.000Z",
+        "duration": 1,
+        "durationType": "days",
+        "status": "approved",
+        "comments": "Working remotely",
+        "requestedAt": "2025-01-26T09:00:00.000Z",
+        "reviewedBy": "user2_jeetworks",
+        "reviewedAt": "2025-01-26T12:00:00.000Z",
+        "workingHours": {
+          "from": "10:00 AM",
+          "to": "4:00 PM"
+        },
+        "created": "2025-01-26T09:00:00.000Z"
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,96 @@
+{
+  "collection": "userAccountLinks",
+  "documents": [
+    {
+      "id": "link1_jeetshahajwa",
+      "data": {
+        "id": "link1_jeetshahajwa",
+        "userId": "user1_jeetshahajwa",
+        "provider": "google",
+        "providerUserId": "108523347049288565001",
+        "providerEmail": "jeetshahajwa@gmail.com",
+        "providerDisplayName": "Jeet Shah",
+        "accessToken": "ya29.a0ATi6K2vCp3jb3sh__sample_access_token_123",
+        "refreshToken": "1//0gZPkImT6IBZ0CgYIARAAGBASNwF-L9IrXksv4uHGv_G21YeB3uhGSnPa2ni0n4OpEivJILmEvMmnFlAfkO4l1SZhNHlT5DEK_sI",
+        "isActive": true,
+        "linkedAt": "2025-01-20T08:00:00.000Z",
+        "expiresAt": "2025-01-21T08:00:00.000Z",
+        "created": "2025-01-20T08:00:00.000Z",
+        "updated": "2025-01-20T08:00:00.000Z"
+      }
+    },
+    {
+      "id": "link2_jeetworks",
+      "data": {
+        "id": "link2_jeetworks",
+        "userId": "user2_jeetworks",
+        "provider": "google",
+        "providerUserId": "108523347049288565002",
+        "providerEmail": "jeetworks4@gmail.com",
+        "providerDisplayName": "Jeet Works",
+        "accessToken": "ya29.a0ATi6K2vCp3jb3sh__sample_access_token_456",
+        "refreshToken": "1//0gPoFV5btLwgsCgYIARAAGBASNwF-L9Irklm2heyrlQg2jfwf1LWIf5YP7HMmSvY5N4-ZZ-r8cRtTKVOW8rTOIvVWDtCxjaKv86g",
+        "isActive": true,
+        "linkedAt": "2025-01-21T09:00:00.000Z",
+        "expiresAt": "2025-01-22T09:00:00.000Z",
+        "created": "2025-01-21T09:00:00.000Z",
+        "updated": "2025-01-21T09:00:00.000Z"
+      }
+    },
+    {
+      "id": "link3_jeetapple",
+      "data": {
+        "id": "link3_jeetapple",
+        "userId": "user3_jeetapple",
+        "provider": "google",
+        "providerUserId": "108523347049288565003",
+        "providerEmail": "jeetapple35@gmail.com",
+        "providerDisplayName": "Jeet Apple",
+        "accessToken": "ya29.a0ATi6K2vCp3jb3sh__sample_access_token_789",
+        "refreshToken": "1//0gRU5erjZ2QCHCgYIARAAGBASNwF-L9IrykcCf0r6TXhgTi3W9u-MFWNTucdIErk4RBrqkNWgJo7NdsLejqTnQ_clM_ULsmP2mi0",
+        "isActive": true,
+        "linkedAt": "2025-01-22T10:00:00.000Z",
+        "expiresAt": "2025-01-23T10:00:00.000Z",
+        "created": "2025-01-22T10:00:00.000Z",
+        "updated": "2025-01-22T10:00:00.000Z"
+      }
+    },
+    {
+      "id": "link4_jeetshahajwa2",
+      "data": {
+        "id": "link4_jeetshahajwa2",
+        "userId": "user4_jeetshahajwa2",
+        "provider": "google",
+        "providerUserId": "108523347049288565001",
+        "providerEmail": "jeetshahajwa@gmail.com",
+        "providerDisplayName": "Jeet Shah Developer",
+        "accessToken": "ya29.a0ATi6K2vCp3jb3sh__sample_access_token_101",
+        "refreshToken": "1//0gZPkImT6IBZ0CgYIARAAGBASNwF-L9IrXksv4uHGv_G21YeB3uhGSnPa2ni0n4OpEivJILmEvMmnFlAfkO4l1SZhNHlT5DEK_sI",
+        "isActive": false,
+        "linkedAt": "2025-01-23T11:00:00.000Z",
+        "expiresAt": "2025-01-24T11:00:00.000Z",
+        "created": "2025-01-23T11:00:00.000Z",
+        "updated": "2025-01-23T11:00:00.000Z"
+      }
+    },
+    {
+      "id": "link5_jeetworks2",
+      "data": {
+        "id": "link5_jeetworks2",
+        "userId": "user5_jeetworks2",
+        "provider": "google",
+        "providerUserId": "108523347049288565002",
+        "providerEmail": "jeetworks4@gmail.com",
+        "providerDisplayName": "Jeet Works Designer",
+        "accessToken": "ya29.a0ATi6K2vCp3jb3sh__sample_access_token_202",
+        "refreshToken": "1//0gPoFV5btLwgsCgYIARAAGBASNwF-L9Irklm2heyrlQg2jfwf1LWIf5YP7HMmSvY5N4-ZZ-r8cRtTKVOW8rTOIvVWDtCxjaKv86g",
+        "isActive": true,
+        "linkedAt": "2025-01-24T12:00:00.000Z",
+        "expiresAt": "2025-01-25T12:00:00.000Z",
+        "created": "2025-01-24T12:00:00.000Z",
+        "updated": "2025-01-24T12:00:00.000Z"
+      }
+    }
+  ]
+}
+

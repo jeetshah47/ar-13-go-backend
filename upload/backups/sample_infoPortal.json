@@ -1,0 +1,200 @@
+{
+  "collection": "infoPortal",
+  "documents": [
+    {
+      "id": "folder1_company_policies",
+      "data": {
+        "id": "folder1_company_policies",
+        "name": "Company Policies",
+        "color": "#3B82F6",
+        "created": "2025-01-15T08:00:00.000Z"
+      },
+      "subCollections": {
+        "pages": {
+          "collection": "pages",
+          "documents": [
+            {
+              "id": "page1_leave_policy",
+              "data": {
+                "id": "page1_leave_policy",
+                "title": "Leave Policy",
+                "isActive": true,
+                "folderId": "folder1_company_policies",
+                "created": "2025-01-15T08:30:00.000Z"
+              },
+              "subCollections": {
+                "sections": {
+                  "collection": "sections",
+                  "documents": [
+                    {
+                      "id": "section1_leave_types",
+                      "data": {
+                        "id": "section1_leave_types",
+                        "title": "Types of Leave",
+                        "content": "Employees can request three types of leave: Vacation, Sick Leave, and Work Remotely. Each type has different approval processes and duration limits.",
+                        "order": 1,
+                        "pageId": "page1_leave_policy",
+                        "created": "2025-01-15T08:35:00.000Z"
+                      }
+                    },
+                    {
+                      "id": "section2_approval_process",
+                      "data": {
+                        "id": "section2_approval_process",
+                        "title": "Approval Process",
+                        "content": "All leave requests must be submitted at least 7 days in advance. Requests are reviewed by the project manager or admin. Emergency leave requests can be submitted with shorter notice.",
+                        "order": 2,
+                        "pageId": "page1_leave_policy",
+                        "created": "2025-01-15T08:40:00.000Z"
+                      }
+                    }
+                  ]
+                },
+                "attachments": {
+                  "collection": "attachments",
+                  "documents": [
+                    {
+                      "id": "attachment1_leave_form",
+                      "data": {
+                        "id": "attachment1_leave_form",
+                        "name": "Leave Request Form",
+                        "imageUrl": "",
+                        "fileUrl": "/uploads/info-portal/attachments/leave_request_form.pdf",
+                        "fileType": "application/pdf",
+                        "fileSize": 245760,
+                        "pageId": "page1_leave_policy",
+                        "created": "2025-01-15T09:00:00.000Z"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "folder2_project_guidelines",
+      "data": {
+        "id": "folder2_project_guidelines",
+        "name": "Project Guidelines",
+        "color": "#10B981",
+        "created": "2025-01-16T09:00:00.000Z"
+      },
+      "subCollections": {
+        "pages": {
+          "collection": "pages",
+          "documents": [
+            {
+              "id": "page2_task_management",
+              "data": {
+                "id": "page2_task_management",
+                "title": "Task Management Guidelines",
+                "isActive": true,
+                "folderId": "folder2_project_guidelines",
+                "created": "2025-01-16T09:30:00.000Z"
+              },
+              "subCollections": {
+                "sections": {
+                  "collection": "sections",
+                  "documents": [
+                    {
+                      "id": "section3_task_creation",
+                      "data": {
+                        "id": "section3_task_creation",
+                        "title": "Creating Tasks",
+                        "content": "When creating a new task, ensure you provide a clear subject, assign appropriate priority, set realistic deadlines, and assign team members. Always include a description for context.",
+                        "order": 1,
+                        "pageId": "page2_task_management",
+                        "created": "2025-01-16T09:35:00.000Z"
+                      }
+                    },
+                    {
+                      "id": "section4_time_tracking",
+                      "data": {
+                        "id": "section4_time_tracking",
+                        "title": "Time Tracking",
+                        "content": "Track your time spent on tasks daily. This helps in project planning and resource allocation. Use the time tracking feature to log hours worked on each task.",
+                        "order": 2,
+                        "pageId": "page2_task_management",
+                        "created": "2025-01-16T09:40:00.000Z"
+                      }
+                    }
+                  ]
+                },
+                "attachments": {
+                  "collection": "attachments",
+                  "documents": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "folder3_resources",
+      "data": {
+        "id": "folder3_resources",
+        "name": "Resources",
+        "color": "#F59E0B",
+        "created": "2025-01-17T10:00:00.000Z"
+      },
+      "subCollections": {
+        "pages": {
+          "collection": "pages",
+          "documents": [
+            {
+              "id": "page3_tools_and_software",
+              "data": {
+                "id": "page3_tools_and_software",
+                "title": "Tools and Software",
+                "isActive": true,
+                "folderId": "folder3_resources",
+                "created": "2025-01-17T10:30:00.000Z"
+              },
+              "subCollections": {
+                "sections": {
+                  "collection": "sections",
+                  "documents": [
+                    {
+                      "id": "section5_design_tools",
+                      "data": {
+                        "id": "section5_design_tools",
+                        "title": "Design Tools",
+                        "content": "We use AutoCAD for technical drawings, SketchUp for 3D modeling, and Adobe Creative Suite for presentations and visualizations.",
+                        "order": 1,
+                        "pageId": "page3_tools_and_software",
+                        "created": "2025-01-17T10:35:00.000Z"
+                      }
+                    }
+                  ]
+                },
+                "attachments": {
+                  "collection": "attachments",
+                  "documents": [
+                    {
+                      "id": "attachment2_software_list",
+                      "data": {
+                        "id": "attachment2_software_list",
+                        "name": "Software Installation Guide",
+                        "imageUrl": "",
+                        "fileUrl": "/uploads/info-portal/attachments/software_guide.pdf",
+                        "fileType": "application/pdf",
+                        "fileSize": 512000,
+                        "pageId": "page3_tools_and_software",
+                        "created": "2025-01-17T11:00:00.000Z"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+

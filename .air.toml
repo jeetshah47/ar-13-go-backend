@@ -1,0 +1,66 @@
+# Air configuration for live reload
+# Documentation: https://github.com/air-verse/air
+
+root = "."
+testdata_dir = "testdata"
+tmp_dir = "tmp"
+
+[build]
+  # Just plain old shell command. You could use `make` as well.
+  cmd = "go build -o ./tmp/main ./cmd/server/main.go"
+  # Binary file yields from `cmd`.
+  bin = "tmp/main"
+  # Customize binary, can setup environment variables when run your app.
+  full_bin = "./tmp/main"
+  # Watch these filename extensions.
+  include_ext = ["go", "tpl", "tmpl", "html"]
+  # Ignore these filename extensions or directories.
+  exclude_dir = ["assets", "tmp", "vendor", "testdata", "upload", ".git", "node_modules"]
+  # Watch these directories if you specified.
+  include_dir = []
+  # Exclude files.
+  exclude_file = []
+  # This log file places in your tmp_dir.
+  log = "errors.log"
+  # Poll files for changes instead of using filesystem events (useful on WSL)
+  poll = false
+  # Poll interval (defaults to 500ms)
+  poll_interval = 0
+  # Delay after each executions (useful for large projects)
+  delay = 0
+  # Stop running old binary when build errors occur.
+  stop_on_error = false
+  # Send Interrupt signal before killing process (windows does not support this feature)
+  send_interrupt = false
+  # Delay after sending Interrupt signal
+  kill_delay = "0s"
+  # Rerun binary or not
+  rerun = true
+  # Delay after each executions
+  rerun_delay = 500
+  # Add additional arguments when running binary (bin/full_bin). Will run './tmp/main hello world'.
+  args_bin = []
+  # Show log or not
+  show_log = true
+
+[log]
+  # Show log time
+  time = false
+  # Only show main log (hide build log)
+  main_only = false
+
+[color]
+  # Customize each part's color. If no color found, use the raw app log.
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"
+
+[misc]
+  # Delete tmp directory on exit
+  clean_on_exit = false
+
+[sf]
+  # Suffix of the file when it's created
+  suffix = "_tmp"
+

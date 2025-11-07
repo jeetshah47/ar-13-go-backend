@@ -1,0 +1,286 @@
+{
+  "collection": "notifications",
+  "documents": [
+    {
+      "id": "05deh1q5CCDIHm9znXR3",
+      "data": {
+        "created": "2025-10-31T07:52:44.111Z",
+        "createdAt": "2025-10-31T07:52:44.111Z",
+        "id": "05deh1q5CCDIHm9znXR3",
+        "isRead": false,
+        "message": "You have been assigned to task \"Massing Study / 3D View\".",
+        "relatedEntityId": "SyvqBatTFqn1TCn86ACS",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "0K6vHYXsfJzUz1MlkGPy",
+      "data": {
+        "created": "2025-10-31T07:52:43.955Z",
+        "createdAt": "2025-10-31T07:52:43.954Z",
+        "id": "0K6vHYXsfJzUz1MlkGPy",
+        "isRead": true,
+        "message": "You have been assigned to task \"Floor Plans (Concept)\".",
+        "relatedEntityId": "0L5C83LhQsiz3uTmqs2D",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "updated": "2025-10-31T15:39:26.641Z",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "6GNbxC9Lw6V91qCcfxzi",
+      "data": {
+        "created": "2025-10-31T07:52:43.712Z",
+        "createdAt": "2025-10-31T07:52:43.712Z",
+        "id": "6GNbxC9Lw6V91qCcfxzi",
+        "isRead": false,
+        "message": "You have been assigned to task \"Key Plan / Location Plan\".",
+        "relatedEntityId": "KoaErH9zM6E95aR1mzQA",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "6i6zBC8f7E1SxgIboS9H",
+      "data": {
+        "created": "2025-10-31T07:52:43.829Z",
+        "createdAt": "2025-10-31T07:52:43.829Z",
+        "id": "6i6zBC8f7E1SxgIboS9H",
+        "isRead": false,
+        "message": "A new task \"Floor Plans (Concept)\" has been created.",
+        "relatedEntityId": "0L5C83LhQsiz3uTmqs2D",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "6oBv2h0jr5y0L32VXXXD",
+      "data": {
+        "created": "2025-10-31T07:52:44.171Z",
+        "createdAt": "2025-10-31T07:52:44.171Z",
+        "id": "6oBv2h0jr5y0L32VXXXD",
+        "isRead": true,
+        "message": "You have been assigned to task \"Massing Study / 3D View\".",
+        "relatedEntityId": "SyvqBatTFqn1TCn86ACS",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "updated": "2025-10-31T15:39:26.921Z",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "7mH656W3TAvNfAWkWsTD",
+      "data": {
+        "created": "2025-10-31T07:52:43.628Z",
+        "createdAt": "2025-10-31T07:52:43.628Z",
+        "id": "7mH656W3TAvNfAWkWsTD",
+        "isRead": false,
+        "message": "A new task \"Key Plan / Location Plan\" has been created.",
+        "relatedEntityId": "KoaErH9zM6E95aR1mzQA",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "HC7hanfI1kcKFCMduT5u",
+      "data": {
+        "created": "2025-09-19T12:41:58.813Z",
+        "createdAt": "2025-09-19T12:41:58.813Z",
+        "id": "HC7hanfI1kcKFCMduT5u",
+        "isRead": true,
+        "message": "You have been assigned to task \"NEw tASk222\".",
+        "relatedEntityId": "4sOYHkqUtgUdCr51lXrk",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "updated": "2025-09-19T15:52:43.43Z",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "Hu5aWP1nK9kvI5nvesJV",
+      "data": {
+        "created": "2025-10-31T07:52:43.243Z",
+        "createdAt": "2025-10-31T07:52:43.243Z",
+        "id": "Hu5aWP1nK9kvI5nvesJV",
+        "isRead": false,
+        "message": "You have been assigned to task \"Site Plan (Conceptual)\".",
+        "relatedEntityId": "nS9ppzMulW23XsYulcju",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "NV1JxwPOXZHfMSWBraQf",
+      "data": {
+        "created": "2025-09-19T12:19:09.519Z",
+        "createdAt": "2025-09-19T12:19:09.519Z",
+        "id": "NV1JxwPOXZHfMSWBraQf",
+        "isRead": false,
+        "message": "You have been assigned to task \"Checking websockets part 2 \".",
+        "relatedEntityId": "5P0TWkiDX3wsn4fa5DrN",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "UBMD7rXtn0zRzzIg3Sjb",
+      "data": {
+        "created": "2025-09-19T12:26:50.801Z",
+        "createdAt": "2025-09-19T12:26:50.801Z",
+        "id": "UBMD7rXtn0zRzzIg3Sjb",
+        "isRead": false,
+        "message": "You have been assigned to task \"NEw tASk1111\".",
+        "relatedEntityId": "aPXfJgIE1l4KrNj2QQfu",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "7FWIcpNDmgU9kNDneZQlGeiPFRG2"
+      }
+    },
+    {
+      "id": "VkFplNLJSmlNNtq9ALTA",
+      "data": {
+        "created": "2025-09-19T12:41:58.602Z",
+        "createdAt": "2025-09-19T12:41:58.601Z",
+        "id": "VkFplNLJSmlNNtq9ALTA",
+        "isRead": true,
+        "message": "A new task \"NEw tASk222\" has been created.",
+        "relatedEntityId": "4sOYHkqUtgUdCr51lXrk",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "updated": "2025-09-19T15:52:44.533Z",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "bc8L7QBDhBT4nhWbXgyZ",
+      "data": {
+        "created": "2025-10-31T07:52:44.053Z",
+        "createdAt": "2025-10-31T07:52:44.053Z",
+        "id": "bc8L7QBDhBT4nhWbXgyZ",
+        "isRead": false,
+        "message": "A new task \"Massing Study / 3D View\" has been created.",
+        "relatedEntityId": "SyvqBatTFqn1TCn86ACS",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "exO2sbJ2lHSurjpts12J",
+      "data": {
+        "created": "2025-10-31T07:52:42.994Z",
+        "createdAt": "2025-10-31T07:52:42.994Z",
+        "id": "exO2sbJ2lHSurjpts12J",
+        "isRead": false,
+        "message": "A new task \"Site Plan (Conceptual)\" has been created.",
+        "relatedEntityId": "nS9ppzMulW23XsYulcju",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "fagJJWsgOnB9xOB31LZC",
+      "data": {
+        "created": "2025-09-19T12:26:50.721Z",
+        "createdAt": "2025-09-19T12:26:50.721Z",
+        "id": "fagJJWsgOnB9xOB31LZC",
+        "isRead": false,
+        "message": "A new task \"NEw tASk1111\" has been created.",
+        "relatedEntityId": "aPXfJgIE1l4KrNj2QQfu",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "7FWIcpNDmgU9kNDneZQlGeiPFRG2"
+      }
+    },
+    {
+      "id": "mh397rRjn9FZuQrTTAuI",
+      "data": {
+        "created": "2025-09-19T12:19:09.43Z",
+        "createdAt": "2025-09-19T12:19:09.429Z",
+        "id": "mh397rRjn9FZuQrTTAuI",
+        "isRead": false,
+        "message": "A new task \"Checking websockets part 2 \" has been created.",
+        "relatedEntityId": "5P0TWkiDX3wsn4fa5DrN",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "ooIZQaqfAJlf8Oh1YSJP",
+      "data": {
+        "created": "2025-10-31T07:52:43.563Z",
+        "createdAt": "2025-10-31T07:52:43.563Z",
+        "id": "ooIZQaqfAJlf8Oh1YSJP",
+        "isRead": true,
+        "message": "You have been assigned to task \"Site Plan (Conceptual)\".",
+        "relatedEntityId": "nS9ppzMulW23XsYulcju",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "updated": "2025-10-31T15:39:28.268Z",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "pCKT88n6y6fhDfeHbWQp",
+      "data": {}
+    },
+    {
+      "id": "qWfGDEbMJPxmWtwcQJvr",
+      "data": {
+        "created": "2025-10-31T07:52:43.896Z",
+        "createdAt": "2025-10-31T07:52:43.896Z",
+        "id": "qWfGDEbMJPxmWtwcQJvr",
+        "isRead": false,
+        "message": "You have been assigned to task \"Floor Plans (Concept)\".",
+        "relatedEntityId": "0L5C83LhQsiz3uTmqs2D",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "vrKA6miuYJ75m0GAiGOb",
+      "data": {
+        "created": "2025-10-31T07:52:43.776Z",
+        "createdAt": "2025-10-31T07:52:43.776Z",
+        "id": "vrKA6miuYJ75m0GAiGOb",
+        "isRead": true,
+        "message": "You have been assigned to task \"Key Plan / Location Plan\".",
+        "relatedEntityId": "KoaErH9zM6E95aR1mzQA",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "updated": "2025-10-31T15:39:30.128Z",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    }
+  ],
+  "backedUpAt": "2025-11-07T18:44:43.561065985+05:30"
+}

@@ -1,0 +1,98 @@
+{
+  "collection": "notifications",
+  "documents": [
+    {
+      "id": "notif1_task_assigned",
+      "data": {
+        "id": "notif1_task_assigned",
+        "title": "Task Assigned",
+        "message": "You have been assigned to task \"Floor Plans (Concept)\".",
+        "type": "TASK_ASSIGNED",
+        "userId": "user1_jeetshahajwa",
+        "relatedEntityId": "task1_floor_plans",
+        "relatedEntityType": "TASK",
+        "isRead": false,
+        "created": "2025-01-20T10:05:00.000Z",
+        "createdAt": "2025-01-20T10:05:00.000Z"
+      }
+    },
+    {
+      "id": "notif2_task_created",
+      "data": {
+        "id": "notif2_task_created",
+        "title": "New Task Created",
+        "message": "A new task \"Site Plan (Conceptual)\" has been created.",
+        "type": "TASK_CREATED",
+        "userId": "user3_jeetapple",
+        "relatedEntityId": "task2_site_plan",
+        "relatedEntityType": "TASK",
+        "isRead": true,
+        "created": "2025-01-20T11:05:00.000Z",
+        "createdAt": "2025-01-20T11:05:00.000Z",
+        "updated": "2025-01-20T12:00:00.000Z"
+      }
+    },
+    {
+      "id": "notif3_project_created",
+      "data": {
+        "id": "notif3_project_created",
+        "title": "Project Created",
+        "message": "A new project \"Modern Office Building Construction\" has been created.",
+        "type": "PROJECT_CREATED",
+        "userId": "user2_jeetworks",
+        "relatedEntityId": "proj1_office_building",
+        "relatedEntityType": "PROJECT",
+        "isRead": false,
+        "created": "2025-01-20T09:05:00.000Z",
+        "createdAt": "2025-01-20T09:05:00.000Z"
+      }
+    },
+    {
+      "id": "notif4_task_assigned2",
+      "data": {
+        "id": "notif4_task_assigned2",
+        "title": "Task Assigned",
+        "message": "You have been assigned to task \"Key Plan / Location Plan\".",
+        "type": "TASK_ASSIGNED",
+        "userId": "user4_jeetshahajwa2",
+        "relatedEntityId": "task4_key_plan",
+        "relatedEntityType": "TASK",
+        "isRead": false,
+        "created": "2025-01-22T10:05:00.000Z",
+        "createdAt": "2025-01-22T10:05:00.000Z"
+      }
+    },
+    {
+      "id": "notif5_task_assigned3",
+      "data": {
+        "id": "notif5_task_assigned3",
+        "title": "Task Assigned",
+        "message": "You have been assigned to task \"Electrical System Design\".",
+        "type": "TASK_ASSIGNED",
+        "userId": "user6_jeetapple2",
+        "relatedEntityId": "task5_electrical",
+        "relatedEntityType": "TASK",
+        "isRead": true,
+        "created": "2025-01-25T10:05:00.000Z",
+        "createdAt": "2025-01-25T10:05:00.000Z",
+        "updated": "2025-01-25T11:00:00.000Z"
+      }
+    },
+    {
+      "id": "notif6_leave_approved",
+      "data": {
+        "id": "notif6_leave_approved",
+        "title": "Leave Request Approved",
+        "message": "Your vacation request has been approved.",
+        "type": "LEAVE_REQUEST_APPROVED",
+        "userId": "user1_jeetshahajwa",
+        "relatedEntityId": "vacation1",
+        "relatedEntityType": "LEAVE_REQUEST",
+        "isRead": false,
+        "created": "2025-01-28T10:00:00.000Z",
+        "createdAt": "2025-01-28T10:00:00.000Z"
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,61 @@
+{
+  "collection": "signupInvitations",
+  "documents": [
+    {
+      "id": "invitation1_jeetshahajwa",
+      "data": {
+        "id": "invitation1_jeetshahajwa",
+        "email": "jeetshahajwa@gmail.com",
+        "hasSignup": true,
+        "linkExpiry": "2025-02-15T10:00:00.000Z",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImplZXRzaGFoYWp3YUBnbWFpbC5jb20iLCJleHAiOjE3MzkyMTYwMDAsInR5cGUiOiJzaWdudXAifQ.sample_token_signature_123",
+        "created": "2025-01-15T10:00:00.000Z"
+      }
+    },
+    {
+      "id": "invitation2_jeetworks",
+      "data": {
+        "id": "invitation2_jeetworks",
+        "email": "jeetworks4@gmail.com",
+        "hasSignup": true,
+        "linkExpiry": "2025-02-16T11:00:00.000Z",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImplZXR3b3JrczRAZ21haWwuY29tIiwiZXhwIjoxNzM5MjI0ODAwLCJ0eXBlIjoic2lnbnVwIn0.sample_token_signature_456",
+        "created": "2025-01-16T11:00:00.000Z"
+      }
+    },
+    {
+      "id": "invitation3_jeetapple",
+      "data": {
+        "id": "invitation3_jeetapple",
+        "email": "jeetapple35@gmail.com",
+        "hasSignup": true,
+        "linkExpiry": "2025-02-17T12:00:00.000Z",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImplZXRhcHBsZTM1QGdtYWlsLmNvbSIsImV4cCI6MTczOTIzMzYwMCwidHlwZSI6InNpZ251cCJ9.sample_token_signature_789",
+        "created": "2025-01-17T12:00:00.000Z"
+      }
+    },
+    {
+      "id": "invitation4_jeetshahajwa_pending",
+      "data": {
+        "id": "invitation4_jeetshahajwa_pending",
+        "email": "jeetshahajwa@gmail.com",
+        "hasSignup": false,
+        "linkExpiry": "2025-02-20T10:00:00.000Z",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImplZXRzaGFoYWp3YUBnbWFpbC5jb20iLCJleHAiOjE3MzkyNDQ4MDAsInR5cGUiOiJzaWdudXAifQ.sample_token_signature_101",
+        "created": "2025-01-20T10:00:00.000Z"
+      }
+    },
+    {
+      "id": "invitation5_jeetworks_pending",
+      "data": {
+        "id": "invitation5_jeetworks_pending",
+        "email": "jeetworks4@gmail.com",
+        "hasSignup": false,
+        "linkExpiry": "2025-02-21T11:00:00.000Z",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImplZXR3b3JrczRAZ21haWwuY29tIiwiZXhwIjoxNzM5MjUzNjAwLCJ0eXBlIjoic2lnbnVwIn0.sample_token_signature_202",
+        "created": "2025-01-21T11:00:00.000Z"
+      }
+    }
+  ]
+}
+
