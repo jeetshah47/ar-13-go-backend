@@ -355,20 +355,22 @@ func migrateTasks(ctx context.Context, documents []BackupDocument) error {
 			task.Description = &desc
 		}
 
-		// Handle duration
-		if durationStr := getString(data, "duration"); durationStr != "" {
+		// Handle deadline (previously duration) - support both for backward compatibility
+		if deadlineStr := getString(data, "deadline"); deadlineStr != "" {
+			if t, err := parseTime(deadlineStr); err == nil {
+				task.Deadline = t
+			}
+		} else if durationStr := getString(data, "duration"); durationStr != "" {
+			// Backward compatibility: migrate old "duration" field to "deadline"
 			if t, err := parseTime(durationStr); err == nil {
-				task.Duration = t
+				task.Deadline = t
 			}
 		}
 
-		// Handle assignTo
-		if assignTo, ok := data["assignTo"].([]interface{}); ok {
-			task.AssignTo = make([]string, 0, len(assignTo))
-			for _, a := range assignTo {
-				if str, ok := a.(string); ok {
-					task.AssignTo = append(task.AssignTo, str)
-				}
+		// Handle assignTo - take first element if array exists, otherwise nil
+		if assignTo, ok := data["assignTo"].([]interface{}); ok && len(assignTo) > 0 {
+			if str, ok := assignTo[0].(string); ok && str != "" {
+				task.AssignTo = &str
 			}
 		}
 

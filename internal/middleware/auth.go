@@ -88,3 +88,19 @@ func GetUserEmail(c *gin.Context) string {
 	}
 	return ""
 }
+
+// GetUserRole extracts user role from context
+func GetUserRole(c *gin.Context) string {
+	if role, exists := c.Get("userRole"); exists {
+		if r, ok := role.(string); ok {
+			return r
+		}
+	}
+	return ""
+}
+
+// IsAdmin checks if the user is an admin
+func IsAdmin(c *gin.Context) bool {
+	role := GetUserRole(c)
+	return role == "Admin"
+}

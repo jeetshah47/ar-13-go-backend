@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/ar-13-go-backend/internal/constants"
+	"github.com/ar-13-go-backend/internal/middleware"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/services"
 	"github.com/gin-gonic/gin"
@@ -11,13 +12,15 @@ import (
 
 // ProjectHandler handles project routes
 type ProjectHandler struct {
-	projectService *services.ProjectService
+	projectService      *services.ProjectService
+	authorizationService *services.AuthorizationService
 }
 
 // NewProjectHandler creates a new project handler
 func NewProjectHandler() *ProjectHandler {
 	return &ProjectHandler{
-		projectService: services.NewProjectService(),
+		projectService:      services.NewProjectService(),
+		authorizationService: services.NewAuthorizationService(),
 	}
 }
 
@@ -47,7 +50,7 @@ func (h *ProjectHandler) GetOne(c *gin.Context) {
 		return
 	}
 	if project == nil {
-		c.JSON(constants.StatusNotFound, gin.H{"error": "Project not found"})
+		c.JSON(constants.StatusNotFound, gin.H{"error": constants.MsgProjectNotFound})
 		return
 	}
 	c.JSON(constants.StatusOK, gin.H{"project": project})
@@ -66,14 +69,27 @@ func (h *ProjectHandler) Add(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusCreated, gin.H{"message": "Project added successfully"})
+	c.JSON(constants.StatusCreated, gin.H{"message": constants.MsgProjectCreated})
 }
 
 // Update updates a project
 func (h *ProjectHandler) Update(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	var project models.Project
 	if err := c.ShouldBindJSON(&project); err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(constants.StatusBadRequest, gin.H{"error": constants.MsgInvalidRequest})
+		return
+	}
+
+	// Check authorization: user must be project owner or member
+	if err := h.authorizationService.CanModifyProject(c.Request.Context(), project.ID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -82,17 +98,31 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Project updated successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgProjectUpdated})
 }
 
 // Delete deletes a project
 func (h *ProjectHandler) Delete(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	id := c.Param("id")
+
+	// Check authorization: user must be project owner or member
+	if err := h.authorizationService.CanModifyProject(c.Request.Context(), id, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := h.projectService.Delete(c.Request.Context(), id); err != nil {
 		c.JSON(constants.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(constants.StatusOK, gin.H{"message": "Project deleted successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgProjectDeleted})
 }
 
 // GetAllWithStatistics gets all projects with their task statistics

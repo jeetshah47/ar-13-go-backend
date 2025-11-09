@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 // CalendarEventRepo handles calendar event data operations
@@ -22,26 +23,33 @@ func NewCalendarEventRepo() *CalendarEventRepo {
 }
 
 // GetByMonth gets calendar events for a given month
+// Optimized to use DynamoDB filter expression instead of full scan + in-memory filtering
 func (r *CalendarEventRepo) GetByMonth(ctx context.Context, month, year int) ([]models.CalendarEvent, error) {
-	// TODO: Implement DynamoDB scan with filter by date range
-	items, err := r.ScanItems(ctx, nil)
+	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(year, time.Month(month+1), 1, 0, 0, 0, 0, time.UTC)
+
+	// Use DynamoDB filter expression to filter at database level
+	filterExpression := "#start >= :startDate AND #start < :endDate"
+	expressionAttributeNames := map[string]string{
+		"#start": "start",
+	}
+	expressionAttributeValues := map[string]types.AttributeValue{
+		":startDate": &types.AttributeValueMemberS{Value: startDate.Format(time.RFC3339)},
+		":endDate":   &types.AttributeValueMemberS{Value: endDate.Format(time.RFC3339)},
+	}
+
+	items, err := r.ScanItemsWithFilter(ctx, filterExpression, expressionAttributeNames, expressionAttributeValues, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-	endDate := time.Date(year, time.Month(month+1), 1, 0, 0, 0, 0, time.UTC)
-
-	var events []models.CalendarEvent
+	events := make([]models.CalendarEvent, 0, len(items))
 	for _, item := range items {
 		var event models.CalendarEvent
 		if err := UnmarshalItem(item, &event); err != nil {
 			continue
 		}
-		// Filter by date range
-		if event.Start.After(startDate) && event.Start.Before(endDate) {
-			events = append(events, event)
-		}
+		events = append(events, event)
 	}
 
 	return events, nil

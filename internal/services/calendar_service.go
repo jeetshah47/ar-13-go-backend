@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -20,6 +21,7 @@ type CalendarEventService struct {
 	userRepo         *repos.UserRepo
 	emailClient      *email.Client
 	googleAccountSvc *GoogleAccountService
+	cacheSvc         *CacheService
 }
 
 // NewCalendarEventService creates a new calendar event service
@@ -33,12 +35,50 @@ func NewCalendarEventService(cfg *config.Config) *CalendarEventService {
 		userRepo:         repos.NewUserRepo(),
 		emailClient:      emailClient,
 		googleAccountSvc: NewGoogleAccountService(),
+		cacheSvc:         NewCacheService(),
 	}
 }
 
 // GetByMonth gets calendar events for a month
+// Uses Redis cache to improve performance
 func (s *CalendarEventService) GetByMonth(ctx context.Context, month, year int) ([]models.CalendarEvent, error) {
-	return s.calendarRepo.GetByMonth(ctx, month, year)
+	// Try to get from cache first
+	cached, err := s.cacheSvc.GetCalendarMonth(ctx, year, month)
+	if err == nil && cached != nil {
+		// Convert cached interface{} slice to CalendarEvent slice
+		events := make([]models.CalendarEvent, 0, len(cached))
+		for _, item := range cached {
+			if eventMap, ok := item.(map[string]interface{}); ok {
+				// Convert map to CalendarEvent
+				var event models.CalendarEvent
+				if data, err := json.Marshal(eventMap); err == nil {
+					if err := json.Unmarshal(data, &event); err == nil {
+						events = append(events, event)
+					}
+				}
+			}
+		}
+		if len(events) > 0 {
+			return events, nil
+		}
+	}
+
+	// Cache miss or error - fetch from DB
+	events, err := s.calendarRepo.GetByMonth(ctx, month, year)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface{} slice for caching
+	cacheData := make([]interface{}, len(events))
+	for i := range events {
+		cacheData[i] = events[i]
+	}
+
+	// Cache the result (ignore cache errors)
+	_ = s.cacheSvc.SetCalendarMonth(ctx, year, month, cacheData)
+
+	return events, nil
 }
 
 // GetByID gets a calendar event by ID
@@ -56,6 +96,9 @@ func (s *CalendarEventService) Add(ctx context.Context, event *models.CalendarEv
 	if err := s.calendarRepo.Add(ctx, event); err != nil {
 		return err
 	}
+
+	// Invalidate cache for the month of this event
+	_ = s.cacheSvc.InvalidateCalendarMonth(ctx, event.Start.Year(), int(event.Start.Month()))
 
 	// Sync with Google Calendar if requested
 	if event.AddToGoogleCalendar != nil && *event.AddToGoogleCalendar && event.CreatedBy != "" {
@@ -170,7 +213,15 @@ func (s *CalendarEventService) Update(ctx context.Context, event *models.Calenda
 		}()
 	}
 
-	return s.calendarRepo.Update(ctx, event)
+	if err := s.calendarRepo.Update(ctx, event); err != nil {
+		return err
+	}
+
+	// Invalidate cache for both old and new months
+	_ = s.cacheSvc.InvalidateCalendarMonth(ctx, existing.Start.Year(), int(existing.Start.Month()))
+	_ = s.cacheSvc.InvalidateCalendarMonth(ctx, event.Start.Year(), int(event.Start.Month()))
+
+	return nil
 }
 
 // Delete deletes a calendar event
@@ -192,7 +243,14 @@ func (s *CalendarEventService) Delete(ctx context.Context, id string) error {
 		}()
 	}
 
-	return s.calendarRepo.Delete(ctx, id)
+	if err := s.calendarRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	// Invalidate cache for the month of this event
+	_ = s.cacheSvc.InvalidateCalendarMonth(ctx, existing.Start.Year(), int(existing.Start.Month()))
+
+	return nil
 }
 
 // ParseMonthYear parses month and year from strings

@@ -25,6 +25,7 @@ const (
 	ActivityLogActionPriorityChanged    ActivityLogAction = "priority_changed"
 	ActivityLogActionDescriptionUpdated ActivityLogAction = "description_updated"
 	ActivityLogActionDurationUpdated    ActivityLogAction = "duration_updated"
+	ActivityLogActionProgressUpdated    ActivityLogAction = "progress_updated"
 	ActivityLogActionFileUploaded       ActivityLogAction = "file_uploaded"
 	ActivityLogActionFileRemoved        ActivityLogAction = "file_removed"
 	ActivityLogActionTimeSpentAdded     ActivityLogAction = "time_spent_added"

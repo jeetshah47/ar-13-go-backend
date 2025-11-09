@@ -69,6 +69,7 @@ func (r *ActivityLogRepo) GetByEntity(ctx context.Context, entityType models.Act
 }
 
 // GetByEntityType gets activity logs by entity type
+// Optimized to use DynamoDB filter expression instead of scan + in-memory filtering
 func (r *ActivityLogRepo) GetByEntityType(ctx context.Context, entityType models.ActivityLogEntityType, limit *int) ([]models.ActivityLogBase, error) {
 	var limitInt32 *int32
 	if limit != nil {
@@ -76,21 +77,27 @@ func (r *ActivityLogRepo) GetByEntityType(ctx context.Context, entityType models
 		limitInt32 = &l
 	}
 
-	items, err := r.ScanItems(ctx, limitInt32)
+	// Use DynamoDB filter expression to filter at database level
+	filterExpression := "#entityType = :entityType"
+	expressionAttributeNames := map[string]string{
+		"#entityType": "entityType",
+	}
+	expressionAttributeValues := map[string]types.AttributeValue{
+		":entityType": &types.AttributeValueMemberS{Value: string(entityType)},
+	}
+
+	items, err := r.ScanItemsWithFilter(ctx, filterExpression, expressionAttributeNames, expressionAttributeValues, limitInt32)
 	if err != nil {
 		return nil, err
 	}
 
-	logs := make([]models.ActivityLogBase, 0)
+	logs := make([]models.ActivityLogBase, 0, len(items))
 	for _, item := range items {
-		// Filter by entityType
-		if et, ok := item["entityType"].(*types.AttributeValueMemberS); ok && et.Value == string(entityType) {
-			var log models.ActivityLogBase
-			if err := UnmarshalItem(item, &log); err != nil {
-				return nil, err
-			}
-			logs = append(logs, log)
+		var log models.ActivityLogBase
+		if err := UnmarshalItem(item, &log); err != nil {
+			return nil, err
 		}
+		logs = append(logs, log)
 	}
 
 	return logs, nil

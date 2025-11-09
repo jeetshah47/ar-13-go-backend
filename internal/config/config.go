@@ -36,6 +36,11 @@ type Config struct {
 	// Google OAuth
 	GoogleClientID     string
 	GoogleClientSecret string
+
+	// Redis
+	RedisAddr     string
+	RedisPassword string
+	RedisDB       int
 }
 
 var AppConfig *Config
@@ -76,6 +81,10 @@ func LoadConfig() (*Config, error) {
 
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+
+		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
+		RedisPassword: getEnv("REDIS_PASSWORD", ""),
+		RedisDB:       getEnvAsInt("REDIS_DB", 0),
 	}
 
 	AppConfig = config

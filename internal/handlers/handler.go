@@ -2,13 +2,12 @@ package handlers
 
 import (
 	"github.com/ar-13-go-backend/internal/config"
-	"github.com/ar-13-go-backend/pkg/websocket"
+	"github.com/ar-13-go-backend/internal/services"
 )
 
 // Handler contains all route handlers
 type Handler struct {
 	WebSocket      *WebSocketHandler
-	SocketIO       *SocketIOHandler
 	Auth           *AuthHandler
 	User           *UserHandler
 	Project        *ProjectHandler
@@ -26,17 +25,24 @@ type Handler struct {
 }
 
 // NewHandler creates a new handler instance
-func NewHandler(cfg *config.Config, wsService *websocket.WebSocketService) *Handler {
+func NewHandler(cfg *config.Config) *Handler {
+	taskHandler := NewTaskHandler(cfg)
+	projectHandler := NewProjectHandler()
+	
+	// Create services for WebSocket
+	taskService := services.NewTaskService(cfg)
+	projectService := services.NewProjectService()
+	
+	webSocketHandler := NewWebSocketHandler(taskService, projectService)
 	return &Handler{
-		WebSocket:      NewWebSocketHandler(wsService),
-		SocketIO:       NewSocketIOHandler(),
+		WebSocket:      webSocketHandler,
 		Auth:           NewAuthHandler(cfg),
 		User:           NewUserHandler(cfg),
-		Project:        NewProjectHandler(),
-		Task:           NewTaskHandler(cfg),
+		Project:        projectHandler,
+		Task:           taskHandler,
 		Dashboard:      NewDashboardHandler(),
 		Calendar:       NewCalendarHandler(cfg),
-		Notification:   NewNotificationHandler(wsService),
+		Notification:   NewNotificationHandler(webSocketHandler),
 		Vacation:       NewVacationHandler(),
 		Employee:       NewEmployeeHandler(),
 		InfoPortal:     NewInfoPortalHandler(),

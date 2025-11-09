@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
 )
 
@@ -22,6 +24,45 @@ func NewTaskRepo() *TaskRepo {
 	}
 }
 
+// convertAssignToArrayToString converts assignTo from array format to string format
+// This handles migration from old format (array) to new format (string)
+func convertAssignToArrayToString(item map[string]types.AttributeValue) {
+	if assignToVal, exists := item["assignTo"]; exists {
+		// Check if it's an array (old format)
+		if listVal, ok := assignToVal.(*types.AttributeValueMemberL); ok {
+			// Convert array to string (take first element)
+			if len(listVal.Value) > 0 {
+				if firstItem, ok := listVal.Value[0].(*types.AttributeValueMemberS); ok && firstItem.Value != "" {
+					item["assignTo"] = &types.AttributeValueMemberS{Value: firstItem.Value}
+				} else {
+					// Remove assignTo if first element is not a valid string
+					delete(item, "assignTo")
+				}
+			} else {
+				// Remove assignTo if array is empty
+				delete(item, "assignTo")
+			}
+		}
+		// If it's already a string, leave it as is
+	}
+}
+
+// convertDurationToDeadline converts duration field to deadline field
+// This handles migration from old field name (duration) to new field name (deadline)
+func convertDurationToDeadline(item map[string]types.AttributeValue) {
+	// If deadline already exists, use it
+	if _, exists := item["deadline"]; exists {
+		return
+	}
+
+	// If duration exists but deadline doesn't, migrate it
+	if durationVal, exists := item["duration"]; exists {
+		item["deadline"] = durationVal
+		// Optionally remove the old duration field after migration
+		// delete(item, "duration")
+	}
+}
+
 // GetByID gets a task by ID
 // Note: projectID parameter is kept for API compatibility but not used in DynamoDB query
 func (r *TaskRepo) GetByID(ctx context.Context, projectID, taskID string) (*models.Task, error) {
@@ -32,6 +73,12 @@ func (r *TaskRepo) GetByID(ctx context.Context, projectID, taskID string) (*mode
 	if item == nil {
 		return nil, nil
 	}
+
+	// Convert assignTo from array to string if needed (for backward compatibility)
+	convertAssignToArrayToString(item)
+
+	// Convert duration to deadline if needed (for backward compatibility)
+	convertDurationToDeadline(item)
 
 	var task models.Task
 	if err := UnmarshalItem(item, &task); err != nil {
@@ -50,6 +97,9 @@ func (r *TaskRepo) GetAll(ctx context.Context, projectID string) ([]models.Task,
 
 	tasks := make([]models.Task, 0, len(items))
 	for _, item := range items {
+		// Convert assignTo from array to string if needed (for backward compatibility)
+		convertAssignToArrayToString(item)
+
 		var task models.Task
 		if err := UnmarshalItem(item, &task); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal task: %w", err)
@@ -58,6 +108,52 @@ func (r *TaskRepo) GetAll(ctx context.Context, projectID string) ([]models.Task,
 	}
 
 	return tasks, nil
+}
+
+// GetAllByProjectIDs gets all tasks for multiple projects in parallel
+// This is optimized to fetch tasks for multiple projects concurrently
+func (r *TaskRepo) GetAllByProjectIDs(ctx context.Context, projectIDs []string) (map[string][]models.Task, error) {
+	if len(projectIDs) == 0 {
+		return make(map[string][]models.Task), nil
+	}
+
+	type result struct {
+		projectID string
+		tasks     []models.Task
+		err       error
+	}
+
+	resultChan := make(chan result, len(projectIDs))
+	var wg sync.WaitGroup
+
+	// Fetch tasks for each project in parallel
+	for _, projectID := range projectIDs {
+		wg.Add(1)
+		go func(pid string) {
+			defer wg.Done()
+			tasks, err := r.GetAll(ctx, pid)
+			resultChan <- result{
+				projectID: pid,
+				tasks:     tasks,
+				err:       err,
+			}
+		}(projectID)
+	}
+
+	// Wait for all goroutines to complete
+	wg.Wait()
+	close(resultChan)
+
+	// Collect results
+	tasksByProject := make(map[string][]models.Task, len(projectIDs))
+	for res := range resultChan {
+		if res.err != nil {
+			return nil, fmt.Errorf("failed to fetch tasks for project %s: %w", res.projectID, res.err)
+		}
+		tasksByProject[res.projectID] = res.tasks
+	}
+
+	return tasksByProject, nil
 }
 
 // Add creates a new task
@@ -78,18 +174,17 @@ func (r *TaskRepo) Add(ctx context.Context, task *models.Task) error {
 	if task.ActivityLogs == nil {
 		task.ActivityLogs = []models.ActivityLog{}
 	}
-	if task.AssignTo == nil {
-		task.AssignTo = []string{}
-	}
+	// AssignTo is now a pointer to string, no initialization needed
 
 	data := map[string]interface{}{
 		"id":              task.ID,
 		"subject":         task.Subject,
 		"code":            task.Code,
 		"status":          task.Status,
-		"duration":        task.Duration.Format(time.RFC3339),
+		"deadline":        task.Deadline.Format(time.RFC3339),
 		"priority":        task.Priority,
 		"assignTo":        task.AssignTo,
+		"progress":        task.Progress,
 		"projectId":       task.ProjectID,
 		"timeSpent":       task.TimeSpent,
 		"fileAttachments": task.FileAttachments,
@@ -99,6 +194,10 @@ func (r *TaskRepo) Add(ctx context.Context, task *models.Task) error {
 
 	if task.Description != nil {
 		data["description"] = *task.Description
+	}
+
+	if task.Progress != nil {
+		data["progress"] = *task.Progress
 	}
 
 	return r.PutItem(ctx, data)
@@ -113,9 +212,10 @@ func (r *TaskRepo) Update(ctx context.Context, task *models.Task) error {
 		"subject":         task.Subject,
 		"code":            task.Code,
 		"status":          task.Status,
-		"duration":        task.Duration.Format(time.RFC3339),
+		"deadline":        task.Deadline.Format(time.RFC3339),
 		"priority":        task.Priority,
 		"assignTo":        task.AssignTo,
+		"progress":        task.Progress,
 		"projectId":       task.ProjectID,
 		"timeSpent":       task.TimeSpent,
 		"fileAttachments": task.FileAttachments,
@@ -136,10 +236,26 @@ func (r *TaskRepo) Delete(ctx context.Context, projectID, taskID string) error {
 	return r.DeleteByID(ctx, taskID)
 }
 
-// UpdateDuration updates task duration
-func (r *TaskRepo) UpdateDuration(ctx context.Context, projectID, taskID string, duration time.Time) error {
+// UpdateDeadline updates task deadline
+func (r *TaskRepo) UpdateDeadline(ctx context.Context, projectID, taskID string, deadline time.Time) error {
 	updates := map[string]interface{}{
-		"duration": duration.Format(time.RFC3339),
+		"deadline": deadline.Format(time.RFC3339),
+	}
+	return r.UpdateItem(ctx, taskID, updates)
+}
+
+// UpdateProgress updates task progress
+func (r *TaskRepo) UpdateProgress(ctx context.Context, projectID, taskID string, progress int) error {
+	// Validate progress is between 0 and 100
+	if progress < 0 {
+		progress = 0
+	}
+	if progress > 100 {
+		progress = 100
+	}
+
+	updates := map[string]interface{}{
+		"progress": progress,
 	}
 	return r.UpdateItem(ctx, taskID, updates)
 }

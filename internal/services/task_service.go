@@ -18,6 +18,7 @@ type TaskService struct {
 	taskRepo    *repos.TaskRepo
 	userRepo    *repos.UserRepo
 	emailClient *email.Client
+	cacheSvc    *CacheService
 }
 
 // NewTaskService creates a new task service
@@ -30,6 +31,7 @@ func NewTaskService(cfg *config.Config) *TaskService {
 		taskRepo:    repos.NewTaskRepo(),
 		userRepo:    repos.NewUserRepo(),
 		emailClient: emailClient,
+		cacheSvc:    NewCacheService(),
 	}
 }
 
@@ -96,7 +98,13 @@ func (s *TaskService) GetByID(ctx context.Context, projectID, taskID string) (*m
 
 // Add creates a new task
 func (s *TaskService) Add(ctx context.Context, task *models.Task) error {
-	return s.taskRepo.Add(ctx, task)
+	if err := s.taskRepo.Add(ctx, task); err != nil {
+		return err
+	}
+	// Invalidate caches that depend on tasks
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
+	return nil
 }
 
 // AddMultiple creates multiple tasks
@@ -106,6 +114,9 @@ func (s *TaskService) AddMultiple(ctx context.Context, tasks []models.Task) erro
 			return err
 		}
 	}
+	// Invalidate caches that depend on tasks
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
 	return nil
 }
 
@@ -120,7 +131,13 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 		return errors.New("task not found")
 	}
 
-	return s.taskRepo.Update(ctx, task)
+	if err := s.taskRepo.Update(ctx, task); err != nil {
+		return err
+	}
+	// Invalidate caches that depend on tasks
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
+	return nil
 }
 
 // Delete deletes a task
@@ -134,11 +151,17 @@ func (s *TaskService) Delete(ctx context.Context, projectID, taskID string) erro
 		return errors.New("task not found")
 	}
 
-	return s.taskRepo.Delete(ctx, projectID, taskID)
+	if err := s.taskRepo.Delete(ctx, projectID, taskID); err != nil {
+		return err
+	}
+	// Invalidate caches that depend on tasks
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
+	return nil
 }
 
-// UpdateDuration updates task duration
-func (s *TaskService) UpdateDuration(ctx context.Context, projectID, taskID string, duration time.Time) error {
+// UpdateDeadline updates task deadline
+func (s *TaskService) UpdateDeadline(ctx context.Context, projectID, taskID string, deadline time.Time) error {
 	// Check if task exists
 	existing, err := s.taskRepo.GetByID(ctx, projectID, taskID)
 	if err != nil {
@@ -148,7 +171,7 @@ func (s *TaskService) UpdateDuration(ctx context.Context, projectID, taskID stri
 		return errors.New("task not found")
 	}
 
-	return s.taskRepo.UpdateDuration(ctx, projectID, taskID, duration)
+	return s.taskRepo.UpdateDeadline(ctx, projectID, taskID, deadline)
 }
 
 // UpdateDescription updates task description
@@ -176,7 +199,41 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 		return errors.New("task not found")
 	}
 
-	return s.taskRepo.UpdateStatus(ctx, projectID, taskID, status)
+	if err := s.taskRepo.UpdateStatus(ctx, projectID, taskID, status); err != nil {
+		return err
+	}
+	// Invalidate caches that depend on task status
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
+	return nil
+}
+
+// UpdateProgress updates task progress
+func (s *TaskService) UpdateProgress(ctx context.Context, projectID, taskID string, progress int) error {
+	// Check if task exists
+	existing, err := s.taskRepo.GetByID(ctx, projectID, taskID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("task not found")
+	}
+
+	// Validate progress is between 0 and 100
+	if progress < 0 {
+		progress = 0
+	}
+	if progress > 100 {
+		progress = 100
+	}
+
+	if err := s.taskRepo.UpdateProgress(ctx, projectID, taskID, progress); err != nil {
+		return err
+	}
+	// Invalidate caches that depend on tasks
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
+	return nil
 }
 
 // AddTimeSpent adds a time spent entry
@@ -225,14 +282,12 @@ func (s *TaskService) AssignTask(ctx context.Context, projectID, taskID, userID 
 	}
 
 	// Check if user is already assigned
-	for _, assignedID := range task.AssignTo {
-		if assignedID == userID {
-			return nil // Already assigned
-		}
+	if task.AssignTo != nil && *task.AssignTo == userID {
+		return nil // Already assigned
 	}
 
-	// Add user to assignTo array
-	task.AssignTo = append(task.AssignTo, userID)
+	// Assign task to user (replacing any existing assignment)
+	task.AssignTo = &userID
 	if err := s.taskRepo.Update(ctx, task); err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/repos"
@@ -11,6 +12,7 @@ import (
 type ActivityLogService struct {
 	activityLogRepo *repos.ActivityLogRepo
 	userRepo        *repos.UserRepo
+	cacheSvc        *CacheService
 }
 
 // NewActivityLogService creates a new activity log service
@@ -18,6 +20,7 @@ func NewActivityLogService() *ActivityLogService {
 	return &ActivityLogService{
 		activityLogRepo: repos.NewActivityLogRepo(),
 		userRepo:        repos.NewUserRepo(),
+		cacheSvc:        NewCacheService(),
 	}
 }
 
@@ -64,16 +67,63 @@ func (s *ActivityLogService) GetByEntity(ctx context.Context, entityType models.
 }
 
 // GetByEntityType gets activity logs by entity type
+// Uses Redis cache to improve performance
 func (s *ActivityLogService) GetByEntityType(ctx context.Context, entityType models.ActivityLogEntityType, limit *int) ([]models.ActivityLogResponse, error) {
+	limitValue := 10 // default limit
+	if limit != nil {
+		limitValue = *limit
+	}
+
+	// Try to get from cache first
+	cached, err := s.cacheSvc.GetActivityLogs(ctx, string(entityType), limitValue)
+	if err == nil && cached != nil {
+		// Convert cached interface{} slice to ActivityLogResponse slice
+		logs := make([]models.ActivityLogResponse, 0, len(cached))
+		for _, item := range cached {
+			if logMap, ok := item.(map[string]interface{}); ok {
+				var log models.ActivityLogResponse
+				if data, err := json.Marshal(logMap); err == nil {
+					if err := json.Unmarshal(data, &log); err == nil {
+						logs = append(logs, log)
+					}
+				}
+			}
+		}
+		if len(logs) > 0 {
+			return logs, nil
+		}
+	}
+
+	// Cache miss or error - fetch from DB
 	logs, err := s.activityLogRepo.GetByEntityType(ctx, entityType, limit)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.populateUserDetails(ctx, logs)
+	// Populate user details
+	responses, err := s.populateUserDetails(ctx, logs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface{} slice for caching
+	cacheData := make([]interface{}, len(responses))
+	for i := range responses {
+		cacheData[i] = responses[i]
+	}
+
+	// Cache the result (ignore cache errors)
+	_ = s.cacheSvc.SetActivityLogs(ctx, string(entityType), limitValue, cacheData)
+
+	return responses, nil
 }
 
 // Add adds an activity log
 func (s *ActivityLogService) Add(ctx context.Context, log *models.ActivityLogBase) error {
-	return s.activityLogRepo.Add(ctx, log)
+	if err := s.activityLogRepo.Add(ctx, log); err != nil {
+		return err
+	}
+	// Invalidate activity logs cache for this entity type
+	_ = s.cacheSvc.InvalidateActivityLogs(ctx, string(log.EntityType))
+	return nil
 }

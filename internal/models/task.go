@@ -16,7 +16,8 @@ const (
 	ActivityTypeTaskUpdated        ActivityType = "task_updated"
 	ActivityTypeTaskAssigned       ActivityType = "task_assigned"
 	ActivityTypeDescriptionUpdated ActivityType = "description_updated"
-	ActivityTypeDurationUpdated    ActivityType = "duration_updated"
+	ActivityTypeDeadlineUpdated    ActivityType = "deadline_updated"
+	ActivityTypeProgressUpdated    ActivityType = "progress_updated"
 )
 
 // TimeSpent represents time spent on a task
@@ -66,9 +67,10 @@ type Task struct {
 	Subject         string           `json:"subject" firestore:"subject"`
 	Code            string           `json:"code" firestore:"code"`
 	Status          string           `json:"status" firestore:"status"`
-	Duration        time.Time        `json:"duration" firestore:"duration"`
+	Deadline        time.Time        `json:"deadline" firestore:"deadline"`
 	Priority        string           `json:"priority" firestore:"priority"`
-	AssignTo        []string         `json:"assignTo" firestore:"assignTo"`
+	Progress        *int             `json:"progress,omitempty" firestore:"progress,omitempty"` // Completion percentage (0-100)
+	AssignTo        *string          `json:"assignTo,omitempty" firestore:"assignTo,omitempty"`
 	ProjectID       string           `json:"projectId" firestore:"projectId"`
 	TimeSpent       []TimeSpent      `json:"timeSpent" firestore:"timeSpent"`
 	Description     *string          `json:"description,omitempty" firestore:"description,omitempty"`
@@ -79,5 +81,5 @@ type Task struct {
 // TaskDetailResponse represents a task with assignee details
 type TaskDetailResponse struct {
 	Task
-	AssignDetails []User `json:"assignDetails" firestore:"-"`
+	AssignDetail *User `json:"assignDetail,omitempty" firestore:"-"`
 }

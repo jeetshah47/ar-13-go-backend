@@ -14,13 +14,15 @@ import (
 
 // TaskHandler handles task routes
 type TaskHandler struct {
-	taskService *services.TaskService
+	taskService          *services.TaskService
+	authorizationService *services.AuthorizationService
 }
 
 // NewTaskHandler creates a new task handler
 func NewTaskHandler(cfg *config.Config) *TaskHandler {
 	return &TaskHandler{
-		taskService: services.NewTaskService(cfg),
+		taskService:          services.NewTaskService(cfg),
+		authorizationService: services.NewAuthorizationService(),
 	}
 }
 
@@ -56,7 +58,7 @@ func (h *TaskHandler) GetOneTaskDetail(c *gin.Context) {
 		return
 	}
 	if task == nil {
-		c.JSON(constants.StatusNotFound, gin.H{"error": "Task not found"})
+		c.JSON(constants.StatusNotFound, gin.H{"error": constants.MsgTaskNotFound})
 		return
 	}
 	c.JSON(constants.StatusOK, gin.H{"task": task})
@@ -75,7 +77,7 @@ func (h *TaskHandler) Add(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusCreated, gin.H{"message": "Task added successfully"})
+	c.JSON(constants.StatusCreated, gin.H{"message": constants.MsgTaskCreated})
 }
 
 // AddMultiple adds multiple tasks
@@ -101,9 +103,22 @@ func (h *TaskHandler) AddMultiple(c *gin.Context) {
 
 // Update updates a task
 func (h *TaskHandler) Update(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	var task models.Task
 	if err := c.ShouldBindJSON(&task); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), task.ProjectID, task.ID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -112,39 +127,93 @@ func (h *TaskHandler) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Task updated successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskUpdated})
 }
 
-// UpdateDuration updates task duration
-func (h *TaskHandler) UpdateDuration(c *gin.Context) {
+// UpdateDeadline updates task deadline
+func (h *TaskHandler) UpdateDeadline(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
 
 	var req struct {
-		Duration string `json:"duration" binding:"required"`
+		Deadline string `json:"deadline" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Parse duration string to time.Time (simplified - adjust based on your format)
-	duration, err := time.Parse(time.RFC3339, req.Duration)
-	if err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": "Invalid duration format"})
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.taskService.UpdateDuration(c.Request.Context(), projectID, taskID, duration); err != nil {
+	// Parse deadline string to time.Time (RFC3339 format)
+	deadline, err := time.Parse(time.RFC3339, req.Deadline)
+	if err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": constants.MsgInvalidDeadlineFormat})
+		return
+	}
+
+	if err := h.taskService.UpdateDeadline(c.Request.Context(), projectID, taskID, deadline); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Task duration updated successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskDeadlineUpdated})
+}
+
+// UpdateProgress updates task progress
+func (h *TaskHandler) UpdateProgress(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	projectID := c.Param("projectId")
+	taskID := c.Param("taskId")
+
+	var req struct {
+		Progress int `json:"progress" binding:"required,min=0,max=100"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": constants.MsgInvalidProgressValue})
+		return
+	}
+
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.taskService.UpdateProgress(c.Request.Context(), projectID, taskID, req.Progress); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskProgressUpdated})
 }
 
 // UpdateDescription updates task description
 func (h *TaskHandler) UpdateDescription(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
 
@@ -156,16 +225,29 @@ func (h *TaskHandler) UpdateDescription(c *gin.Context) {
 		return
 	}
 
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := h.taskService.UpdateDescription(c.Request.Context(), projectID, taskID, req.Description); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Task description updated successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskDescriptionUpdated})
 }
 
 // UpdateStatus updates task status
 func (h *TaskHandler) UpdateStatus(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
 
@@ -177,16 +259,29 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := h.taskService.UpdateStatus(c.Request.Context(), projectID, taskID, req.Status); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Task status updated successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskStatusUpdated})
 }
 
 // AddTimeSpent adds time spent entry
 func (h *TaskHandler) AddTimeSpent(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
 
@@ -195,6 +290,12 @@ func (h *TaskHandler) AddTimeSpent(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTimeLog(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -203,18 +304,25 @@ func (h *TaskHandler) AddTimeSpent(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Time spent entry added successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTimeSpentAdded})
 }
 
 // UpdateTimeSpent updates time spent entry
 func (h *TaskHandler) UpdateTimeSpent(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
 	indexStr := c.Param("timeSpentIndex")
 
 	index, err := strconv.Atoi(indexStr)
 	if err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": "Invalid time spent index"})
+		c.JSON(constants.StatusBadRequest, gin.H{"error": constants.MsgInvalidTimeSpentIndex})
 		return
 	}
 
@@ -226,23 +334,42 @@ func (h *TaskHandler) UpdateTimeSpent(c *gin.Context) {
 		return
 	}
 
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTimeLog(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := h.taskService.UpdateTimeSpent(c.Request.Context(), projectID, taskID, index, req.TimeSpent); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Time spent entry updated successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTimeSpentUpdated})
 }
 
 // RemoveTimeSpent removes time spent entry
 func (h *TaskHandler) RemoveTimeSpent(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
 	indexStr := c.Param("timeSpentIndex")
 
 	index, err := strconv.Atoi(indexStr)
 	if err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": "Invalid time spent index"})
+		c.JSON(constants.StatusBadRequest, gin.H{"error": constants.MsgInvalidTimeSpentIndex})
+		return
+	}
+
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTimeLog(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -251,7 +378,7 @@ func (h *TaskHandler) RemoveTimeSpent(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Time spent entry removed successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTimeSpentRemoved})
 }
 
 // GetTimeSpent gets time spent entries
@@ -269,8 +396,21 @@ func (h *TaskHandler) GetTimeSpent(c *gin.Context) {
 
 // AddFileAttachment adds file attachment
 func (h *TaskHandler) AddFileAttachment(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
+
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
 
 	// TODO: Handle file upload (multipart form)
 	var attachment models.FileAttachment
@@ -284,18 +424,31 @@ func (h *TaskHandler) AddFileAttachment(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "File attachment added successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgFileAttachmentAdded})
 }
 
 // RemoveFileAttachment removes file attachment
 func (h *TaskHandler) RemoveFileAttachment(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
 	indexStr := c.Param("fileAttachmentIndex")
 
 	index, err := strconv.Atoi(indexStr)
 	if err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": "Invalid file attachment index"})
+		c.JSON(constants.StatusBadRequest, gin.H{"error": constants.MsgInvalidFileAttachmentIndex})
+		return
+	}
+
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -304,7 +457,7 @@ func (h *TaskHandler) RemoveFileAttachment(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "File attachment removed successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgFileAttachmentRemoved})
 }
 
 // GetFileAttachments gets file attachments
@@ -331,7 +484,7 @@ func (h *TaskHandler) GetActivityLogs(c *gin.Context) {
 		return
 	}
 	if task == nil {
-		c.JSON(constants.StatusNotFound, gin.H{"error": "Task not found"})
+		c.JSON(constants.StatusNotFound, gin.H{"error": constants.MsgTaskNotFound})
 		return
 	}
 	c.JSON(constants.StatusOK, gin.H{"activityLogs": task.ActivityLogs})
@@ -339,14 +492,27 @@ func (h *TaskHandler) GetActivityLogs(c *gin.Context) {
 
 // Delete deletes a task
 func (h *TaskHandler) Delete(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
+
+	// Check authorization: user must be assigned to task OR project owner/member
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
 
 	if err := h.taskService.Delete(c.Request.Context(), projectID, taskID); err != nil {
 		c.JSON(constants.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(constants.StatusOK, gin.H{"message": "Task deleted successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskDeleted})
 }
 
 // Assign assigns a task to a user
@@ -366,7 +532,7 @@ func (h *TaskHandler) Assign(c *gin.Context) {
 	}
 
 	if projectID == "" {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": "Project ID required"})
+		c.JSON(constants.StatusBadRequest, gin.H{"error": constants.MsgProjectIDRequired})
 		return
 	}
 
@@ -375,7 +541,7 @@ func (h *TaskHandler) Assign(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Task assigned successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskAssigned})
 }
 
 // Claim claims a task
@@ -386,7 +552,13 @@ func (h *TaskHandler) Claim(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID := middleware.GetUserID(c)
 	if userID == "" {
-		c.JSON(constants.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	// Check authorization: user must be project member to claim tasks
+	if err := h.authorizationService.CanClaimTask(c.Request.Context(), projectID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -395,7 +567,7 @@ func (h *TaskHandler) Claim(c *gin.Context) {
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": "Task claimed successfully"})
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskClaimed})
 }
 
 // GetAssignableUsers gets assignable users

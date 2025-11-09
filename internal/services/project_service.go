@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 type ProjectService struct {
 	projectRepo *repos.ProjectRepo
 	taskRepo    *repos.TaskRepo
+	cacheSvc    *CacheService
 }
 
 // NewProjectService creates a new project service
@@ -20,6 +22,7 @@ func NewProjectService() *ProjectService {
 	return &ProjectService{
 		projectRepo: repos.NewProjectRepo(),
 		taskRepo:    repos.NewTaskRepo(),
+		cacheSvc:    NewCacheService(),
 	}
 }
 
@@ -35,7 +38,12 @@ func (s *ProjectService) GetByID(ctx context.Context, id string) (*models.Projec
 
 // Add creates a new project
 func (s *ProjectService) Add(ctx context.Context, project *models.Project) error {
-	return s.projectRepo.Add(ctx, project)
+	if err := s.projectRepo.Add(ctx, project); err != nil {
+		return err
+	}
+	// Invalidate project stats cache
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	return nil
 }
 
 // Update updates a project
@@ -49,7 +57,12 @@ func (s *ProjectService) Update(ctx context.Context, project *models.Project) er
 		return errors.New("project not found")
 	}
 
-	return s.projectRepo.Update(ctx, project)
+	if err := s.projectRepo.Update(ctx, project); err != nil {
+		return err
+	}
+	// Invalidate project stats cache
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	return nil
 }
 
 // Delete deletes a project
@@ -63,7 +76,12 @@ func (s *ProjectService) Delete(ctx context.Context, id string) error {
 		return errors.New("project not found")
 	}
 
-	return s.projectRepo.Delete(ctx, id)
+	if err := s.projectRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+	// Invalidate project stats cache
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	return nil
 }
 
 // ProjectTaskStatistics represents task statistics for a project
@@ -91,25 +109,58 @@ type ProjectWithStatistics struct {
 }
 
 // GetAllWithStatistics gets all projects with their task statistics
+// Optimized to batch fetch all tasks at once instead of N+1 queries
+// Uses Redis cache to improve performance
 func (s *ProjectService) GetAllWithStatistics(ctx context.Context, limit *int) ([]ProjectWithStatistics, error) {
+	// Try to get from cache first (only if no limit specified, as cache key doesn't include limit)
+	if limit == nil {
+		cached, err := s.cacheSvc.GetProjectStats(ctx)
+		if err == nil && cached != nil {
+			// Convert cached interface{} slice to ProjectWithStatistics slice
+			projects := make([]ProjectWithStatistics, 0, len(cached))
+			for _, item := range cached {
+				if projectMap, ok := item.(map[string]interface{}); ok {
+					var project ProjectWithStatistics
+					if data, err := json.Marshal(projectMap); err == nil {
+						if err := json.Unmarshal(data, &project); err == nil {
+							projects = append(projects, project)
+						}
+					}
+				}
+			}
+			if len(projects) > 0 {
+				return projects, nil
+			}
+		}
+	}
+
 	// Get all projects
 	projects, err := s.projectRepo.GetAll(ctx, limit)
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate statistics for each project
+	if len(projects) == 0 {
+		return []ProjectWithStatistics{}, nil
+	}
+
+	// Extract project IDs for batch fetching
+	projectIDs := make([]string, 0, len(projects))
+	for _, project := range projects {
+		projectIDs = append(projectIDs, project.ID)
+	}
+
+	// Batch fetch all tasks for all projects in parallel
+	tasksByProject, err := s.taskRepo.GetAllByProjectIDs(ctx, projectIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate statistics for each project using pre-fetched tasks
 	result := make([]ProjectWithStatistics, 0, len(projects))
 	for _, project := range projects {
-		statistics, err := s.calculateProjectStatistics(ctx, project.ID)
-		if err != nil {
-			// If there's an error calculating statistics, continue with empty statistics
-			statistics = ProjectTaskStatistics{
-				ByStatus:        make(map[string]int),
-				ByPriority:      make(map[string]int),
-				TasksByAssignee: make(map[string]int),
-			}
-		}
+		tasks := tasksByProject[project.ID]
+		statistics := s.calculateProjectStatisticsFromTasks(tasks)
 
 		result = append(result, ProjectWithStatistics{
 			Project:    project,
@@ -117,21 +168,41 @@ func (s *ProjectService) GetAllWithStatistics(ctx context.Context, limit *int) (
 		})
 	}
 
+	// Cache the result if no limit specified (ignore cache errors)
+	if limit == nil {
+		cacheData := make([]interface{}, len(result))
+		for i := range result {
+			cacheData[i] = result[i]
+		}
+		_ = s.cacheSvc.SetProjectStats(ctx, cacheData)
+	}
+
 	return result, nil
 }
 
 // calculateProjectStatistics calculates task statistics for a project
+// This method still fetches tasks from DB (kept for backward compatibility)
 func (s *ProjectService) calculateProjectStatistics(ctx context.Context, projectID string) (ProjectTaskStatistics, error) {
+	// Get all tasks for the project
+	tasks, err := s.taskRepo.GetAll(ctx, projectID)
+	if err != nil {
+		return ProjectTaskStatistics{
+			ByStatus:        make(map[string]int),
+			ByPriority:      make(map[string]int),
+			TasksByAssignee: make(map[string]int),
+		}, err
+	}
+
+	return s.calculateProjectStatisticsFromTasks(tasks), nil
+}
+
+// calculateProjectStatisticsFromTasks calculates task statistics from a list of tasks
+// This is the optimized version that doesn't require a DB call
+func (s *ProjectService) calculateProjectStatisticsFromTasks(tasks []models.Task) ProjectTaskStatistics {
 	stats := ProjectTaskStatistics{
 		ByStatus:        make(map[string]int),
 		ByPriority:      make(map[string]int),
 		TasksByAssignee: make(map[string]int),
-	}
-
-	// Get all tasks for the project
-	tasks, err := s.taskRepo.GetAll(ctx, projectID)
-	if err != nil {
-		return stats, err
 	}
 
 	// Track unique assigned users
@@ -172,14 +243,13 @@ func (s *ProjectService) calculateProjectStatistics(ctx context.Context, project
 			stats.ByPriority[priority]++
 		}
 
-		// Track assigned users and count tasks per assignee
-		for _, assignID := range task.AssignTo {
-			if assignID != "" {
-				if !assignedUserSet[assignID] {
-					assignedUserSet[assignID] = true
-				}
-				stats.TasksByAssignee[assignID]++
+		// Track assigned user and count tasks per assignee
+		if task.AssignTo != nil && *task.AssignTo != "" {
+			assignID := *task.AssignTo
+			if !assignedUserSet[assignID] {
+				assignedUserSet[assignID] = true
 			}
+			stats.TasksByAssignee[assignID]++
 		}
 
 		// Calculate total time spent
@@ -196,5 +266,5 @@ func (s *ProjectService) calculateProjectStatistics(ctx context.Context, project
 		stats.CompletionRate = (float64(stats.CompletedTasks) / float64(stats.TotalTasks)) * 100
 	}
 
-	return stats, nil
+	return stats
 }

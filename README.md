@@ -73,12 +73,18 @@ migration/
    # For EC2, use IAM role instead
    # AWS_ACCESS_KEY_ID=your-access-key
    # AWS_SECRET_ACCESS_KEY=your-secret-key
+   
+   # Redis Configuration (optional - for caching)
+   REDIS_ADDR=localhost:6379
+   REDIS_PASSWORD=
+   REDIS_DB=0
    ```
    
    **Important Notes:**
    - **JWT_SECRET**: Use a strong random string (at least 32 characters)
    - **AWS_REGION**: Should match your DynamoDB tables region (default: us-east-1)
    - **AWS Credentials**: For local development, set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. For EC2 deployment, use IAM roles instead.
+   - **Redis**: Optional but recommended for performance. If Redis is not available, the app will continue to work without caching.
 
    **Important Notes for Google OAuth:**
    - **GOOGLE_CLIENT_ID**: Should be in the format `123456789-abcdefghijklmnop.apps.googleusercontent.com` (found in Google Cloud Console → APIs & Services → Credentials)
@@ -86,19 +92,26 @@ migration/
    - **Common Mistake**: Do NOT use the Client Secret value for `GOOGLE_CLIENT_ID`. They are different values.
    - Make sure your OAuth redirect URI is configured in Google Cloud Console to match your callback URL (e.g., `http://localhost:3000/api/google-account/auth/callback`)
 
-5. **Run the server:**
+5. **Install Air (optional but recommended for development):**
+   ```bash
+   go install github.com/air-verse/air@latest
+   ```
+   
+   > **Note:** Make sure `$GOPATH/bin` or `%USERPROFILE%\go\bin` is in your PATH. Air is already configured in `.air.toml`.
+
+6. **Run the server:**
    
    **Option 1: Using Air (recommended for development - auto-reload on file changes):**
    ```bash
    air
    ```
    
+   Air will automatically restart the server when you save any `.go` file. The configuration is in `.air.toml`.
+   
    **Option 2: Standard Go run:**
    ```bash
    go run cmd/server/main.go
    ```
-   
-   > **Note:** Air automatically restarts the server when you save any `.go` file. Install Air with: `go install github.com/air-verse/air@latest`
 
 ## Build
 
@@ -154,6 +167,8 @@ This is an ongoing migration. The structure is in place, and core components are
 
 ## API Documentation
 
+- [WebSocket Client Integration Guide](./docs/WEBSOCKET_CLIENT_INTEGRATION.md) - Complete guide for integrating WebSocket in your client application
+- [WebSocket API Documentation](./docs/WEBSOCKET_API.md) - Full WebSocket API reference
 - [Employee API Documentation](./docs/EMPLOYEE_API.md) - Employee endpoints for task counts and statistics
 
 ## Notes

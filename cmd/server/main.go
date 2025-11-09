@@ -13,9 +13,9 @@ import (
 	"github.com/ar-13-go-backend/internal/config"
 	"github.com/ar-13-go-backend/internal/handlers"
 	"github.com/ar-13-go-backend/internal/middleware"
+	"github.com/ar-13-go-backend/pkg/cache"
 	"github.com/ar-13-go-backend/pkg/dynamodb"
 	"github.com/ar-13-go-backend/pkg/jwt"
-	"github.com/ar-13-go-backend/pkg/websocket"
 	"github.com/gin-gonic/gin"
 )
 
@@ -44,6 +44,14 @@ func main() {
 	}
 	log.Println("DynamoDB initialized successfully")
 
+	// Initialize Redis (optional - will continue if Redis is unavailable)
+	_, err = cache.InitializeRedis(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Redis: %v. Caching will be disabled.", err)
+	} else {
+		log.Println("Redis initialized successfully")
+	}
+
 	// Create router
 	router := gin.New()
 
@@ -55,11 +63,8 @@ func main() {
 	// Serve static files
 	router.Static("/uploads", "./upload")
 
-	// Initialize WebSocket service
-	wsService := websocket.NewWebSocketService()
-
 	// Initialize handlers
-	handler := handlers.NewHandler(cfg, wsService)
+	handler := handlers.NewHandler(cfg)
 
 	// Setup routes
 	setupRoutes(router, handler, cfg)
@@ -96,9 +101,8 @@ func main() {
 }
 
 func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Config) {
-	// Socket.IO endpoint (must be before other routes to catch /socket.io/ path)
-	// Use wildcard to handle all Socket.IO paths (polling, websocket, etc.)
-	router.Any("/socket.io/*path", handler.SocketIO.HandleConnection)
+	// WebSocket endpoint
+	router.GET("/ws", handler.WebSocket.HandleConnection)
 
 	api := router.Group("/api")
 
@@ -145,7 +149,8 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			tasks.POST("/add", middleware.RequirePermission("tasks:write"), handler.Task.Add)
 			tasks.POST("/add-multiple", middleware.RequirePermission("tasks:write"), handler.Task.AddMultiple)
 			tasks.PUT("/update", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.Update)
-			tasks.PUT("/update-duration/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateDuration)
+			tasks.PUT("/update-deadline/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateDeadline)
+			tasks.PUT("/update-progress/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateProgress)
 			tasks.PUT("/update-description/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateDescription)
 			tasks.PUT("/update-status/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateStatus)
 			tasks.POST("/add-time-spent/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.AddTimeSpent)
@@ -273,9 +278,6 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 		{
 			backup.POST("/all", middleware.RequireAdmin(), handler.Backup.BackupAllCollections)
 		}
-
-		// WebSocket endpoint
-		api.GET("/ws", handler.WebSocket.HandleConnection)
 	}
 
 	// Google OAuth callback (public - called by Google, not by authenticated user)

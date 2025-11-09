@@ -3,21 +3,20 @@ package handlers
 import (
 	"github.com/ar-13-go-backend/internal/constants"
 	"github.com/ar-13-go-backend/internal/services"
-	"github.com/ar-13-go-backend/pkg/websocket"
 	"github.com/gin-gonic/gin"
 )
 
 // NotificationHandler handles notification routes
 type NotificationHandler struct {
 	notificationService *services.NotificationService
-	wsService           *websocket.WebSocketService
+	webSocketHandler    *WebSocketHandler
 }
 
 // NewNotificationHandler creates a new notification handler
-func NewNotificationHandler(wsService *websocket.WebSocketService) *NotificationHandler {
+func NewNotificationHandler(webSocketHandler *WebSocketHandler) *NotificationHandler {
 	return &NotificationHandler{
 		notificationService: services.NewNotificationService(),
-		wsService:           wsService,
+		webSocketHandler:    webSocketHandler,
 	}
 }
 
@@ -96,9 +95,10 @@ func (h *NotificationHandler) DeleteAllForUser(c *gin.Context) {
 
 // GetConnectionInfo gets WebSocket connection info
 func (h *NotificationHandler) GetConnectionInfo(c *gin.Context) {
+	wsService := h.webSocketHandler.GetWebSocketService()
 	info := gin.H{
-		"connectedUsers":   h.wsService.GetConnectedUsersCount(),
-		"connectedUserIds": h.wsService.GetConnectedUserIDs(),
+		"connectedUsers":   wsService.GetConnectedUsersCount(),
+		"connectedUserIds": wsService.GetConnectedUserIDs(),
 	}
 	c.JSON(constants.StatusOK, info)
 }

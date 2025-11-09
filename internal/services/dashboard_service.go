@@ -36,6 +36,7 @@ type DashboardService struct {
 	projectRepo *repos.ProjectRepo
 	userRepo    *repos.UserRepo
 	taskRepo    *repos.TaskRepo
+	cacheSvc    *CacheService
 }
 
 // NewDashboardService creates a new dashboard service
@@ -44,10 +45,12 @@ func NewDashboardService() *DashboardService {
 		projectRepo: repos.NewProjectRepo(),
 		userRepo:    repos.NewUserRepo(),
 		taskRepo:    repos.NewTaskRepo(),
+		cacheSvc:    NewCacheService(),
 	}
 }
 
 // GetAllStats gets all dashboard statistics
+// Uses Redis cache to improve performance
 func (s *DashboardService) GetAllStats(ctx context.Context, projectLimit, empLimit *int) (map[string]interface{}, error) {
 	// Apply default limits if not provided to prevent fetching all data
 	if projectLimit == nil {
@@ -58,6 +61,13 @@ func (s *DashboardService) GetAllStats(ctx context.Context, projectLimit, empLim
 		defaultLimit := DefaultEmployeeLimit
 		empLimit = &defaultLimit
 	}
+
+	// Try to get from cache first
+	cached, err := s.cacheSvc.GetDashboardStats(ctx, *projectLimit, *empLimit)
+	if err == nil && cached != nil {
+		return cached, nil
+	}
+	// If cache miss or error, continue to fetch from DB
 
 	// Use goroutines to fetch projects and employees in parallel
 	type projectResult struct {
@@ -112,20 +122,27 @@ func (s *DashboardService) GetAllStats(ctx context.Context, projectLimit, empLim
 	}
 
 	// Calculate workload for employees using all projects
+	// Optimized to batch fetch all tasks instead of nested loops
 	employeesWithWorkload, err := s.calculateEmployeeWorkload(ctx, employeeRes.employees, allProjects)
 	if err != nil {
 		return nil, err
 	}
 
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		"projects":       projectRes.projects,
 		"employees":      employeesWithWorkload,
 		"totalProjects":  len(projectRes.projects),
 		"totalEmployees": len(employeesWithWorkload),
-	}, nil
+	}
+
+	// Cache the result (ignore cache errors)
+	_ = s.cacheSvc.SetDashboardStats(ctx, *projectLimit, *empLimit, result)
+
+	return result, nil
 }
 
 // calculateEmployeeWorkload calculates workload data for employees
+// Optimized to batch fetch all tasks instead of nested loops
 func (s *DashboardService) calculateEmployeeWorkload(ctx context.Context, employees []models.User, projects []models.Project) ([]EmployeeWithWorkload, error) {
 	// Build a map to count tasks per user efficiently
 	taskCounts := make(map[string]WorkloadData)
@@ -135,29 +152,33 @@ func (s *DashboardService) calculateEmployeeWorkload(ctx context.Context, employ
 		taskCounts[user.ID] = WorkloadData{}
 	}
 
-	// Fetch all tasks for all projects and count
-	for _, project := range projects {
-		tasks, err := s.taskRepo.GetAll(ctx, project.ID)
-		if err != nil {
-			continue
+	// Extract project IDs for batch fetching
+	if len(projects) > 0 {
+		projectIDs := make([]string, 0, len(projects))
+		for _, project := range projects {
+			projectIDs = append(projectIDs, project.ID)
 		}
 
-		for _, task := range tasks {
-			// Skip tasks with no assignments
-			if len(task.AssignTo) == 0 {
-				continue
-			}
+		// Batch fetch all tasks for all projects in parallel
+		tasksByProject, err := s.taskRepo.GetAllByProjectIDs(ctx, projectIDs)
+		if err != nil {
+			return nil, err
+		}
 
-			// Normalize status to lowercase for comparison
-			status := strings.ToLower(strings.TrimSpace(task.Status))
-
-			// Count tasks for each assigned user
-			for _, assignID := range task.AssignTo {
-				// Skip empty assign IDs
-				if assignID == "" {
+		// Process all tasks from all projects
+		for _, tasks := range tasksByProject {
+			for _, task := range tasks {
+				// Skip tasks with no assignments
+				if task.AssignTo == nil || *task.AssignTo == "" {
 					continue
 				}
 
+				assignID := *task.AssignTo
+
+				// Normalize status to lowercase for comparison
+				status := strings.ToLower(strings.TrimSpace(task.Status))
+
+				// Count tasks for assigned user
 				if counts, exists := taskCounts[assignID]; exists {
 					counts.TotalTasks++
 

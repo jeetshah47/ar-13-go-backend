@@ -33,6 +33,17 @@ aws dynamodb create-table \
     --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
 ```
 
+**Project Table Fields:**
+- `id` (String) - Primary key
+- `title` (String) - Project title
+- `description` (String) - Project description
+- `ownerId` (String) - Owner user ID
+- `membersIds` (List) - Array of member user IDs
+- `deadLine` (String) - Project deadline in RFC3339 format (note: JSON field name is `deadLine` in camelCase)
+- `logoUrl` (String, optional) - Project logo URL
+- `created` (String) - Creation timestamp (RFC3339)
+- `updated` (String, optional) - Last update timestamp (RFC3339)
+
 ### 3. Tasks Table
 ```bash
 aws dynamodb create-table \
@@ -47,6 +58,25 @@ aws dynamodb create-table \
     --billing-mode PROVISIONED \
     --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
 ```
+
+**Task Table Fields:**
+- `id` (String) - Primary key
+- `subject` (String) - Task subject/title
+- `code` (String) - Task code
+- `status` (String) - Task status
+- `deadline` (String) - Deadline in RFC3339 format (replaces old `duration` field)
+- `priority` (String) - Task priority
+- `progress` (Number) - Completion percentage (0-100, optional)
+- `assignTo` (String, optional) - Assigned user ID
+- `projectId` (String) - Project ID (indexed via GSI)
+- `description` (String, optional) - Task description
+- `timeSpent` (List) - Array of time spent entries
+- `fileAttachments` (List) - Array of file attachments
+- `activityLogs` (List) - Array of activity log entries
+- `created` (String) - Creation timestamp (RFC3339)
+- `updated` (String, optional) - Last update timestamp (RFC3339)
+
+**Note**: See `docs/TASK_FIELD_MIGRATION.md` for migration details from `duration` to `deadline`.
 
 ### 4. Notifications Table
 ```bash

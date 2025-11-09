@@ -143,6 +143,28 @@ func (r *DynamoBaseRepo) ScanItems(ctx context.Context, limit *int32) ([]map[str
 	return result.Items, nil
 }
 
+// ScanItemsWithFilter scans items from the table with a filter expression
+// This is more efficient than scanning all items and filtering in memory
+func (r *DynamoBaseRepo) ScanItemsWithFilter(ctx context.Context, filterExpression string, expressionAttributeNames map[string]string, expressionAttributeValues map[string]types.AttributeValue, limit *int32) ([]map[string]types.AttributeValue, error) {
+	input := &dynamodb.ScanInput{
+		TableName:            aws.String(r.tableName),
+		FilterExpression:     aws.String(filterExpression),
+		ExpressionAttributeNames: expressionAttributeNames,
+		ExpressionAttributeValues: expressionAttributeValues,
+	}
+
+	if limit != nil {
+		input.Limit = limit
+	}
+
+	result, err := r.client.Scan(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Items, nil
+}
+
 // QueryByIndex queries items by a GSI (Global Secondary Index)
 func (r *DynamoBaseRepo) QueryByIndex(ctx context.Context, indexName, keyName, keyValue string) ([]map[string]types.AttributeValue, error) {
 	result, err := r.client.Query(ctx, &dynamodb.QueryInput{

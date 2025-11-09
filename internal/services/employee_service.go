@@ -86,42 +86,37 @@ func (s *EmployeeService) GetEmployeeList(ctx context.Context) ([]EmployeeTaskCo
 
 		for _, task := range tasks {
 			// Skip tasks with no assignments
-			if len(task.AssignTo) == 0 {
+			if task.AssignTo == nil || *task.AssignTo == "" {
 				continue
 			}
+
+			assignID := *task.AssignTo
 
 			// Normalize status to lowercase for comparison
 			status := strings.ToLower(strings.TrimSpace(task.Status))
 
-			// Count tasks for each assigned user
-			for _, assignID := range task.AssignTo {
-				// Skip empty assign IDs
-				if assignID == "" {
-					continue
+			// Count tasks for assigned user
+			if counts, exists := taskCounts[assignID]; exists {
+				counts.totalTasks++
+
+				// Count by status (case-insensitive)
+				switch status {
+				case "backlog", "todo", "to-do":
+					counts.backlogTasks++
+				case "inprogress", "in-progress", "in_progress", "in progress":
+					counts.tasksInProgress++
+				case "inreview", "in-review", "in_review", "in review":
+					counts.tasksInReview++
+				case "pending":
+					counts.pendingTasks++
 				}
 
-				if counts, exists := taskCounts[assignID]; exists {
-					counts.totalTasks++
-
-					// Count by status (case-insensitive)
-					switch status {
-					case "backlog", "todo", "to-do":
-						counts.backlogTasks++
-					case "inprogress", "in-progress", "in_progress", "in progress":
-						counts.tasksInProgress++
-					case "inreview", "in-review", "in_review", "in review":
-						counts.tasksInReview++
-					case "pending":
-						counts.pendingTasks++
-					}
-
-					// Count active tasks (not completed or cancelled)
-					if status != "completed" && status != "cancelled" && status != "canceled" {
-						counts.activeTasks++
-					}
-
-					taskCounts[assignID] = counts
+				// Count active tasks (not completed or cancelled)
+				if status != "completed" && status != "cancelled" && status != "canceled" {
+					counts.activeTasks++
 				}
+
+				taskCounts[assignID] = counts
 			}
 		}
 	}
@@ -178,41 +173,35 @@ func (s *EmployeeService) GetEmployeeTaskCounts(ctx context.Context, userID stri
 
 		for _, task := range tasks {
 			// Skip tasks with no assignments
-			if len(task.AssignTo) == 0 {
+			if task.AssignTo == nil || *task.AssignTo == "" {
+				continue
+			}
+
+			// Check if user is assigned to task
+			if *task.AssignTo != userID {
 				continue
 			}
 
 			// Normalize status to lowercase for comparison
 			status := strings.ToLower(strings.TrimSpace(task.Status))
 
-			// Check if user is assigned to task
-			for _, assignID := range task.AssignTo {
-				// Skip empty assign IDs
-				if assignID == "" {
-					continue
-				}
+			totalTasks++
 
-				if assignID == userID {
-					totalTasks++
+			// Count by status (case-insensitive)
+			switch status {
+			case "backlog", "todo", "to-do":
+				backlogTasks++
+			case "inprogress", "in-progress", "in_progress", "in progress":
+				tasksInProgress++
+			case "inreview", "in-review", "in_review", "in review":
+				tasksInReview++
+			case "pending":
+				pendingTasks++
+			}
 
-					// Count by status (case-insensitive)
-					switch status {
-					case "backlog", "todo", "to-do":
-						backlogTasks++
-					case "inprogress", "in-progress", "in_progress", "in progress":
-						tasksInProgress++
-					case "inreview", "in-review", "in_review", "in review":
-						tasksInReview++
-					case "pending":
-						pendingTasks++
-					}
-
-					// Count active tasks (not completed or cancelled)
-					if status != "completed" && status != "cancelled" && status != "canceled" {
-						activeTasks++
-					}
-					break
-				}
+			// Count active tasks (not completed or cancelled)
+			if status != "completed" && status != "cancelled" && status != "canceled" {
+				activeTasks++
 			}
 		}
 	}
@@ -373,14 +362,7 @@ func (s *EmployeeService) GetEmployeeTaskStats(ctx context.Context, userID strin
 
 		for _, task := range tasks {
 			// Check if user is assigned
-			isAssigned := false
-			for _, assignID := range task.AssignTo {
-				if assignID == userID {
-					isAssigned = true
-					break
-				}
-			}
-			if !isAssigned {
+			if task.AssignTo == nil || *task.AssignTo != userID {
 				continue
 			}
 
