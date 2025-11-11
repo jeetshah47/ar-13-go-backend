@@ -23,8 +23,18 @@ func NewActivityLogRepo() *ActivityLogRepo {
 
 // Add adds an activity log
 func (r *ActivityLogRepo) Add(ctx context.Context, log *models.ActivityLogBase) error {
+	now := time.Now()
+	
 	if log.ID == "" {
-		log.ID = fmt.Sprintf("%s-%s-%d", log.EntityType, log.EntityID, time.Now().Unix())
+		log.ID = fmt.Sprintf("%s-%s-%d", log.EntityType, log.EntityID, now.Unix())
+	}
+
+	// Initialize Created and CreatedAt if they are zero values
+	if log.Created.IsZero() {
+		log.Created = now
+	}
+	if log.CreatedAt.IsZero() {
+		log.CreatedAt = now
 	}
 
 	data := map[string]interface{}{
