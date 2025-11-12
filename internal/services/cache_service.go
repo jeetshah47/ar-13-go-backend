@@ -22,10 +22,10 @@ func NewCacheService() *CacheService {
 
 // Cache key prefixes
 const (
-	CacheKeyDashboardStats     = "dashboard:stats"
-	CacheKeyCalendarMonth       = "calendar:month"
-	CacheKeyProjectStats       = "project:stats"
-	CacheKeyActivityLogs       = "activity:logs"
+	CacheKeyDashboardStats = "dashboard:stats"
+	CacheKeyCalendarMonth  = "calendar:month"
+	CacheKeyProjectStats   = "project:stats"
+	CacheKeyActivityLogs   = "activity:logs"
 )
 
 // Cache TTLs
@@ -147,3 +147,84 @@ func (s *CacheService) InvalidateAllActivityLogs(ctx context.Context) error {
 	return s.cache.DeletePattern(ctx, pattern)
 }
 
+// Item-level caching for frequently accessed entities
+
+// Cache key prefixes for individual items
+const (
+	CacheKeyUser    = "user"
+	CacheKeyProject = "project"
+	CacheKeyTask    = "task"
+)
+
+// Cache TTLs for individual items
+const (
+	TTLUser    = 10 * time.Minute
+	TTLProject = 10 * time.Minute
+	TTLTask    = 5 * time.Minute
+)
+
+// GetUser retrieves a user from cache
+func (s *CacheService) GetUser(ctx context.Context, userID string, dest interface{}) error {
+	key := fmt.Sprintf("%s:%s", CacheKeyUser, userID)
+	err := s.cache.Get(ctx, key, dest)
+	if err == cache.ErrCacheMiss {
+		return cache.ErrCacheMiss
+	}
+	return err
+}
+
+// SetUser stores a user in cache
+func (s *CacheService) SetUser(ctx context.Context, userID string, user interface{}) error {
+	key := fmt.Sprintf("%s:%s", CacheKeyUser, userID)
+	return s.cache.Set(ctx, key, user, TTLUser)
+}
+
+// InvalidateUser invalidates a user cache
+func (s *CacheService) InvalidateUser(ctx context.Context, userID string) error {
+	key := fmt.Sprintf("%s:%s", CacheKeyUser, userID)
+	return s.cache.Delete(ctx, key)
+}
+
+// GetProject retrieves a project from cache
+func (s *CacheService) GetProject(ctx context.Context, projectID string, dest interface{}) error {
+	key := fmt.Sprintf("%s:%s", CacheKeyProject, projectID)
+	err := s.cache.Get(ctx, key, dest)
+	if err == cache.ErrCacheMiss {
+		return cache.ErrCacheMiss
+	}
+	return err
+}
+
+// SetProject stores a project in cache
+func (s *CacheService) SetProject(ctx context.Context, projectID string, project interface{}) error {
+	key := fmt.Sprintf("%s:%s", CacheKeyProject, projectID)
+	return s.cache.Set(ctx, key, project, TTLProject)
+}
+
+// InvalidateProject invalidates a project cache
+func (s *CacheService) InvalidateProject(ctx context.Context, projectID string) error {
+	key := fmt.Sprintf("%s:%s", CacheKeyProject, projectID)
+	return s.cache.Delete(ctx, key)
+}
+
+// GetTask retrieves a task from cache
+func (s *CacheService) GetTask(ctx context.Context, taskID string, dest interface{}) error {
+	key := fmt.Sprintf("%s:%s", CacheKeyTask, taskID)
+	err := s.cache.Get(ctx, key, dest)
+	if err == cache.ErrCacheMiss {
+		return cache.ErrCacheMiss
+	}
+	return err
+}
+
+// SetTask stores a task in cache
+func (s *CacheService) SetTask(ctx context.Context, taskID string, task interface{}) error {
+	key := fmt.Sprintf("%s:%s", CacheKeyTask, taskID)
+	return s.cache.Set(ctx, key, task, TTLTask)
+}
+
+// InvalidateTask invalidates a task cache
+func (s *CacheService) InvalidateTask(ctx context.Context, taskID string) error {
+	key := fmt.Sprintf("%s:%s", CacheKeyTask, taskID)
+	return s.cache.Delete(ctx, key)
+}

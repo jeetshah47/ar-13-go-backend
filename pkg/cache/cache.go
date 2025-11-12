@@ -26,6 +26,8 @@ func InitializeRedis(addr, password string, db int) (*redis.Client, error) {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
+		// Close the client to prevent background reconnection attempts
+		_ = client.Close()
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
@@ -138,4 +140,3 @@ func (c *CacheService) Exists(ctx context.Context, key string) (bool, error) {
 
 // Cache miss error
 var ErrCacheMiss = fmt.Errorf("cache miss")
-

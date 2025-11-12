@@ -16,11 +16,11 @@ import (
 
 // TaskService handles task business logic
 type TaskService struct {
-	taskRepo         *repos.TaskRepo
-	userRepo         *repos.UserRepo
-	emailClient      *email.Client
-	cacheSvc         *CacheService
-	activityLogSvc   *ActivityLogService
+	taskRepo       *repos.TaskRepo
+	userRepo       *repos.UserRepo
+	emailClient    *email.Client
+	cacheSvc       *CacheService
+	activityLogSvc *ActivityLogService
 }
 
 // NewTaskService creates a new task service
@@ -39,26 +39,79 @@ func NewTaskService(cfg *config.Config) *TaskService {
 }
 
 // populateActivityLogUsers populates user details for activity logs
+// Optimized to use batch operations and caching to reduce DynamoDB reads
 func (s *TaskService) populateActivityLogUsers(ctx context.Context, activityLogs []models.ActivityLog) ([]models.ActivityLog, error) {
 	if len(activityLogs) == 0 {
 		return activityLogs, nil
 	}
 
-	userCache := make(map[string]*models.User)
-	result := make([]models.ActivityLog, 0, len(activityLogs))
-
+	// Collect unique user IDs
+	userIDSet := make(map[string]bool)
 	for _, log := range activityLogs {
-		// Populate user details if UserID is present
 		if log.UserID != "" {
-			user, exists := userCache[log.UserID]
-			if !exists {
-				fetchedUser, err := s.userRepo.GetByID(ctx, log.UserID)
-				if err == nil && fetchedUser != nil {
-					user = fetchedUser
-					userCache[log.UserID] = user
+			userIDSet[log.UserID] = true
+		}
+	}
+
+	if len(userIDSet) == 0 {
+		return activityLogs, nil
+	}
+
+	// Convert set to slice
+	userIDs := make([]string, 0, len(userIDSet))
+	for userID := range userIDSet {
+		userIDs = append(userIDs, userID)
+	}
+
+	// Try to fetch users from cache first, then batch fetch missing ones
+	userCache := make(map[string]*models.User)
+	missingUserIDs := make([]string, 0)
+
+	for _, userID := range userIDs {
+		var user models.User
+		err := s.cacheSvc.GetUser(ctx, userID, &user)
+		if err == nil {
+			// Found in cache
+			userCache[userID] = &user
+		} else {
+			// Not in cache, need to fetch
+			missingUserIDs = append(missingUserIDs, userID)
+		}
+	}
+
+	// Batch fetch missing users from DynamoDB
+	if len(missingUserIDs) > 0 {
+		// Use batch get for efficiency
+		userRepo := repos.NewUserRepo()
+		items, err := userRepo.BatchGetItems(ctx, missingUserIDs)
+		if err != nil {
+			// Fallback to individual gets if batch fails
+			for _, userID := range missingUserIDs {
+				user, err := s.userRepo.GetByID(ctx, userID)
+				if err == nil && user != nil {
+					userCache[userID] = user
+					// Cache the user for future requests
+					_ = s.cacheSvc.SetUser(ctx, userID, user)
 				}
 			}
-			if user != nil {
+		} else {
+			// Process batch results
+			for userID, item := range items {
+				var user models.User
+				if err := repos.UnmarshalItem(item, &user); err == nil {
+					userCache[userID] = &user
+					// Cache the user for future requests
+					_ = s.cacheSvc.SetUser(ctx, userID, &user)
+				}
+			}
+		}
+	}
+
+	// Populate activity logs with user data
+	result := make([]models.ActivityLog, 0, len(activityLogs))
+	for _, log := range activityLogs {
+		if log.UserID != "" {
+			if user, exists := userCache[log.UserID]; exists && user != nil {
 				// Populate UserName if not already set
 				if log.UserName == nil {
 					log.UserName = &user.Name
@@ -117,13 +170,23 @@ func (s *TaskService) GetAll(ctx context.Context, projectID string) ([]models.Ta
 }
 
 // GetByID gets a task by ID with populated activity log user details
+// Optimized to use caching to reduce DynamoDB reads
 func (s *TaskService) GetByID(ctx context.Context, projectID, taskID string) (*models.Task, error) {
-	task, err := s.taskRepo.GetByID(ctx, projectID, taskID)
+	// Try cache first
+	var task models.Task
+	err := s.cacheSvc.GetTask(ctx, taskID, &task)
 	if err != nil {
-		return nil, err
-	}
-	if task == nil {
-		return nil, nil
+		// Not in cache, fetch from DynamoDB
+		fetchedTask, err := s.taskRepo.GetByID(ctx, projectID, taskID)
+		if err != nil {
+			return nil, err
+		}
+		if fetchedTask == nil {
+			return nil, nil
+		}
+		task = *fetchedTask
+		// Cache the task for future requests
+		_ = s.cacheSvc.SetTask(ctx, taskID, &task)
 	}
 
 	// Populate user details for activity logs
@@ -134,7 +197,7 @@ func (s *TaskService) GetByID(ctx context.Context, projectID, taskID string) (*m
 		}
 	}
 
-	return task, nil
+	return &task, nil
 }
 
 // Add creates a new task
@@ -142,7 +205,10 @@ func (s *TaskService) Add(ctx context.Context, task *models.Task) error {
 	if err := s.taskRepo.Add(ctx, task); err != nil {
 		return err
 	}
-	
+
+	// Cache the newly created task
+	_ = s.cacheSvc.SetTask(ctx, task.ID, task)
+
 	// Create activity log for task creation
 	desc := fmt.Sprintf("Task '%s' was created", task.Subject)
 	s.createActivityLog(ctx, task.ID, models.ActivityLogActionCreated, &desc, map[string]interface{}{
@@ -151,7 +217,7 @@ func (s *TaskService) Add(ctx context.Context, task *models.Task) error {
 		"priority":  task.Priority,
 		"projectId": task.ProjectID,
 	})
-	
+
 	// Invalidate caches that depend on tasks
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
 	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
@@ -164,7 +230,7 @@ func (s *TaskService) AddMultiple(ctx context.Context, tasks []models.Task) erro
 		if err := s.taskRepo.Add(ctx, &tasks[i]); err != nil {
 			return err
 		}
-		
+
 		// Create activity log for each task creation
 		desc := fmt.Sprintf("Task '%s' was created", tasks[i].Subject)
 		s.createActivityLog(ctx, tasks[i].ID, models.ActivityLogActionCreated, &desc, map[string]interface{}{
@@ -182,13 +248,19 @@ func (s *TaskService) AddMultiple(ctx context.Context, tasks []models.Task) erro
 
 // Update updates a task
 func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
-	// Check if task exists
-	existing, err := s.taskRepo.GetByID(ctx, task.ProjectID, task.ID)
+	// Check if task exists (try cache first)
+	var existing models.Task
+	err := s.cacheSvc.GetTask(ctx, task.ID, &existing)
 	if err != nil {
-		return err
-	}
-	if existing == nil {
-		return errors.New("task not found")
+		// Not in cache, fetch from DynamoDB
+		fetchedTask, err := s.taskRepo.GetByID(ctx, task.ProjectID, task.ID)
+		if err != nil {
+			return err
+		}
+		if fetchedTask == nil {
+			return errors.New("task not found")
+		}
+		existing = *fetchedTask
 	}
 
 	// Track changes for activity log
@@ -212,13 +284,16 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 	if err := s.taskRepo.Update(ctx, task); err != nil {
 		return err
 	}
-	
+
+	// Invalidate task cache since it was updated
+	_ = s.cacheSvc.InvalidateTask(ctx, task.ID)
+
 	// Create activity log for task update
 	if len(fields) > 0 {
 		desc := fmt.Sprintf("Task '%s' was updated", task.Subject)
 		s.createActivityLog(ctx, task.ID, models.ActivityLogActionUpdated, &desc, fields)
 	}
-	
+
 	// Invalidate caches that depend on tasks
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
 	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
@@ -239,13 +314,16 @@ func (s *TaskService) Delete(ctx context.Context, projectID, taskID string) erro
 	if err := s.taskRepo.Delete(ctx, projectID, taskID); err != nil {
 		return err
 	}
-	
+
+	// Invalidate task cache since it was deleted
+	_ = s.cacheSvc.InvalidateTask(ctx, taskID)
+
 	// Create activity log for task deletion
 	desc := fmt.Sprintf("Task '%s' was deleted", existing.Subject)
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionDeleted, &desc, map[string]interface{}{
 		"subject": existing.Subject,
 	})
-	
+
 	// Invalidate caches that depend on tasks
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
 	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
@@ -266,14 +344,14 @@ func (s *TaskService) UpdateDeadline(ctx context.Context, projectID, taskID stri
 	if err := s.taskRepo.UpdateDeadline(ctx, projectID, taskID, deadline); err != nil {
 		return err
 	}
-	
+
 	// Create activity log for deadline update
 	desc := fmt.Sprintf("Deadline for task '%s' was updated", existing.Subject)
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionDeadlineUpdated, &desc, map[string]interface{}{
 		"oldDeadline": existing.Deadline.Format(time.RFC3339),
 		"newDeadline": deadline.Format(time.RFC3339),
 	})
-	
+
 	return nil
 }
 
@@ -296,7 +374,7 @@ func (s *TaskService) UpdateDescription(ctx context.Context, projectID, taskID, 
 	if err := s.taskRepo.UpdateDescription(ctx, projectID, taskID, description); err != nil {
 		return err
 	}
-	
+
 	// Create activity log for description update
 	var logDesc string
 	if oldDescription == "" && description != "" {
@@ -306,13 +384,13 @@ func (s *TaskService) UpdateDescription(ctx context.Context, projectID, taskID, 
 	} else {
 		logDesc = fmt.Sprintf("Updated description for task '%s'", existing.Subject)
 	}
-	
+
 	fields := map[string]interface{}{
 		"oldDescription": oldDescription,
 		"newDescription": description,
 	}
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionDescriptionUpdated, &logDesc, fields)
-	
+
 	return nil
 }
 
@@ -335,14 +413,14 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 	if err := s.taskRepo.UpdateStatus(ctx, projectID, taskID, status); err != nil {
 		return err
 	}
-	
+
 	// Create activity log for status change
 	desc := fmt.Sprintf("Status changed from \"%s\" to \"%s\"", existing.Status, status)
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionStatusChanged, &desc, map[string]interface{}{
 		"oldStatus": existing.Status,
 		"newStatus": status,
 	})
-	
+
 	// Invalidate caches that depend on task status
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
 	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
@@ -376,14 +454,14 @@ func (s *TaskService) UpdateProgress(ctx context.Context, projectID, taskID stri
 	if err := s.taskRepo.UpdateProgress(ctx, projectID, taskID, progress); err != nil {
 		return err
 	}
-	
+
 	// Create activity log for progress update
 	desc := fmt.Sprintf("Progress for task '%s' was updated from %d%% to %d%%", existing.Subject, oldProgress, progress)
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionProgressUpdated, &desc, map[string]interface{}{
 		"oldProgress": oldProgress,
 		"newProgress": progress,
 	})
-	
+
 	// Invalidate caches that depend on tasks
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
 	_ = s.cacheSvc.InvalidateDashboardStats(ctx)
@@ -403,7 +481,7 @@ func (s *TaskService) AddTimeSpent(ctx context.Context, projectID, taskID string
 	if err := s.taskRepo.AddTimeSpent(ctx, projectID, taskID, timeSpent); err != nil {
 		return err
 	}
-	
+
 	// Create activity log for time spent addition
 	desc := fmt.Sprintf("Time log entry added for task '%s'", task.Subject)
 	fields := map[string]interface{}{
@@ -415,7 +493,7 @@ func (s *TaskService) AddTimeSpent(ctx context.Context, projectID, taskID string
 		fields["description"] = *timeSpent.Description
 	}
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentAdded, &desc, fields)
-	
+
 	return nil
 }
 
@@ -428,7 +506,7 @@ func (s *TaskService) UpdateTimeSpent(ctx context.Context, projectID, taskID str
 	if task == nil {
 		return errors.New("task not found")
 	}
-	
+
 	// Get existing time spent entry for comparison
 	var oldTimeSpent *models.TimeSpent
 	if index >= 0 && index < len(task.TimeSpent) {
@@ -438,7 +516,7 @@ func (s *TaskService) UpdateTimeSpent(ctx context.Context, projectID, taskID str
 	if err := s.taskRepo.UpdateTimeSpent(ctx, projectID, taskID, index, timeSpent); err != nil {
 		return err
 	}
-	
+
 	// Create activity log for time spent update
 	desc := fmt.Sprintf("Time log entry updated for task '%s'", task.Subject)
 	fields := map[string]interface{}{
@@ -455,7 +533,7 @@ func (s *TaskService) UpdateTimeSpent(ctx context.Context, projectID, taskID str
 		fields["description"] = *timeSpent.Description
 	}
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentUpdated, &desc, fields)
-	
+
 	return nil
 }
 
@@ -468,7 +546,7 @@ func (s *TaskService) RemoveTimeSpent(ctx context.Context, projectID, taskID str
 	if task == nil {
 		return errors.New("task not found")
 	}
-	
+
 	// Get existing time spent entry before removal
 	var timeSpent *models.TimeSpent
 	if index >= 0 && index < len(task.TimeSpent) {
@@ -478,7 +556,7 @@ func (s *TaskService) RemoveTimeSpent(ctx context.Context, projectID, taskID str
 	if err := s.taskRepo.RemoveTimeSpent(ctx, projectID, taskID, index); err != nil {
 		return err
 	}
-	
+
 	// Create activity log for time spent removal
 	desc := fmt.Sprintf("Time log entry removed from task '%s'", task.Subject)
 	fields := map[string]interface{}{"index": index}
@@ -488,7 +566,7 @@ func (s *TaskService) RemoveTimeSpent(ctx context.Context, projectID, taskID str
 		fields["userId"] = timeSpent.UserID
 	}
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentRemoved, &desc, fields)
-	
+
 	return nil
 }
 
@@ -510,17 +588,17 @@ func (s *TaskService) AddFileAttachment(ctx context.Context, projectID, taskID s
 	if err := s.taskRepo.AddFileAttachment(ctx, projectID, taskID, attachment); err != nil {
 		return err
 	}
-	
+
 	// Create activity log for file upload
 	desc := fmt.Sprintf("File '%s' was uploaded to task '%s'", attachment.FileName, task.Subject)
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionFileUploaded, &desc, map[string]interface{}{
-		"fileName":   attachment.FileName,
+		"fileName":     attachment.FileName,
 		"originalName": attachment.OriginalName,
-		"fileSize":   attachment.FileSize,
-		"mimeType":   attachment.MimeType,
-		"uploadedBy": attachment.UploadedBy,
+		"fileSize":     attachment.FileSize,
+		"mimeType":     attachment.MimeType,
+		"uploadedBy":   attachment.UploadedBy,
 	})
-	
+
 	return nil
 }
 
@@ -533,7 +611,7 @@ func (s *TaskService) RemoveFileAttachment(ctx context.Context, projectID, taskI
 	if task == nil {
 		return errors.New("task not found")
 	}
-	
+
 	// Get existing file attachment before removal
 	var attachment *models.FileAttachment
 	if index >= 0 && index < len(task.FileAttachments) {
@@ -543,7 +621,7 @@ func (s *TaskService) RemoveFileAttachment(ctx context.Context, projectID, taskI
 	if err := s.taskRepo.RemoveFileAttachment(ctx, projectID, taskID, index); err != nil {
 		return err
 	}
-	
+
 	// Create activity log for file removal
 	desc := fmt.Sprintf("File was removed from task '%s'", task.Subject)
 	fields := map[string]interface{}{"index": index}
@@ -552,7 +630,7 @@ func (s *TaskService) RemoveFileAttachment(ctx context.Context, projectID, taskI
 		desc = fmt.Sprintf("File '%s' was removed from task '%s'", attachment.FileName, task.Subject)
 	}
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionFileRemoved, &desc, fields)
-	
+
 	return nil
 }
 

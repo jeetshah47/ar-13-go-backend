@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 // UserRepo handles user data operations
@@ -137,4 +138,10 @@ func (r *UserRepo) Delete(ctx context.Context, id string) error {
 // Persists checks if a user exists
 func (r *UserRepo) Persists(ctx context.Context, id string) (bool, error) {
 	return r.Exists(ctx, id)
+}
+
+// BatchGetItems retrieves multiple users by IDs using batch operation
+// This is more efficient than individual GetByID calls
+func (r *UserRepo) BatchGetItems(ctx context.Context, ids []string) (map[string]map[string]types.AttributeValue, error) {
+	return r.DynamoBaseRepo.BatchGetItems(ctx, ids)
 }

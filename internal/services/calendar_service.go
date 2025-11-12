@@ -199,6 +199,15 @@ func (s *CalendarEventService) Update(ctx context.Context, event *models.Calenda
 	// Sync with Google Calendar if the event is linked to Google Calendar
 	if existing.GoogleCalendarEventID != nil && *existing.GoogleCalendarEventID != "" && event.CreatedBy != "" {
 		go func() {
+			// Ensure attendees are included from existing event if not provided in update
+			// This ensures emails are sent when updating event details
+			if len(event.InvitedMemberIds) == 0 && len(existing.InvitedMemberIds) > 0 {
+				event.InvitedMemberIds = existing.InvitedMemberIds
+			}
+			if len(event.Invites) == 0 && len(existing.Invites) > 0 {
+				event.Invites = existing.Invites
+			}
+
 			googleEvent, err := s.googleAccountSvc.ConvertCalendarEventToGoogleEvent(context.Background(), event.CreatedBy, event)
 			if err != nil {
 				log.Printf("Failed to convert calendar event to Google format: %v", err)

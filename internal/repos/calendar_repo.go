@@ -115,6 +115,9 @@ func (r *CalendarEventRepo) Add(ctx context.Context, event *models.CalendarEvent
 	if event.InvitedMemberIds != nil && len(event.InvitedMemberIds) > 0 {
 		data["invitedMemberIds"] = event.InvitedMemberIds
 	}
+	if event.Invites != nil && len(event.Invites) > 0 {
+		data["invites"] = event.Invites
+	}
 	if event.Duration != nil {
 		data["duration"] = *event.Duration
 	}
@@ -162,6 +165,9 @@ func (r *CalendarEventRepo) Update(ctx context.Context, event *models.CalendarEv
 	}
 	if event.InvitedMemberIds != nil && len(event.InvitedMemberIds) > 0 {
 		updates["invitedMemberIds"] = event.InvitedMemberIds
+	}
+	if event.Invites != nil && len(event.Invites) > 0 {
+		updates["invites"] = event.Invites
 	}
 	if event.Duration != nil {
 		updates["duration"] = *event.Duration

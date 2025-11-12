@@ -620,11 +620,12 @@ func (s *GoogleAccountService) CreateGoogleCalendarEvent(ctx context.Context, us
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
-		errorMsg := fmt.Sprintf("failed to create calendar event (status %d): %s", resp.StatusCode, string(body))
+		bodyStr := string(body)
+		errorMsg := fmt.Sprintf("failed to create calendar event (status %d): %s", resp.StatusCode, bodyStr)
 		fmt.Printf("ERROR: %s\n", errorMsg)
 		fmt.Printf("Request URL: %s\n", apiURL)
 		fmt.Printf("Request Body: %s\n", string(jsonData))
-		return nil, fmt.Errorf(errorMsg)
+		return nil, fmt.Errorf("failed to create calendar event (status %d): %s", resp.StatusCode, bodyStr)
 	}
 
 	var createdEvent GoogleCalendarEvent
@@ -652,14 +653,78 @@ func (s *GoogleAccountService) UpdateGoogleCalendarEvent(ctx context.Context, us
 		return nil, err
 	}
 
+	// Build request payload similar to CreateGoogleCalendarEvent to ensure attendees are included
+	requestPayload := map[string]interface{}{
+		"summary": event.Summary,
+	}
+
+	if event.Description != "" {
+		requestPayload["description"] = event.Description
+	}
+
+	requestPayload["start"] = map[string]interface{}{
+		"dateTime": event.Start.DateTime,
+		"timeZone": event.Start.TimeZone,
+	}
+
+	requestPayload["end"] = map[string]interface{}{
+		"dateTime": event.End.DateTime,
+		"timeZone": event.End.TimeZone,
+	}
+
+	if event.Location != "" {
+		requestPayload["location"] = event.Location
+	}
+
+	// Always include attendees if they exist (required for sendUpdates to work)
+	if len(event.Attendees) > 0 {
+		attendees := make([]map[string]interface{}, len(event.Attendees))
+		for i, attendee := range event.Attendees {
+			attendees[i] = map[string]interface{}{
+				"email": attendee.Email,
+			}
+			if attendee.DisplayName != "" {
+				attendees[i]["displayName"] = attendee.DisplayName
+			}
+		}
+		requestPayload["attendees"] = attendees
+	}
+
+	// Add conference data if present
+	if event.ConferenceData != nil && event.ConferenceData.CreateRequest != nil {
+		conferenceData := map[string]interface{}{
+			"createRequest": map[string]interface{}{
+				"requestId": event.ConferenceData.CreateRequest.RequestID,
+				"conferenceSolutionKey": map[string]interface{}{
+					"type": event.ConferenceData.CreateRequest.ConferenceSolutionKey.Type,
+				},
+			},
+		}
+		requestPayload["conferenceData"] = conferenceData
+	}
+
 	// Convert to JSON
-	jsonData, err := json.Marshal(event)
+	jsonData, err := json.Marshal(requestPayload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal event: %w", err)
 	}
 
+	// Build URL with sendUpdates parameter to notify attendees
+	// Always send updates if there are attendees, so attendees are notified of any changes
+	apiURL := fmt.Sprintf("https://www.googleapis.com/calendar/v3/calendars/primary/events/%s", eventID)
+	params := make(url.Values)
+	if len(event.Attendees) > 0 {
+		params.Set("sendUpdates", "all") // Send updates to all attendees
+	}
+	if event.ConferenceData != nil && event.ConferenceData.CreateRequest != nil {
+		params.Set("conferenceDataVersion", "1")
+	}
+	if len(params) > 0 {
+		apiURL += "?" + params.Encode()
+	}
+
 	// Create HTTP request
-	req, err := http.NewRequestWithContext(ctx, "PUT", fmt.Sprintf("https://www.googleapis.com/calendar/v3/calendars/primary/events/%s", eventID), strings.NewReader(string(jsonData)))
+	req, err := http.NewRequestWithContext(ctx, "PUT", apiURL, strings.NewReader(string(jsonData)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -873,17 +938,21 @@ func (s *GoogleAccountService) ConvertCalendarEventToGoogleEvent(ctx context.Con
 		}
 	}
 
-	// Add attendees if invited member IDs are provided
-	if len(event.InvitedMemberIds) > 0 {
-		attendees := make([]struct {
-			Email       string `json:"email"`
-			DisplayName string `json:"displayName,omitempty"`
-		}, 0)
+	// Add attendees from invited member IDs and invites emails
+	attendees := make([]struct {
+		Email       string `json:"email"`
+		DisplayName string `json:"displayName,omitempty"`
+	}, 0)
 
-		// Get user emails from member IDs
+	// Track emails to avoid duplicates
+	emailSet := make(map[string]bool)
+
+	// Get user emails from member IDs
+	if len(event.InvitedMemberIds) > 0 {
 		for _, memberID := range event.InvitedMemberIds {
 			user, err := s.userRepo.GetByID(ctx, memberID)
-			if err == nil && user != nil {
+			if err == nil && user != nil && !emailSet[user.Email] {
+				emailSet[user.Email] = true
 				attendees = append(attendees, struct {
 					Email       string `json:"email"`
 					DisplayName string `json:"displayName,omitempty"`
@@ -893,7 +962,27 @@ func (s *GoogleAccountService) ConvertCalendarEventToGoogleEvent(ctx context.Con
 				})
 			}
 		}
+	}
 
+	// Add emails directly from invites field
+	if len(event.Invites) > 0 {
+		for _, email := range event.Invites {
+			// Skip empty emails and duplicates
+			if email != "" && !emailSet[email] {
+				emailSet[email] = true
+				attendees = append(attendees, struct {
+					Email       string `json:"email"`
+					DisplayName string `json:"displayName,omitempty"`
+				}{
+					Email: email,
+					// No display name for direct email invites
+				})
+			}
+		}
+	}
+
+	// Set attendees if we have any
+	if len(attendees) > 0 {
 		googleEvent.Attendees = attendees
 	}
 

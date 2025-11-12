@@ -42,10 +42,15 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*Logi
 	// Get user by email
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 	if user == nil {
 		return nil, errors.New("invalid credentials")
+	}
+
+	// Check if password is empty (unmarshaling issue)
+	if user.Password == "" {
+		return nil, fmt.Errorf("user password not found in database")
 	}
 
 	// Verify password
@@ -58,7 +63,7 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*Logi
 	if expirationHours == 0 {
 		expirationHours = 24 // default 24 hours
 	}
-	
+
 	accessToken, err := jwt.GenerateToken(user.ID, user.Email, string(user.Role), time.Duration(expirationHours)*time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %w", err)
@@ -69,7 +74,7 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*Logi
 	if refreshExpirationDays == 0 {
 		refreshExpirationDays = 30 // default 30 days
 	}
-	
+
 	refreshToken, err := jwt.GenerateRefreshToken(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)

@@ -12,15 +12,15 @@ const (
 
 // User represents a user in the system
 type User struct {
-	ID          string    `json:"id" firestore:"id"`
-	Name        string    `json:"name" firestore:"name"`
-	Email       string    `json:"email" firestore:"email"`
-	PhoneNumber string    `json:"phoneNumber" firestore:"phoneNumber"`
-	Role        UserRole  `json:"role" firestore:"role"`
-	Password    string    `json:"-" firestore:"password"` // Hidden from JSON
-	Designation *string   `json:"designation,omitempty" firestore:"designation,omitempty"`
-	CreatedAt   time.Time `json:"createdAt" firestore:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt" firestore:"updatedAt"`
+	ID          string    `json:"id" firestore:"id" dynamodbav:"id"`
+	Name        string    `json:"name" firestore:"name" dynamodbav:"name"`
+	Email       string    `json:"email" firestore:"email" dynamodbav:"email"`
+	PhoneNumber string    `json:"phoneNumber" firestore:"phoneNumber" dynamodbav:"phoneNumber"`
+	Role        UserRole  `json:"role" firestore:"role" dynamodbav:"role"`
+	Password    string    `json:"-" firestore:"password" dynamodbav:"password"` // Hidden from JSON
+	Designation *string   `json:"designation,omitempty" firestore:"designation,omitempty" dynamodbav:"designation,omitempty"`
+	CreatedAt   time.Time `json:"createdAt" firestore:"createdAt" dynamodbav:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt" firestore:"updatedAt" dynamodbav:"updatedAt"`
 }
 
 // LoginRequest represents a login request

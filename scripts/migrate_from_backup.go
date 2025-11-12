@@ -551,6 +551,17 @@ func migrateCalendarEvents(ctx context.Context, documents []BackupDocument) erro
 			}
 			event.RepeatDays = days
 		}
+		if invites, ok := data["invites"].([]interface{}); ok {
+			inviteEmails := make([]string, 0, len(invites))
+			for _, invite := range invites {
+				if str, ok := invite.(string); ok {
+					inviteEmails = append(inviteEmails, str)
+				}
+			}
+			if len(inviteEmails) > 0 {
+				event.Invites = inviteEmails
+			}
+		}
 
 		// Handle timestamps
 		if createdStr := getString(data, "created"); createdStr != "" {

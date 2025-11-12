@@ -35,8 +35,9 @@ type CalendarEvent struct {
 	CreatedBy             string           `json:"createdBy" firestore:"createdBy"`
 	AddToGoogleCalendar   *bool            `json:"addToGoogleCalendar,omitempty" firestore:"addToGoogleCalendar,omitempty"`
 	GoogleCalendarEventID *string          `json:"googleCalendarEventId,omitempty" firestore:"googleCalendarEventId,omitempty"`
-	EventType             *EventType       `json:"eventType,omitempty" firestore:"eventType,omitempty"` // offline or online
+	EventType             *EventType       `json:"eventType,omitempty" firestore:"eventType,omitempty"`               // offline or online
 	InvitedMemberIds      []string         `json:"invitedMemberIds,omitempty" firestore:"invitedMemberIds,omitempty"` // User IDs for online events
-	Duration              *int             `json:"duration,omitempty" firestore:"duration,omitempty"` // Duration in minutes for online events
-	GoogleMeetLink        *string          `json:"googleMeetLink,omitempty" firestore:"googleMeetLink,omitempty"` // Google Meet link for online events
+	Invites               []string         `json:"invites,omitempty" firestore:"invites,omitempty"`                   // Email addresses for event invites
+	Duration              *int             `json:"duration,omitempty" firestore:"duration,omitempty"`                 // Duration in minutes for online events
+	GoogleMeetLink        *string          `json:"googleMeetLink,omitempty" firestore:"googleMeetLink,omitempty"`     // Google Meet link for online events
 }
