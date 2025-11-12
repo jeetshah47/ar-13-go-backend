@@ -138,5 +138,18 @@ func (c *CacheService) Exists(ctx context.Context, key string) (bool, error) {
 	return count > 0, nil
 }
 
+// FlushAll clears all keys in the current Redis database
+func (c *CacheService) FlushAll(ctx context.Context) error {
+	if c.client == nil {
+		return fmt.Errorf("redis client not initialized")
+	}
+
+	if err := c.client.FlushDB(ctx).Err(); err != nil {
+		return fmt.Errorf("failed to flush cache: %w", err)
+	}
+
+	return nil
+}
+
 // Cache miss error
 var ErrCacheMiss = fmt.Errorf("cache miss")

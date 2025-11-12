@@ -1,0 +1,59 @@
+{
+  "collection": "activity_logs",
+  "documents": [
+    {
+      "id": "task-5P0TWkiDX3wsn4fa5DrN-1762885076",
+      "data": {
+        "action": "status_changed",
+        "created": "2025-11-11T23:47:56+05:30",
+        "createdAt": "2025-11-11T23:47:56+05:30",
+        "createdBy": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "description": "Status changed from \"todo\" to \"pending\"",
+        "entityId": "5P0TWkiDX3wsn4fa5DrN",
+        "entityType": "task",
+        "fields": {
+          "newStatus": "pending",
+          "oldStatus": "todo"
+        },
+        "id": "task-5P0TWkiDX3wsn4fa5DrN-1762885076"
+      }
+    },
+    {
+      "id": "task-9f0cf982-3e3a-4c68-9c08-1a8efd736851-1762886124",
+      "data": {
+        "action": "time_spent_added",
+        "created": "2025-11-12T00:05:24+05:30",
+        "createdAt": "2025-11-12T00:05:24+05:30",
+        "createdBy": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "description": "Time log entry added for task 'Checking first task'",
+        "entityId": "9f0cf982-3e3a-4c68-9c08-1a8efd736851",
+        "entityType": "task",
+        "fields": {
+          "date": "2025-11-13",
+          "description": "Nahhh",
+          "timeSpent": 540,
+          "userId": ""
+        },
+        "id": "task-9f0cf982-3e3a-4c68-9c08-1a8efd736851-1762886124"
+      }
+    },
+    {
+      "id": "task-9f0cf982-3e3a-4c68-9c08-1a8efd736851-1762939662",
+      "data": {
+        "action": "status_changed",
+        "created": "2025-11-12T14:57:42+05:30",
+        "createdAt": "2025-11-12T14:57:42+05:30",
+        "createdBy": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "description": "Status changed from \"todo\" to \"pending\"",
+        "entityId": "9f0cf982-3e3a-4c68-9c08-1a8efd736851",
+        "entityType": "task",
+        "fields": {
+          "newStatus": "pending",
+          "oldStatus": "todo"
+        },
+        "id": "task-9f0cf982-3e3a-4c68-9c08-1a8efd736851-1762939662"
+      }
+    }
+  ],
+  "backedUpAt": "2025-11-12T20:59:52.1991134+05:30"
+}

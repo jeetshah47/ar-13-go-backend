@@ -1,0 +1,61 @@
+{
+  "collection": "calendar_events",
+  "documents": [
+    {
+      "id": "event-1762942782139512962",
+      "data": {
+        "addToGoogleCalendar": true,
+        "category": "Work",
+        "created": "2025-11-12T15:49:42+05:30",
+        "createdBy": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "description": "newwww",
+        "end": "2025-11-13T17:50:00Z",
+        "eventType": "offline",
+        "googleCalendarEventId": "3lrik9rv9hl64h224psr7em9q0",
+        "id": "event-1762942782139512962",
+        "invites": [
+          "jeetshahajwa@gmail.com"
+        ],
+        "isRepeating": false,
+        "priority": "Low",
+        "repeatDays": [],
+        "repeatFrequency": "daily",
+        "start": "2025-11-13T16:50:00Z",
+        "time": "16:50",
+        "title": "new testter",
+        "updatedAt": "2025-11-12T15:49:43.704333159+05:30"
+      }
+    },
+    {
+      "id": "event-1762947386189461831",
+      "data": {
+        "addToGoogleCalendar": true,
+        "category": "Personal",
+        "created": "2025-11-12T17:06:26+05:30",
+        "createdBy": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "description": "",
+        "duration": 60,
+        "end": "2025-11-15T18:05:00Z",
+        "eventType": "online",
+        "googleCalendarEventId": "at9vv837auabea48vnhr3hn9p0",
+        "googleMeetLink": "https://meet.google.com/wqr-scyw-axk",
+        "id": "event-1762947386189461831",
+        "invitedMemberIds": [
+          "lSGVFwX7D0SdM2GaDvdHcqcW15B3"
+        ],
+        "invites": [
+          "devkahar99@gmail.com"
+        ],
+        "isRepeating": false,
+        "priority": "High",
+        "repeatDays": [],
+        "repeatFrequency": "daily",
+        "start": "2025-11-15T17:05:00Z",
+        "time": "17:05",
+        "title": "Meeting with dev",
+        "updatedAt": "2025-11-12T17:06:29.321761373+05:30"
+      }
+    }
+  ],
+  "backedUpAt": "2025-11-12T20:59:51.2364967+05:30"
+}

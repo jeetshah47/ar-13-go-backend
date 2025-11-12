@@ -1,0 +1,802 @@
+{
+  "collection": "tasks",
+  "documents": [
+    {
+      "id": "5P0TWkiDX3wsn4fa5DrN",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+        ],
+        "code": "TN00015",
+        "created": "2025-11-08T00:47:20+05:30",
+        "deadline": "2025-09-20T12:18:00Z",
+        "fileAttachments": [],
+        "id": "5P0TWkiDX3wsn4fa5DrN",
+        "priority": "Medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "pending",
+        "subject": "Checking websockets part 2 ",
+        "timeSpent": [],
+        "updatedAt": "2025-11-11T23:47:56.3373348+05:30"
+      }
+    },
+    {
+      "id": "900e54ab-349b-4e4d-9486-41632ba7e5dd",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "user3"
+        ],
+        "code": "TS0001252",
+        "created": "2025-11-08T00:47:20+05:30",
+        "deadline": "2025-09-19T14:27:29Z",
+        "fileAttachments": [],
+        "id": "900e54ab-349b-4e4d-9486-41632ba7e5dd",
+        "priority": "Medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "Done",
+        "subject": "Research",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "XJzSElJRoZXDML8meDzo",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "DWG-KEY_PLAN",
+        "created": "2025-11-08T00:47:27+05:30",
+        "deadline": "2025-11-07T05:11:00Z",
+        "fileAttachments": [],
+        "id": "XJzSElJRoZXDML8meDzo",
+        "priority": "Low",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "Key Plan / Location Plan",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "NryR5Y2k8e9MGY5ZheqR",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+        ],
+        "code": "TN000111",
+        "created": "2025-11-08T00:47:22+05:30",
+        "deadline": "2025-09-19T12:15:00Z",
+        "fileAttachments": [],
+        "id": "NryR5Y2k8e9MGY5ZheqR",
+        "priority": "Low",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "review",
+        "subject": "Checking websockets",
+        "timeSpent": [],
+        "updatedAt": "2025-11-08T17:28:21.6982992+05:30"
+      }
+    },
+    {
+      "id": "KoaErH9zM6E95aR1mzQA",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "DWG-KEY_PLAN",
+        "created": "2025-11-08T00:47:26+05:30",
+        "deadline": "2025-10-31T07:52:42Z",
+        "fileAttachments": [],
+        "id": "KoaErH9zM6E95aR1mzQA",
+        "priority": "Low",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "Key Plan / Location Plan",
+        "timeSpent": [
+          {
+            "Date": "2025-11-03",
+            "Description": "nwemqwe",
+            "TimeSpent": 90,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "aIfF5o3TPxe8ODQQy7a3",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "DWG-ELEVATION_CONCEPT",
+        "created": "2025-11-08T00:47:27+05:30",
+        "deadline": "2025-11-07T05:11:00Z",
+        "fileAttachments": [],
+        "id": "aIfF5o3TPxe8ODQQy7a3",
+        "priority": "Low",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "Elevations (Concept)",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "3b1893d9-395e-4fcd-bc72-9ddfece31da3",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "user4"
+        ],
+        "code": "TS0001254",
+        "created": "2025-11-08T00:47:21+05:30",
+        "deadline": "2025-09-16T20:27:29Z",
+        "fileAttachments": [],
+        "id": "3b1893d9-395e-4fcd-bc72-9ddfece31da3",
+        "priority": "Medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "In Progress",
+        "subject": "UI Login + Registration\n(+ other screens)",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "4b2070ca-a595-41fd-9565-613e5a9814bf",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "user1"
+        ],
+        "code": "TS0001247",
+        "created": "2025-11-08T00:47:23+05:30",
+        "deadline": "2025-09-15T20:27:29Z",
+        "fileAttachments": [],
+        "id": "4b2070ca-a595-41fd-9565-613e5a9814bf",
+        "priority": "Low",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "To Do",
+        "subject": "Preloader",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "67289849-1f0f-4fb6-a50d-e3158d8d1b84",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "user1"
+        ],
+        "code": "TS0001245",
+        "created": "2025-11-08T00:47:24+05:30",
+        "deadline": "2025-09-15T22:27:29Z",
+        "fileAttachments": [],
+        "id": "67289849-1f0f-4fb6-a50d-e3158d8d1b84",
+        "priority": "Low",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "In Progress",
+        "subject": "Animation for buttons",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "cd22adba-8da4-4971-bce3-6543c7c68384",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "user1"
+        ],
+        "code": "TS0001246",
+        "created": "2025-11-08T00:47:19+05:30",
+        "deadline": "2025-09-15T22:27:29Z",
+        "fileAttachments": [],
+        "id": "cd22adba-8da4-4971-bce3-6543c7c68384",
+        "priority": "Low",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "In Review",
+        "subject": "Animation for Landing page",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "9P3cnAemnClaExR4yPN9",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "74y4Y6ulSDgkmaVbsCK8cskN9rD3",
+          "6XZzWPKalvTvQFwg0ttuMVlE2t42"
+        ],
+        "code": "TN00015",
+        "created": "2025-11-08T00:47:20+05:30",
+        "deadline": "2025-09-19T18:23:00Z",
+        "fileAttachments": [],
+        "id": "9P3cnAemnClaExR4yPN9",
+        "priority": "Medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "In Progress",
+        "subject": "NEw tASk",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "4sOYHkqUtgUdCr51lXrk",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "TN00011123422",
+        "created": "2025-11-08T00:47:19+05:30",
+        "deadline": "2025-09-19T00:00:00Z",
+        "fileAttachments": [],
+        "id": "4sOYHkqUtgUdCr51lXrk",
+        "priority": "Medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "todo",
+        "subject": "NEw tASk222",
+        "timeSpent": [],
+        "updatedAt": "2025-11-08T17:28:07.7765199+05:30"
+      }
+    },
+    {
+      "id": "bs23akIEcx4TZJfR2dhq",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "DWG-SITE_PLAN_CONCEPT",
+        "created": "2025-11-08T00:47:27+05:30",
+        "deadline": "2025-11-07T05:11:00Z",
+        "fileAttachments": [],
+        "id": "bs23akIEcx4TZJfR2dhq",
+        "priority": "Low",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "Site Plan (Conceptual)",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "0L5C83LhQsiz3uTmqs2D",
+      "data": {
+        "activityLogs": [
+          {
+            "Description": "Status changed from \"To Do\" to \"pending\"",
+            "ID": "activity_1761925940708_qop8y5od4",
+            "Metadata": {
+              "newStatus": "pending",
+              "oldStatus": "To Do"
+            },
+            "Timestamp": "2025-10-31T15:52:20.708Z",
+            "Type": "status_changed",
+            "User": null,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+            "UserName": null
+          },
+          {
+            "Description": "Status changed from \"pending\" to \"in-progress\"",
+            "ID": "activity_1761925943234_pkym28991",
+            "Metadata": {
+              "newStatus": "in-progress",
+              "oldStatus": "pending"
+            },
+            "Timestamp": "2025-10-31T15:52:23.234Z",
+            "Type": "status_changed",
+            "User": null,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+            "UserName": null
+          },
+          {
+            "Description": "Status changed from \"in-progress\" to \"done\"",
+            "ID": "activity_1761926038540_66udkq7ai",
+            "Metadata": {
+              "newStatus": "done",
+              "oldStatus": "in-progress"
+            },
+            "Timestamp": "2025-10-31T15:53:58.54Z",
+            "Type": "status_changed",
+            "User": null,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+            "UserName": null
+          },
+          {
+            "Description": "Added 6h 30m on 2025-10-30: New Task Defination and uploaed all drawings",
+            "ID": "activity_1761927363562_zs6bhgcbi",
+            "Metadata": {
+              "date": "2025-10-30",
+              "description": "New Task Defination and uploaed all drawings",
+              "timeSpent": 390
+            },
+            "Timestamp": "2025-10-31T16:16:03.562Z",
+            "Type": "time_spent_added",
+            "User": null,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+            "UserName": null
+          }
+        ],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "DWG-FLOOR_PLAN_CONCEPT",
+        "created": "2025-11-08T00:47:25+05:30",
+        "deadline": "2025-10-31T07:52:42Z",
+        "fileAttachments": [],
+        "id": "0L5C83LhQsiz3uTmqs2D",
+        "priority": "Low",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "Floor Plans (Concept)",
+        "timeSpent": [
+          {
+            "Date": "2025-10-30",
+            "Description": "New Task Defination and uploaed all drawings",
+            "TimeSpent": 390,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "c0be1cdd-c890-4662-882a-27d7195523b3",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "user3"
+        ],
+        "code": "TS0001253",
+        "created": "2025-11-08T00:47:21+05:30",
+        "deadline": "2025-09-15T20:27:29Z",
+        "fileAttachments": [],
+        "id": "c0be1cdd-c890-4662-882a-27d7195523b3",
+        "priority": "Low",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "Done",
+        "subject": "Research reports (presentation for client)",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "REbqVYEWatcpP5ZfIMSw",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "6XZzWPKalvTvQFwg0ttuMVlE2t42",
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+        ],
+        "code": "TS0001",
+        "created": "2025-11-08T00:47:22+05:30",
+        "deadline": "2025-08-28T09:25:17Z",
+        "fileAttachments": [],
+        "id": "REbqVYEWatcpP5ZfIMSw",
+        "priority": "medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "pending",
+        "subject": "Create Drawing one",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "50756b78-edde-4d2a-9569-cf8f036693cc",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "user2"
+        ],
+        "code": "TS0001250",
+        "created": "2025-11-08T00:47:24+05:30",
+        "deadline": "2025-09-17T14:27:29Z",
+        "fileAttachments": [],
+        "id": "50756b78-edde-4d2a-9569-cf8f036693cc",
+        "priority": "Medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "Done",
+        "subject": "UX Login + Registration",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "9f0cf982-3e3a-4c68-9c08-1a8efd736851",
+      "data": {
+        "activityLogs": [],
+        "assignTo": "lSGVFwX7D0SdM2GaDvdHcqcW15B3",
+        "code": "TAKE_NEW_THINGS",
+        "created": "2025-11-09T14:56:04+05:30",
+        "deadline": "2025-11-09T10:26:00Z",
+        "fileAttachments": [],
+        "id": "9f0cf982-3e3a-4c68-9c08-1a8efd736851",
+        "priority": "Low",
+        "projectId": "v42ZGWjPhDqfjGlN94iP",
+        "status": "pending",
+        "subject": "Checking first task",
+        "timeSpent": [
+          {
+            "Date": "2025-11-11",
+            "Description": "weqw",
+            "TimeSpent": 390,
+            "UserID": ""
+          },
+          {
+            "Date": "2025-11-13",
+            "Description": "Nahhh",
+            "TimeSpent": 540,
+            "UserID": ""
+          }
+        ],
+        "updatedAt": "2025-11-12T14:57:42.195644606+05:30"
+      }
+    },
+    {
+      "id": "1bd661a4-7645-4614-a335-10c27beac9e6",
+      "data": {
+        "activityLogs": [
+          {
+            "Description": "Added 6h 30m on 2025-09-17: new day new things",
+            "ID": "activity_1758038160121_pzjgzull1",
+            "Metadata": {
+              "date": "2025-09-17",
+              "description": "new day new things",
+              "timeSpent": 390
+            },
+            "Timestamp": "2025-09-16T15:56:00.121Z",
+            "Type": "time_spent_added",
+            "User": null,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+            "UserName": null
+          },
+          {
+            "Description": "Uploaded file \"1758039688425_1edrl74jy93_Bitmap.jpg\" (0.03 MB)",
+            "ID": "activity_1758039688719_a8w6tnuuf",
+            "Metadata": {
+              "fileName": "1758039688425_1edrl74jy93_Bitmap.jpg",
+              "fileSize": 26852
+            },
+            "Timestamp": "2025-09-16T16:21:28.719Z",
+            "Type": "file_uploaded",
+            "User": null,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+            "UserName": null
+          },
+          {
+            "Description": "Uploaded file \"1758169223514_3oberrzc7un_unnamed__1_.jpg\" (0.12 MB)",
+            "ID": "activity_1758169223653_3o5g4lqpq",
+            "Metadata": {
+              "fileName": "1758169223514_3oberrzc7un_unnamed__1_.jpg",
+              "fileSize": 124595
+            },
+            "Timestamp": "2025-09-18T04:20:23.653Z",
+            "Type": "file_uploaded",
+            "User": null,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+            "UserName": null
+          },
+          {
+            "Description": "Added 6h 30m on 2025-09-19: wefwewefwef",
+            "ID": "activity_1758169237978_hsaohxrxx",
+            "Metadata": {
+              "date": "2025-09-19",
+              "description": "wefwewefwef",
+              "timeSpent": 390
+            },
+            "Timestamp": "2025-09-18T04:20:37.979Z",
+            "Type": "time_spent_added",
+            "User": null,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+            "UserName": null
+          }
+        ],
+        "assignTo": [
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "TS0001249",
+        "created": "2025-11-08T00:47:19+05:30",
+        "deadline": "2025-09-17T18:27:29Z",
+        "fileAttachments": [
+          {
+            "FileName": "1758039688425_1edrl74jy93_Bitmap.jpg",
+            "FileSize": 26852,
+            "FileURL": "/uploads/tasks/1758039688425_1edrl74jy93_Bitmap.jpg",
+            "MimeType": "image/jpeg",
+            "OriginalName": "Bitmap.jpg",
+            "UploadDate": "2025-09-16T16:21:28.429Z",
+            "UploadedBy": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          },
+          {
+            "FileName": "1758169223514_3oberrzc7un_unnamed__1_.jpg",
+            "FileSize": 124595,
+            "FileURL": "/uploads/tasks/1758169223514_3oberrzc7un_unnamed__1_.jpg",
+            "MimeType": "image/jpeg",
+            "OriginalName": "unnamed (1).jpg",
+            "UploadDate": "2025-09-18T04:20:23.517Z",
+            "UploadedBy": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          }
+        ],
+        "id": "1bd661a4-7645-4614-a335-10c27beac9e6",
+        "priority": "Medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "Backlog",
+        "subject": "Mind Map",
+        "timeSpent": [
+          {
+            "Date": "2025-09-16",
+            "Description": "dwdwdwd",
+            "TimeSpent": 390,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          },
+          {
+            "Date": "2025-09-17",
+            "Description": "new day new things",
+            "TimeSpent": 390,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          },
+          {
+            "Date": "2025-09-19",
+            "Description": "wefwewefwef",
+            "TimeSpent": 390,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9nrAgjrnz3GRfD8KiBp3",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "DWG-FLOOR_PLAN_CONCEPT",
+        "created": "2025-11-08T00:47:25+05:30",
+        "deadline": "2025-11-07T05:11:00Z",
+        "fileAttachments": [],
+        "id": "9nrAgjrnz3GRfD8KiBp3",
+        "priority": "Low",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "Floor Plans (Concept)",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "Hiz4KTbow6aOAUtbFl80",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "5D38x4kHm2Pmq8HtsvlG1AfUOzS2",
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "DWG-MASSING_STUDY",
+        "created": "2025-11-08T00:47:26+05:30",
+        "deadline": "2025-11-07T05:11:00Z",
+        "fileAttachments": [],
+        "id": "Hiz4KTbow6aOAUtbFl80",
+        "priority": "Low",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "Massing Study / 3D View",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "c06bd8d7-d040-486b-9e18-f51c6ab25f7c",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "user2"
+        ],
+        "code": "TS0001248",
+        "created": "2025-11-08T00:47:22+05:30",
+        "deadline": "2025-09-19T14:27:29Z",
+        "fileAttachments": [],
+        "id": "c06bd8d7-d040-486b-9e18-f51c6ab25f7c",
+        "priority": "Medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "In Progress",
+        "subject": "UX sketches",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "QYDeJaGGVGcXcdACQxPx",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "6XZzWPKalvTvQFwg0ttuMVlE2t42",
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+        ],
+        "code": "TS0002",
+        "created": "2025-11-08T00:47:22+05:30",
+        "deadline": "2025-08-28T09:25:17Z",
+        "fileAttachments": [],
+        "id": "QYDeJaGGVGcXcdACQxPx",
+        "priority": "medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "pending",
+        "subject": "Create Drawing two2",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "UjuzIhlV0ZyEEqCxHyNk",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "6XZzWPKalvTvQFwg0ttuMVlE2t42",
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+        ],
+        "code": "TS0002",
+        "created": "2025-11-08T00:47:23+05:30",
+        "deadline": "2025-08-28T09:25:17Z",
+        "fileAttachments": [],
+        "id": "UjuzIhlV0ZyEEqCxHyNk",
+        "priority": "medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "pending",
+        "subject": "Create Drawing two4",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "SyvqBatTFqn1TCn86ACS",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "DWG-MASSING_STUDY",
+        "created": "2025-11-08T00:47:26+05:30",
+        "deadline": "2025-10-31T07:52:42Z",
+        "fileAttachments": [
+          {
+            "FileName": "1761931816855_5dsbnuk6ucj_Screenshot__1_.png",
+            "FileSize": 742811,
+            "FileURL": "/uploads/tasks/1761931816855_5dsbnuk6ucj_Screenshot__1_.png",
+            "MimeType": "image/png",
+            "OriginalName": "Screenshot (1).png",
+            "UploadDate": "2025-10-31T17:30:16.861Z",
+            "UploadedBy": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          }
+        ],
+        "id": "SyvqBatTFqn1TCn86ACS",
+        "priority": "Low",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "Massing Study / 3D View",
+        "timeSpent": [
+          {
+            "Date": "2025-10-31",
+            "Description": "testing new feature for my projects",
+            "TimeSpent": 630,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          },
+          {
+            "Date": "2025-10-31",
+            "Description": "also did some ui updates",
+            "TimeSpent": 90,
+            "UserID": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6kgj8ApYEB1I5M9qfh8f",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "74y4Y6ulSDgkmaVbsCK8cskN9rD3",
+          "6XZzWPKalvTvQFwg0ttuMVlE2t42"
+        ],
+        "code": "246931",
+        "created": "2025-11-08T00:47:25+05:30",
+        "deadline": "2001-02-04T18:30:00Z",
+        "fileAttachments": [],
+        "id": "6kgj8ApYEB1I5M9qfh8f",
+        "priority": "Medium",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "task 1 for projects",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "aPXfJgIE1l4KrNj2QQfu",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "7FWIcpNDmgU9kNDneZQlGeiPFRG2"
+        ],
+        "code": "TN000152222",
+        "created": "2025-11-08T00:47:24+05:30",
+        "deadline": "2025-09-19T12:26:00Z",
+        "fileAttachments": [],
+        "id": "aPXfJgIE1l4KrNj2QQfu",
+        "priority": "Low",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "In Progress",
+        "subject": "NEw tASk1111",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "nS9ppzMulW23XsYulcju",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2",
+          "30EpwymEH1RMMNjk58zOfwqLgyE2"
+        ],
+        "code": "DWG-SITE_PLAN_CONCEPT",
+        "created": "2025-11-08T00:47:27+05:30",
+        "deadline": "2025-10-31T07:52:42Z",
+        "fileAttachments": [],
+        "id": "nS9ppzMulW23XsYulcju",
+        "priority": "Low",
+        "projectId": "rvid1grRga1fmtY465Ea",
+        "status": "completed",
+        "subject": "Site Plan (Conceptual)",
+        "timeSpent": [
+          {
+            "Date": "2025-11-07",
+            "Description": "dddddddddddddddd",
+            "TimeSpent": 390,
+            "UserID": ""
+          }
+        ]
+      }
+    },
+    {
+      "id": "TD5iJViKkQWdzErNPGUq",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "6XZzWPKalvTvQFwg0ttuMVlE2t42",
+          "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+        ],
+        "code": "TS0002",
+        "created": "2025-11-08T00:47:23+05:30",
+        "deadline": "2025-08-28T09:25:17Z",
+        "fileAttachments": [],
+        "id": "TD5iJViKkQWdzErNPGUq",
+        "priority": "medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "pending",
+        "subject": "Create Drawing two3",
+        "timeSpent": []
+      }
+    },
+    {
+      "id": "f9d39139-9c8a-401f-b47e-4d006a8b742c",
+      "data": {
+        "activityLogs": [],
+        "assignTo": [
+          "user3"
+        ],
+        "code": "TS0001251",
+        "created": "2025-11-08T00:47:21+05:30",
+        "deadline": "2025-09-17T14:27:29Z",
+        "fileAttachments": [],
+        "id": "f9d39139-9c8a-401f-b47e-4d006a8b742c",
+        "priority": "Medium",
+        "projectId": "5CqqY56u8ZQ4oFBm9eAl",
+        "status": "Done",
+        "subject": "Research reports",
+        "timeSpent": []
+      }
+    }
+  ],
+  "backedUpAt": "2025-11-12T20:59:50.9081161+05:30"
+}

@@ -228,3 +228,8 @@ func (s *CacheService) InvalidateTask(ctx context.Context, taskID string) error 
 	key := fmt.Sprintf("%s:%s", CacheKeyTask, taskID)
 	return s.cache.Delete(ctx, key)
 }
+
+// FlushAll clears all cache entries from Redis
+func (s *CacheService) FlushAll(ctx context.Context) error {
+	return s.cache.FlushAll(ctx)
+}

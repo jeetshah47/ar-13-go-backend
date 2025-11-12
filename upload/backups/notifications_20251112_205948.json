@@ -1,0 +1,414 @@
+{
+  "collection": "notifications",
+  "documents": [
+    {
+      "id": "VkFplNLJSmlNNtq9ALTA",
+      "data": {
+        "created": "2025-11-08T00:47:15+05:30",
+        "createdAt": "2025-11-08T00:47:15+05:30",
+        "id": "VkFplNLJSmlNNtq9ALTA",
+        "isRead": true,
+        "message": "A new task \"NEw tASk222\" has been created.",
+        "relatedEntityId": "4sOYHkqUtgUdCr51lXrk",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "d6739530-39af-4966-bc00-aad087f680aa",
+      "data": {
+        "created": "2025-11-11T22:39:54+05:30",
+        "createdAt": "2025-11-11T22:39:54+05:30",
+        "id": "d6739530-39af-4966-bc00-aad087f680aa",
+        "isRead": true,
+        "message": "You logged in at 2025-11-11 22:39:54",
+        "relatedEntityId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "relatedEntityType": "USER",
+        "title": "Login Successful",
+        "type": "USER_LOGIN",
+        "updatedAt": "2025-11-11T22:40:01.8221142+05:30",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "fagJJWsgOnB9xOB31LZC",
+      "data": {
+        "created": "2025-11-08T00:47:16+05:30",
+        "createdAt": "2025-11-08T00:47:16+05:30",
+        "id": "fagJJWsgOnB9xOB31LZC",
+        "isRead": false,
+        "message": "A new task \"NEw tASk1111\" has been created.",
+        "relatedEntityId": "aPXfJgIE1l4KrNj2QQfu",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "7FWIcpNDmgU9kNDneZQlGeiPFRG2"
+      }
+    },
+    {
+      "id": "6oBv2h0jr5y0L32VXXXD",
+      "data": {
+        "created": "2025-11-08T00:47:12+05:30",
+        "createdAt": "2025-11-08T00:47:12+05:30",
+        "id": "6oBv2h0jr5y0L32VXXXD",
+        "isRead": true,
+        "message": "You have been assigned to task \"Massing Study / 3D View\".",
+        "relatedEntityId": "SyvqBatTFqn1TCn86ACS",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "qWfGDEbMJPxmWtwcQJvr",
+      "data": {
+        "created": "2025-11-08T00:47:17+05:30",
+        "createdAt": "2025-11-08T00:47:17+05:30",
+        "id": "qWfGDEbMJPxmWtwcQJvr",
+        "isRead": false,
+        "message": "You have been assigned to task \"Floor Plans (Concept)\".",
+        "relatedEntityId": "0L5C83LhQsiz3uTmqs2D",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "05deh1q5CCDIHm9znXR3",
+      "data": {
+        "created": "2025-11-08T00:47:11+05:30",
+        "createdAt": "2025-11-08T00:47:11+05:30",
+        "id": "05deh1q5CCDIHm9znXR3",
+        "isRead": false,
+        "message": "You have been assigned to task \"Massing Study / 3D View\".",
+        "relatedEntityId": "SyvqBatTFqn1TCn86ACS",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "0K6vHYXsfJzUz1MlkGPy",
+      "data": {
+        "created": "2025-11-08T00:47:11+05:30",
+        "createdAt": "2025-11-08T00:47:11+05:30",
+        "id": "0K6vHYXsfJzUz1MlkGPy",
+        "isRead": true,
+        "message": "You have been assigned to task \"Floor Plans (Concept)\".",
+        "relatedEntityId": "0L5C83LhQsiz3uTmqs2D",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "ooIZQaqfAJlf8Oh1YSJP",
+      "data": {
+        "created": "2025-11-08T00:47:16+05:30",
+        "createdAt": "2025-11-08T00:47:16+05:30",
+        "id": "ooIZQaqfAJlf8Oh1YSJP",
+        "isRead": true,
+        "message": "You have been assigned to task \"Site Plan (Conceptual)\".",
+        "relatedEntityId": "nS9ppzMulW23XsYulcju",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "78fce3d4-03ef-440d-912f-7ebf5add51e6",
+      "data": {
+        "created": "2025-11-11T23:03:00+05:30",
+        "createdAt": "2025-11-11T23:03:00+05:30",
+        "id": "78fce3d4-03ef-440d-912f-7ebf5add51e6",
+        "isRead": false,
+        "message": "You logged in at 2025-11-11 23:03:00",
+        "relatedEntityId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "relatedEntityType": "USER",
+        "title": "Login Successful",
+        "type": "USER_LOGIN",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "194c0eee-c6ad-4213-a3b8-d85730161a83",
+      "data": {
+        "created": "2025-11-11T23:37:20+05:30",
+        "createdAt": "2025-11-11T23:37:20+05:30",
+        "id": "194c0eee-c6ad-4213-a3b8-d85730161a83",
+        "isRead": false,
+        "message": "You logged in at 2025-11-11 23:37:20",
+        "relatedEntityId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "relatedEntityType": "USER",
+        "title": "Login Successful",
+        "type": "USER_LOGIN",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "NV1JxwPOXZHfMSWBraQf",
+      "data": {
+        "created": "2025-11-08T00:47:14+05:30",
+        "createdAt": "2025-11-08T00:47:14+05:30",
+        "id": "NV1JxwPOXZHfMSWBraQf",
+        "isRead": false,
+        "message": "You have been assigned to task \"Checking websockets part 2 \".",
+        "relatedEntityId": "5P0TWkiDX3wsn4fa5DrN",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "HC7hanfI1kcKFCMduT5u",
+      "data": {
+        "created": "2025-11-08T00:47:14+05:30",
+        "createdAt": "2025-11-08T00:47:14+05:30",
+        "id": "HC7hanfI1kcKFCMduT5u",
+        "isRead": true,
+        "message": "You have been assigned to task \"NEw tASk222\".",
+        "relatedEntityId": "4sOYHkqUtgUdCr51lXrk",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "604df692-3587-4166-b0fb-bf951503c325",
+      "data": {
+        "created": "2025-11-11T23:13:28+05:30",
+        "createdAt": "2025-11-11T23:13:28+05:30",
+        "id": "604df692-3587-4166-b0fb-bf951503c325",
+        "isRead": false,
+        "message": "You logged in at 2025-11-11 23:13:28",
+        "relatedEntityId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "relatedEntityType": "USER",
+        "title": "Login Successful",
+        "type": "USER_LOGIN",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "4445f74e-0a95-48b2-bb15-d0d15675958a",
+      "data": {
+        "created": "2025-11-12T10:19:25+05:30",
+        "createdAt": "2025-11-12T10:19:25+05:30",
+        "id": "4445f74e-0a95-48b2-bb15-d0d15675958a",
+        "isRead": false,
+        "message": "You logged in at 2025-11-12 10:19:25",
+        "relatedEntityId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "relatedEntityType": "USER",
+        "title": "Login Successful",
+        "type": "USER_LOGIN",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "bc03d973-3ba6-4a4d-8167-f5e6e3434c97",
+      "data": {
+        "created": "2025-11-08T01:17:13+05:30",
+        "createdAt": "2025-11-08T01:17:13+05:30",
+        "id": "bc03d973-3ba6-4a4d-8167-f5e6e3434c97",
+        "isRead": true,
+        "message": "You logged in at 2025-11-08 01:17:13",
+        "relatedEntityId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "relatedEntityType": "USER",
+        "title": "Login Successful",
+        "type": "USER_LOGIN",
+        "updatedAt": "2025-11-08T12:14:52.3412428+05:30",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "19de8009-2572-44cf-8e2f-2326ae08fda4",
+      "data": {
+        "created": "2025-11-08T11:36:21+05:30",
+        "createdAt": "2025-11-08T11:36:21+05:30",
+        "id": "19de8009-2572-44cf-8e2f-2326ae08fda4",
+        "isRead": false,
+        "message": "You logged in at 2025-11-08 11:36:21",
+        "relatedEntityId": "lSGVFwX7D0SdM2GaDvdHcqcW15B3",
+        "relatedEntityType": "USER",
+        "title": "Login Successful",
+        "type": "USER_LOGIN",
+        "userId": "lSGVFwX7D0SdM2GaDvdHcqcW15B3"
+      }
+    },
+    {
+      "id": "6i6zBC8f7E1SxgIboS9H",
+      "data": {
+        "created": "2025-11-08T00:47:12+05:30",
+        "createdAt": "2025-11-08T00:47:12+05:30",
+        "id": "6i6zBC8f7E1SxgIboS9H",
+        "isRead": false,
+        "message": "A new task \"Floor Plans (Concept)\" has been created.",
+        "relatedEntityId": "0L5C83LhQsiz3uTmqs2D",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "vrKA6miuYJ75m0GAiGOb",
+      "data": {
+        "created": "2025-11-08T00:47:17+05:30",
+        "createdAt": "2025-11-08T00:47:17+05:30",
+        "id": "vrKA6miuYJ75m0GAiGOb",
+        "isRead": true,
+        "message": "You have been assigned to task \"Key Plan / Location Plan\".",
+        "relatedEntityId": "KoaErH9zM6E95aR1mzQA",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "6GNbxC9Lw6V91qCcfxzi",
+      "data": {
+        "created": "2025-11-08T00:47:12+05:30",
+        "createdAt": "2025-11-08T00:47:12+05:30",
+        "id": "6GNbxC9Lw6V91qCcfxzi",
+        "isRead": false,
+        "message": "You have been assigned to task \"Key Plan / Location Plan\".",
+        "relatedEntityId": "KoaErH9zM6E95aR1mzQA",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "exO2sbJ2lHSurjpts12J",
+      "data": {
+        "created": "2025-11-08T00:47:15+05:30",
+        "createdAt": "2025-11-08T00:47:15+05:30",
+        "id": "exO2sbJ2lHSurjpts12J",
+        "isRead": false,
+        "message": "A new task \"Site Plan (Conceptual)\" has been created.",
+        "relatedEntityId": "nS9ppzMulW23XsYulcju",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "bc8L7QBDhBT4nhWbXgyZ",
+      "data": {
+        "created": "2025-11-08T00:47:15+05:30",
+        "createdAt": "2025-11-08T00:47:15+05:30",
+        "id": "bc8L7QBDhBT4nhWbXgyZ",
+        "isRead": false,
+        "message": "A new task \"Massing Study / 3D View\" has been created.",
+        "relatedEntityId": "SyvqBatTFqn1TCn86ACS",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "mh397rRjn9FZuQrTTAuI",
+      "data": {
+        "created": "2025-11-08T00:47:16+05:30",
+        "createdAt": "2025-11-08T00:47:16+05:30",
+        "id": "mh397rRjn9FZuQrTTAuI",
+        "isRead": false,
+        "message": "A new task \"Checking websockets part 2 \" has been created.",
+        "relatedEntityId": "5P0TWkiDX3wsn4fa5DrN",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "043d080c-96e3-4891-9347-7bd601820758",
+      "data": {
+        "created": "2025-11-09T13:36:32+05:30",
+        "createdAt": "2025-11-09T13:36:32+05:30",
+        "id": "043d080c-96e3-4891-9347-7bd601820758",
+        "isRead": true,
+        "message": "You logged in at 2025-11-09 13:36:32",
+        "relatedEntityId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "relatedEntityType": "USER",
+        "title": "Login Successful",
+        "type": "USER_LOGIN",
+        "updatedAt": "2025-11-09T13:45:59.0659656+05:30",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    },
+    {
+      "id": "UBMD7rXtn0zRzzIg3Sjb",
+      "data": {
+        "created": "2025-11-08T00:47:14+05:30",
+        "createdAt": "2025-11-08T00:47:14+05:30",
+        "id": "UBMD7rXtn0zRzzIg3Sjb",
+        "isRead": false,
+        "message": "You have been assigned to task \"NEw tASk1111\".",
+        "relatedEntityId": "aPXfJgIE1l4KrNj2QQfu",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "7FWIcpNDmgU9kNDneZQlGeiPFRG2"
+      }
+    },
+    {
+      "id": "7mH656W3TAvNfAWkWsTD",
+      "data": {
+        "created": "2025-11-08T00:47:13+05:30",
+        "createdAt": "2025-11-08T00:47:13+05:30",
+        "id": "7mH656W3TAvNfAWkWsTD",
+        "isRead": false,
+        "message": "A new task \"Key Plan / Location Plan\" has been created.",
+        "relatedEntityId": "KoaErH9zM6E95aR1mzQA",
+        "relatedEntityType": "TASK",
+        "title": "New Task Created",
+        "type": "TASK_CREATED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "Hu5aWP1nK9kvI5nvesJV",
+      "data": {
+        "created": "2025-11-08T00:47:14+05:30",
+        "createdAt": "2025-11-08T00:47:14+05:30",
+        "id": "Hu5aWP1nK9kvI5nvesJV",
+        "isRead": false,
+        "message": "You have been assigned to task \"Site Plan (Conceptual)\".",
+        "relatedEntityId": "nS9ppzMulW23XsYulcju",
+        "relatedEntityType": "TASK",
+        "title": "Task Assigned",
+        "type": "TASK_ASSIGNED",
+        "userId": "3eCTPHcvyxbo0HhfO643x2pbe8b2"
+      }
+    },
+    {
+      "id": "00786d08-d333-4d6d-9484-7c4e1d9f81ce",
+      "data": {
+        "created": "2025-11-11T23:00:53+05:30",
+        "createdAt": "2025-11-11T23:00:53+05:30",
+        "id": "00786d08-d333-4d6d-9484-7c4e1d9f81ce",
+        "isRead": false,
+        "message": "You logged in at 2025-11-11 23:00:53",
+        "relatedEntityId": "30EpwymEH1RMMNjk58zOfwqLgyE2",
+        "relatedEntityType": "USER",
+        "title": "Login Successful",
+        "type": "USER_LOGIN",
+        "userId": "30EpwymEH1RMMNjk58zOfwqLgyE2"
+      }
+    }
+  ],
+  "backedUpAt": "2025-11-12T20:59:51.5738923+05:30"
+}

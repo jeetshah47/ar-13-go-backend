@@ -250,6 +250,12 @@ sudo journalctl -u ar13-backend -n 100
 
 ## Step 6: Configure Nginx Reverse Proxy
 
+### ⚠️ Important: Elastic IP and Nginx
+
+**No changes needed!** Elastic IP is completely transparent to Nginx. Your Nginx configuration stays exactly the same whether you use Elastic IP or regular EC2 IP. Nginx listens on ports 80/443 and proxies to `localhost:3000` - it doesn't care about the external IP address.
+
+---
+
 ### 6.1 Create Nginx Configuration
 ```bash
 sudo nano /etc/nginx/sites-available/ar13-backend
@@ -335,23 +341,194 @@ sudo certbot renew --dry-run
 
 ## Step 8: Configure Domain DNS
 
-### 8.1 Point Domain to EC2 IP
-1. Go to your domain registrar (GoDaddy, Namecheap, etc.)
-2. Add/Edit DNS A Record:
-   - **Type:** A
-   - **Name:** @ (or blank)
-   - **Value:** Your EC2 Public IP
-   - **TTL:** 3600
+### ⚠️ Important: AWS Route 53 Free Tier
 
-3. Add CNAME for www:
+**AWS Route 53 does NOT have a free tier for domain services:**
+- ❌ Domain registration: ~$12-15/year per domain
+- ❌ Hosted zones: ~$0.50/month per hosted zone
+- ❌ DNS queries: ~$0.40 per million queries
+
+**Solution:** Use your domain registrar's DNS management (FREE) + AWS Elastic IP (FREE)
+
+---
+
+### Free Domain Options
+
+**Are there free domain services?** Yes, but with limitations:
+
+#### Option 1: Free Subdomains (For Testing/Development)
+- **Freenom** (`.tk`, `.ml`, `.ga`, `.cf`, `.gq`) - ⚠️ **Not recommended** (reliability issues, often blocked)
+- **GoogieHost** - Free subdomains like `.cu.ma`, `.thats.im` (with hosting)
+- **NoIP** - Free dynamic DNS subdomains (requires renewal every 30 days)
+
+**Limitations:**
+- ❌ Not professional for production
+- ❌ May have reliability issues
+- ❌ Some services require periodic renewal
+- ❌ Limited DNS control
+
+#### Option 2: First Year Free (With Hosting Plans)
+- **Squarespace** - Free `.com` domain for first year with annual plan
+- **Wix** - Free domain for first year with Premium plan
+- **DreamHost** - Free domain credit with annual hosting plans
+
+**Limitations:**
+- ❌ Requires purchasing hosting (not free overall)
+- ❌ Standard renewal rates after first year (~$12-15/year)
+- ❌ May have restrictions on DNS management
+
+#### Option 3: Low-Cost Domains (Recommended)
+**Best value for production:**
+- **Namecheap** - ~$8-12/year for `.com` domains (often with free privacy)
+- **Google Domains** - ~$12/year for `.com` (now part of Squarespace)
+- **Cloudflare** - At-cost pricing (~$8-10/year) + free DNS
+- **Porkbun** - ~$8-10/year for `.com` domains
+
+**Recommendation for Production:**
+- ✅ **Use a paid domain** (~$8-12/year) - Professional, reliable, full control
+- ✅ **Use Cloudflare** for DNS (FREE) - Fast, reliable, includes DDoS protection
+- ✅ **Total cost: ~$8-12/year** (less than $1/month)
+
+**For Development/Testing:**
+- Use EC2 Public DNS temporarily
+- Or use a free subdomain (with limitations)
+
+#### Option 4: Free DNS with Any Domain (Recommended Setup)
+
+**Best approach:** Buy a domain anywhere, use Cloudflare for FREE DNS:
+
+1. **Buy domain** from Namecheap, GoDaddy, or any registrar (~$8-12/year)
+2. **Transfer DNS to Cloudflare** (FREE):
+   - Sign up at [cloudflare.com](https://cloudflare.com) (free account)
+   - Add your domain to Cloudflare
+   - Update nameservers at your registrar
+   - **Benefits:**
+     - ✅ FREE DNS management
+     - ✅ FREE DDoS protection
+     - ✅ FREE SSL (if using Cloudflare proxy)
+     - ✅ Fast global CDN
+     - ✅ Full DNS control
+
+**Total Cost:** ~$8-12/year for domain + $0 for DNS = **~$8-12/year total**
+
+---
+
+### 8.1 Understanding EC2 Public DNS vs Elastic IP
+
+**What is EC2 Public DNS?**
+AWS automatically assigns a Public DNS name to your EC2 instance, like:
+```
+ec2-98-86-113-245.compute-1.amazonaws.com
+```
+
+**How it works:**
+- ✅ Automatically created by AWS (no setup needed)
+- ✅ Resolves to your instance's public IP address
+- ✅ Can be used to access your API: `http://ec2-98-86-113-245.compute-1.amazonaws.com`
+- ❌ **Changes when instance stops/starts** (unless using Elastic IP)
+- ❌ Not user-friendly for production
+- ❌ Can't get SSL certificate for AWS domain name
+
+**With Elastic IP:**
+- ✅ Public DNS becomes **static** (doesn't change)
+- ✅ Still not recommended for production (use your own domain)
+
+**Recommendation:** Use your own domain name (e.g., `api.yourdomain.com`) instead of the AWS Public DNS.
+
+---
+
+### 8.2 Allocate Elastic IP (Recommended - FREE)
+
+**Why Elastic IP?**
+- ✅ **FREE** - One Elastic IP per account is free
+- ✅ Static IP that doesn't change when instance stops/restarts
+- ✅ Makes Public DNS static too
+- ✅ Better for production use
+- ✅ **Fully supports HTTPS** - Works with SSL certificates (Let's Encrypt)
+
+**Steps:**
+1. Go to **EC2 Console** → **Elastic IPs** → **Allocate Elastic IP address**
+2. Click **Allocate** (keep default settings)
+3. Select the Elastic IP → **Actions** → **Associate Elastic IP address**
+4. Select your EC2 instance
+5. Click **Associate**
+
+**Note:** Elastic IP is free as long as it's associated with a running instance. If you stop the instance, you may incur charges.
+
+**HTTPS Support:** ✅ Elastic IP fully supports HTTPS. SSL certificates (like Let's Encrypt) are domain-based, not IP-based, so HTTPS works exactly the same with Elastic IP as with a regular EC2 IP. Your existing SSL setup (Step 7) will work perfectly.
+
+---
+
+### 8.3 Point Domain to Elastic IP
+
+**Option A: Using Your Domain Registrar's DNS (Simple)**
+1. Go to your domain registrar (GoDaddy, Namecheap, Google Domains, etc.)
+2. Navigate to **DNS Management** or **DNS Settings**
+3. Add/Edit DNS A Record:
+   - **Type:** A
+   - **Name:** @ (or blank for root domain)
+   - **Value:** Your Elastic IP address (e.g., `54.123.45.67`)
+   - **TTL:** 3600 (or 600 for faster updates)
+
+4. Add CNAME for www:
    - **Type:** CNAME
    - **Name:** www
-   - **Value:** your-domain.com
+   - **Value:** your-domain.com (or use the same Elastic IP)
    - **TTL:** 3600
 
-### 8.2 Wait for DNS Propagation
-- Usually takes 5-60 minutes
-- Check with: `nslookup your-domain.com`
+**Option B: Using Cloudflare DNS (Recommended - FREE + Better Performance)**
+1. Sign up for free account at [cloudflare.com](https://cloudflare.com)
+2. Add your domain to Cloudflare
+3. Update nameservers at your registrar (Cloudflare will provide them)
+4. In Cloudflare DNS settings, add:
+   - **Type:** A
+   - **Name:** @
+   - **IPv4 address:** Your Elastic IP
+   - **Proxy status:** DNS only (gray cloud) - Important for API servers
+   - **TTL:** Auto
+
+5. Add CNAME for www:
+   - **Type:** CNAME
+   - **Name:** www
+   - **Target:** your-domain.com
+   - **Proxy status:** DNS only
+   - **TTL:** Auto
+
+**Why Cloudflare?**
+- ✅ FREE DNS management
+- ✅ FREE DDoS protection
+- ✅ Faster DNS resolution globally
+- ✅ Better reliability
+- ✅ Full DNS control
+
+**Note:** For API servers, use "DNS only" (gray cloud) mode, not "Proxied" (orange cloud), as proxying can interfere with WebSocket connections and direct IP access.
+
+**Alternative:** If you don't use Elastic IP, use your EC2 Public IP (but it will change if instance restarts)
+
+---
+
+### 8.4 Wait for DNS Propagation
+- Usually takes **5-60 minutes** (can take up to 48 hours)
+- Check propagation with:
+  ```bash
+  nslookup your-domain.com
+  # or
+  dig your-domain.com
+  ```
+- Test from multiple locations: [whatsmydns.net](https://www.whatsmydns.net/)
+
+---
+
+### 8.5 Verify Domain Setup
+
+Once DNS propagates:
+```bash
+# Test HTTP connection
+curl -I http://your-domain.com
+
+# Test HTTPS (after SSL setup)
+curl -I https://your-domain.com
+```
 
 ---
 
@@ -505,11 +682,18 @@ aws sts get-caller-identity
 - ✅ Data Transfer: 100 GB out (12 months)
 - ✅ DynamoDB: Forever free (25 GB, 25 RCU/WCU)
 - ✅ S3: 5 GB storage forever free
+- ✅ Elastic IP: 1 per account (FREE when associated with running instance)
+- ❌ Route 53: **NO free tier** (~$0.50/month per hosted zone + query costs)
+
+### Domain & DNS Costs:
+- **Domain Registration:** ~$10-15/year (from registrar like GoDaddy, Namecheap)
+- **DNS Management:** FREE (use registrar's DNS, not Route 53)
+- **Elastic IP:** FREE (1 per account when associated with running instance)
 
 ### After 12 Months:
 - EC2 t2.micro: ~$8-10/month
 - EBS 20 GB: ~$2/month
-- **Total: ~$10-12/month**
+- **Total: ~$10-12/month** (excluding domain registration)
 
 ---
 

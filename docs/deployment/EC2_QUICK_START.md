@@ -86,6 +86,9 @@ sudo systemctl status ar13-backend
 ```
 
 ### 6. Configure Nginx (3 minutes)
+
+**Note:** Nginx configuration is the same whether you use Elastic IP or regular EC2 IP. No changes needed!
+
 ```bash
 sudo nano /etc/nginx/sites-available/ar13-backend
 ```
@@ -123,8 +126,24 @@ sudo certbot --nginx -d YOUR_DOMAIN.com
 ```
 
 ### 8. Configure Domain DNS (5 minutes)
-- Add A record pointing to EC2 IP
-- Wait for DNS propagation
+
+**Important:** AWS Route 53 does NOT have a free tier for domain services. Use your domain registrar's DNS instead.
+
+**Note:** AWS automatically creates a Public DNS like `ec2-98-86-113-245.compute-1.amazonaws.com`, but it changes when the instance restarts. Use your own domain instead.
+
+**Option A: Use Elastic IP (Recommended - FREE)**
+1. In EC2 Console → Elastic IPs → Allocate Elastic IP address
+2. Associate it with your EC2 instance
+3. Go to your domain registrar (GoDaddy, Namecheap, etc.)
+4. Add A record: `@` → Your Elastic IP
+5. Add CNAME: `www` → `your-domain.com`
+
+**Note:** Elastic IP fully supports HTTPS. SSL certificates work the same way with Elastic IP.
+
+**Option B: Use EC2 Public IP (Not Recommended)**
+- IP changes when instance stops/restarts
+- Add A record pointing to current EC2 IP
+- Wait for DNS propagation (5-60 minutes)
 
 **Total Time: ~30 minutes**
 

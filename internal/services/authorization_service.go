@@ -180,3 +180,61 @@ func (s *AuthorizationService) CanAssignTask(ctx context.Context, projectID, use
 	}
 	return nil
 }
+
+// CanAccessProject checks if a user can access a project (admin, owner, or member)
+func (s *AuthorizationService) CanAccessProject(ctx context.Context, projectID, userID string) error {
+	// Admins have full access
+	isAdmin, err := s.IsAdmin(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if isAdmin {
+		return nil
+	}
+
+	// Check if user is owner or member
+	canAccess, err := s.IsProjectOwnerOrMember(ctx, projectID, userID)
+	if err != nil {
+		return err
+	}
+	if !canAccess {
+		return errors.New("Access denied: You must be a project owner or member to access this project")
+	}
+	return nil
+}
+
+// CanAccessTask checks if a user can access a task
+// User can access if they are:
+// - Admin
+// - Assigned to the task
+// - Project owner or member (for read/claim operations)
+func (s *AuthorizationService) CanAccessTask(ctx context.Context, projectID, taskID, userID string) error {
+	// Admins have full access
+	isAdmin, err := s.IsAdmin(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if isAdmin {
+		return nil
+	}
+
+	// Check if user is assigned to the task
+	isAssigned, err := s.IsTaskAssignedToUser(ctx, projectID, taskID, userID)
+	if err != nil {
+		return err
+	}
+	if isAssigned {
+		return nil
+	}
+
+	// Check if user is project owner or member (can read and claim tasks)
+	canAccess, err := s.IsProjectOwnerOrMember(ctx, projectID, userID)
+	if err != nil {
+		return err
+	}
+	if canAccess {
+		return nil
+	}
+
+	return errors.New("Access denied: You must be assigned to this task or be a project member to access it")
+}

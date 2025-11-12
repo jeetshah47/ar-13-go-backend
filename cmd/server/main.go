@@ -120,6 +120,13 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 		auth.GET("/validate-signup", handler.Auth.ValidateSignupToken)
 	}
 
+	// Protected auth routes
+	protectedAuth := api.Group("/auth")
+	protectedAuth.Use(middleware.AuthenticateUser())
+	{
+		protectedAuth.GET("/permissions", handler.Auth.GetPermissions)
+	}
+
 	// Protected routes
 	protected := api.Group("")
 	protected.Use(middleware.AuthenticateUser())
@@ -137,8 +144,8 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 		// Project routes
 		projects := protected.Group("/project")
 		{
-			projects.GET("/all", handler.Project.GetAll)
-			projects.GET("/all/statistics", handler.Project.GetAllWithStatistics)
+			projects.GET("/all", middleware.RequirePermission("projects:read"), handler.Project.GetAll)
+			projects.GET("/all/statistics", middleware.RequirePermission("projects:read"), handler.Project.GetAllWithStatistics)
 			projects.GET("/:id", middleware.RequireProjectAccess(), handler.Project.GetOne)
 			projects.POST("/add", middleware.RequirePermission("projects:write"), handler.Project.Add)
 			projects.PUT("/update", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:write"), handler.Project.Update)
@@ -148,8 +155,8 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 		// Task routes
 		tasks := protected.Group("/tasks")
 		{
-			tasks.GET("/all/:projectId", handler.Task.GetAll)
-			tasks.GET("/all/details/:projectId", handler.Task.GetAllTaskDetail)
+			tasks.GET("/all/:projectId", middleware.RequirePermission("tasks:read"), handler.Task.GetAll)
+			tasks.GET("/all/details/:projectId", middleware.RequirePermission("tasks:read"), handler.Task.GetAllTaskDetail)
 			tasks.GET("/detail/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.GetOneTaskDetail)
 			tasks.POST("/add", middleware.RequirePermission("tasks:write"), handler.Task.Add)
 			tasks.POST("/add-multiple", middleware.RequirePermission("tasks:write"), handler.Task.AddMultiple)
@@ -262,8 +269,8 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 		// Activity Log routes
 		activityLog := protected.Group("/activity-log")
 		{
-			activityLog.GET("/entity/:entityType/:entityId", middleware.RequirePermission("activityLog:read"), handler.ActivityLog.GetByEntity)
-			activityLog.GET("/entity-type/:entityType", middleware.RequirePermission("activityLog:read"), handler.ActivityLog.GetByEntityType)
+			activityLog.GET("/entity/:entityType/:entityId", middleware.RequirePermission("activityLogs:read"), handler.ActivityLog.GetByEntity)
+			activityLog.GET("/entity-type/:entityType", middleware.RequirePermission("activityLogs:read"), handler.ActivityLog.GetByEntityType)
 			activityLog.GET("/entity-types", handler.ActivityLog.GetEntityTypes)
 		}
 

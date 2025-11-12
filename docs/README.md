@@ -12,6 +12,8 @@ Complete API reference documentation for all endpoints.
 - **[Task Deadline & Progress API](./api/TASK_DEADLINE_PROGRESS_API.md)** - Task deadline and progress tracking endpoints
 - **[WebSocket API](./api/WEBSOCKET_API.md)** - Real-time WebSocket communication
 - **[WebSocket Client Integration](./api/WEBSOCKET_CLIENT_INTEGRATION.md)** - Client-side WebSocket integration guide
+- **[Permissions API](./api/PERMISSIONS_API.md)** - Permissions API reference documentation
+- **[Permissions API Integration](./api/PERMISSIONS_API_INTEGRATION.md)** - Role-based access control (RBAC) integration guide
 
 ### 🗄️ [Database Documentation](./database/)
 DynamoDB setup, configuration, and schema documentation.

@@ -192,6 +192,33 @@ aws dynamodb create-table \
     --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
 ```
 
+### 12. Role Permissions Table
+```bash
+aws dynamodb create-table \
+    --table-name role_permissions \
+    --attribute-definitions \
+        AttributeName=id,AttributeType=S \
+        AttributeName=role,AttributeType=S \
+    --key-schema \
+        AttributeName=id,KeyType=HASH \
+    --global-secondary-indexes \
+        IndexName=role-index,KeySchema=[{AttributeName=role,KeyType=HASH}],Projection={ProjectionType=ALL},ProvisionedThroughput={ReadCapacityUnits=5,WriteCapacityUnits=5} \
+    --billing-mode PROVISIONED \
+    --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+```
+
+**Role Permissions Table Fields:**
+- `id` (String) - Primary key
+- `role` (String) - User role (Admin, Standard) - indexed via GSI
+- `permission` (String) - Permission string (e.g., "projects:read", "tasks:write")
+- `createdAt` (String) - Creation timestamp (RFC3339)
+- `updatedAt` (String) - Last update timestamp (RFC3339)
+
+**Note**: After creating this table, run the seed script to populate initial permissions:
+```bash
+go run scripts/seed_role_permissions.go
+```
+
 ## Using AWS Console
 
 Alternatively, you can create tables using the AWS Console:

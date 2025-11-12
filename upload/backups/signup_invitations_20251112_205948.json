@@ -1,0 +1,17 @@
+{
+  "collection": "signup_invitations",
+  "documents": [
+    {
+      "id": "NRLRrifZKxiXOZqRMTWY",
+      "data": {
+        "created": "2025-11-08T00:47:18+05:30",
+        "email": "jeetworks4@gmail.com",
+        "hasSignup": false,
+        "id": "NRLRrifZKxiXOZqRMTWY",
+        "linkExpiry": "2025-11-14T09:10:38Z",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImplZXR3b3JrczRAZ21haWwuY29tIiwiZXhwIjoxNzYzMTExNDM4LCJ0eXBlIjoic2lnbnVwIn0.HUJZ0pW_LY8JfmNDVq2Bh4oY6vO5yluHHYH5ovOUjx4"
+      }
+    }
+  ],
+  "backedUpAt": "2025-11-12T20:59:54.0494813+05:30"
+}

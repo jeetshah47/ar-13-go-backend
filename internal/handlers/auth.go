@@ -5,6 +5,7 @@ import (
 
 	"github.com/ar-13-go-backend/internal/config"
 	"github.com/ar-13-go-backend/internal/constants"
+	"github.com/ar-13-go-backend/internal/middleware"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/services"
 	"github.com/gin-gonic/gin"
@@ -12,38 +13,28 @@ import (
 
 // AuthHandler handles authentication routes
 type AuthHandler struct {
-	authService *services.AuthService
+	authService      *services.AuthService
+	permissionService *services.PermissionService
 }
 
 // NewAuthHandler creates a new auth handler
 func NewAuthHandler(cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
-		authService: services.NewAuthService(cfg),
+		authService:      services.NewAuthService(cfg),
+		permissionService: services.NewPermissionService(),
 	}
 }
 
 // Register handles user registration
 func (h *AuthHandler) Register(c *gin.Context) {
-	var req struct {
-		Name        string `json:"name" binding:"required"`
-		Email       string `json:"email" binding:"required,email"`
-		Password    string `json:"password" binding:"required,min=6"`
-		PhoneNumber string `json:"phoneNumber"`
-	}
+	var req models.RegisterRequest
 	
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	registerReq := models.RegisterRequest{
-		Name:        req.Name,
-		Email:       req.Email,
-		Password:    req.Password,
-		PhoneNumber: req.PhoneNumber,
-	}
-
-	response, err := h.authService.Register(c.Request.Context(), registerReq)
+	response, err := h.authService.Register(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -94,6 +85,40 @@ func (h *AuthHandler) ValidateSignupToken(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement token validation
-	c.JSON(constants.StatusOK, gin.H{"valid": true})
+	invitation, err := h.authService.ValidateSignupToken(c.Request.Context(), token)
+	if err != nil {
+		c.JSON(constants.StatusOK, gin.H{
+			"valid":  false,
+			"reason": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"valid":   true,
+		"email":   invitation.Email,
+		"expires": invitation.LinkExpiry,
+	})
+}
+
+// GetPermissions returns the available permissions for the current user based on their role
+func (h *AuthHandler) GetPermissions(c *gin.Context) {
+	// Get user role from context (set by AuthenticateUser middleware)
+	roleStr := middleware.GetUserRole(c)
+	if roleStr == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": "User role not found"})
+		return
+	}
+
+	role := models.UserRole(roleStr)
+	permissions, err := h.permissionService.GetPermissionsByRole(c.Request.Context(), role)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Failed to get permissions"})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"role":        role,
+		"permissions": permissions,
+	})
 }
