@@ -48,14 +48,15 @@ const (
 // ActivityLogBase represents the base activity log structure
 type ActivityLogBase struct {
 	Model
-	EntityType  ActivityLogEntityType  `json:"entityType" firestore:"entityType"`
-	EntityID    string                 `json:"entityId" firestore:"entityId"`
-	Action      ActivityLogAction      `json:"action" firestore:"action"`
-	CreatedAt   time.Time              `json:"createdAt" firestore:"createdAt"`
-	CreatedBy   string                 `json:"createdBy" firestore:"createdBy"`
-	Fields      map[string]interface{} `json:"fields,omitempty" firestore:"fields,omitempty"`
-	Description *string                `json:"description,omitempty" firestore:"description,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty" firestore:"metadata,omitempty"`
+	EntityType  ActivityLogEntityType  `json:"entityType" firestore:"entityType" bson:"entityType"`
+	EntityID    string                 `json:"entityId" firestore:"entityId" bson:"entityId"`
+	Action      ActivityLogAction      `json:"action" firestore:"action" bson:"action"`
+	CreatedAt   time.Time              `json:"createdAt" firestore:"createdAt" bson:"createdAt"`
+	CreatedBy   string                 `json:"createdBy" firestore:"createdBy" bson:"createdBy"`
+	Fields      map[string]interface{} `json:"fields,omitempty" firestore:"fields,omitempty" bson:"fields,omitempty"`
+	Description *string                `json:"description,omitempty" firestore:"description,omitempty" bson:"description,omitempty"`
+	Remark      *string                `json:"remark,omitempty" firestore:"remark,omitempty" bson:"remark,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty" firestore:"metadata,omitempty" bson:"metadata,omitempty"`
 }
 
 // TaskActivityLog represents a task-specific activity log

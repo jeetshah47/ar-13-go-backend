@@ -2,39 +2,43 @@ package repos
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/ar-13-go-backend/pkg/mongodb"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// VacationRepo handles vacation/leave request data operations
+// VacationRepo handles vacation/leave request data operations with MongoDB
 type VacationRepo struct {
-	*DynamoBaseRepo
+	*MongoBaseRepo
 }
 
-// NewVacationRepo creates a new vacation repository
+// NewVacationRepo creates a new MongoDB vacation repository
 func NewVacationRepo() *VacationRepo {
+	client := mongodb.GetClient()
+	dbName := mongodb.GetDatabaseName()
 	return &VacationRepo{
-		DynamoBaseRepo: NewDynamoBaseRepo("leaveRequests"),
+		MongoBaseRepo: NewMongoBaseRepo(client, dbName, "leaveRequests"),
 	}
 }
 
 // GetByID gets a leave request by ID
 func (r *VacationRepo) GetByID(ctx context.Context, id string) (*models.LeaveRequest, error) {
-	item, err := r.DynamoBaseRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if item == nil {
+	result := r.MongoBaseRepo.GetByID(ctx, id)
+
+	if result.Err() == mongo.ErrNoDocuments {
 		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
 	var request models.LeaveRequest
-	if err := UnmarshalItem(item, &request); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal leave request: %w", err)
+	if err := result.Decode(&request); err != nil {
+		return nil, err
 	}
 
 	return &request, nil
@@ -42,7 +46,8 @@ func (r *VacationRepo) GetByID(ctx context.Context, id string) (*models.LeaveReq
 
 // GetByUserID gets all leave requests for a user
 func (r *VacationRepo) GetByUserID(ctx context.Context, userID string) ([]models.LeaveRequest, error) {
-	items, err := r.QueryByIndex(ctx, "userId-index", "userId", userID)
+	filter := bson.M{"userId": userID}
+	items, err := r.FindAll(ctx, filter, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +55,9 @@ func (r *VacationRepo) GetByUserID(ctx context.Context, userID string) ([]models
 	requests := make([]models.LeaveRequest, 0, len(items))
 	for _, item := range items {
 		var request models.LeaveRequest
-		if err := UnmarshalItem(item, &request); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal leave request: %w", err)
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &request); err != nil {
+			continue
 		}
 		requests = append(requests, request)
 	}
@@ -61,7 +67,7 @@ func (r *VacationRepo) GetByUserID(ctx context.Context, userID string) ([]models
 
 // GetAll gets all leave requests
 func (r *VacationRepo) GetAll(ctx context.Context) ([]models.LeaveRequest, error) {
-	items, err := r.ScanItems(ctx, nil)
+	items, err := r.FindAll(ctx, bson.M{}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +75,9 @@ func (r *VacationRepo) GetAll(ctx context.Context) ([]models.LeaveRequest, error
 	requests := make([]models.LeaveRequest, 0, len(items))
 	for _, item := range items {
 		var request models.LeaveRequest
-		if err := UnmarshalItem(item, &request); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal leave request: %w", err)
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &request); err != nil {
+			continue
 		}
 		requests = append(requests, request)
 	}
@@ -85,7 +92,8 @@ func (r *VacationRepo) GetPending(ctx context.Context) ([]models.LeaveRequest, e
 
 // GetByStatus gets leave requests by status
 func (r *VacationRepo) GetByStatus(ctx context.Context, status models.LeaveRequestStatus) ([]models.LeaveRequest, error) {
-	items, err := r.QueryByIndex(ctx, "status-index", "status", string(status))
+	filter := bson.M{"status": string(status)}
+	items, err := r.FindAll(ctx, filter, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +101,9 @@ func (r *VacationRepo) GetByStatus(ctx context.Context, status models.LeaveReque
 	requests := make([]models.LeaveRequest, 0, len(items))
 	for _, item := range items {
 		var request models.LeaveRequest
-		if err := UnmarshalItem(item, &request); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal leave request: %w", err)
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &request); err != nil {
+			continue
 		}
 		requests = append(requests, request)
 	}
@@ -104,21 +113,20 @@ func (r *VacationRepo) GetByStatus(ctx context.Context, status models.LeaveReque
 
 // GetByType gets leave requests by type
 func (r *VacationRepo) GetByType(ctx context.Context, requestType models.LeaveRequestType) ([]models.LeaveRequest, error) {
-	items, err := r.ScanItems(ctx, nil)
+	filter := bson.M{"requestType": string(requestType)}
+	items, err := r.FindAll(ctx, filter, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	requests := make([]models.LeaveRequest, 0)
+	requests := make([]models.LeaveRequest, 0, len(items))
 	for _, item := range items {
-		// Filter by requestType
-		if rt, ok := item["requestType"].(*types.AttributeValueMemberS); ok && rt.Value == string(requestType) {
-			var request models.LeaveRequest
-			if err := UnmarshalItem(item, &request); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal leave request: %w", err)
-			}
-			requests = append(requests, request)
+		var request models.LeaveRequest
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &request); err != nil {
+			continue
 		}
+		requests = append(requests, request)
 	}
 
 	return requests, nil
@@ -133,41 +141,7 @@ func (r *VacationRepo) Add(ctx context.Context, request *models.LeaveRequest) er
 	request.Created = now
 	request.RequestedAt = now
 
-	data := map[string]interface{}{
-		"id":           request.ID,
-		"userId":       request.UserID,
-		"requestType":  string(request.RequestType),
-		"startDate":    request.StartDate.Format(time.RFC3339),
-		"duration":     request.Duration,
-		"durationType": string(request.DurationType),
-		"status":       string(request.Status),
-		"requestedAt":  request.RequestedAt.Format(time.RFC3339),
-		"created":      request.Created.Format(time.RFC3339),
-	}
-
-	if request.EndDate != nil {
-		data["endDate"] = request.EndDate.Format(time.RFC3339)
-	}
-	if request.Comments != nil {
-		data["comments"] = *request.Comments
-	}
-	if request.ReviewedBy != nil {
-		data["reviewedBy"] = *request.ReviewedBy
-	}
-	if request.ReviewedAt != nil {
-		data["reviewedAt"] = request.ReviewedAt.Format(time.RFC3339)
-	}
-	if request.ReviewComments != nil {
-		data["reviewComments"] = *request.ReviewComments
-	}
-	if request.WorkingHours != nil {
-		data["workingHours"] = map[string]interface{}{
-			"from": request.WorkingHours.From,
-			"to":   request.WorkingHours.To,
-		}
-	}
-
-	return r.PutItem(ctx, data)
+	return r.InsertOne(ctx, request)
 }
 
 // Update updates a leave request
@@ -175,18 +149,18 @@ func (r *VacationRepo) Update(ctx context.Context, request *models.LeaveRequest)
 	now := time.Now()
 	request.Updated = &now
 
-	updates := map[string]interface{}{
+	updates := bson.M{
 		"userId":       request.UserID,
 		"requestType":  string(request.RequestType),
-		"startDate":    request.StartDate.Format(time.RFC3339),
+		"startDate":    request.StartDate,
 		"duration":     request.Duration,
 		"durationType": string(request.DurationType),
 		"status":       string(request.Status),
-		"updated":      request.Updated.Format(time.RFC3339),
+		"updated":      request.Updated,
 	}
 
 	if request.EndDate != nil {
-		updates["endDate"] = request.EndDate.Format(time.RFC3339)
+		updates["endDate"] = request.EndDate
 	}
 	if request.Comments != nil {
 		updates["comments"] = *request.Comments
@@ -195,38 +169,36 @@ func (r *VacationRepo) Update(ctx context.Context, request *models.LeaveRequest)
 		updates["reviewedBy"] = *request.ReviewedBy
 	}
 	if request.ReviewedAt != nil {
-		updates["reviewedAt"] = request.ReviewedAt.Format(time.RFC3339)
+		updates["reviewedAt"] = request.ReviewedAt
 	}
 	if request.ReviewComments != nil {
 		updates["reviewComments"] = *request.ReviewComments
 	}
 	if request.WorkingHours != nil {
-		updates["workingHours"] = map[string]interface{}{
-			"from": request.WorkingHours.From,
-			"to":   request.WorkingHours.To,
-		}
+		updates["workingHours"] = request.WorkingHours
 	}
 
-	return r.UpdateItem(ctx, request.ID, updates)
+	return r.UpdateOne(ctx, request.ID, updates)
 }
 
 // UpdateStatus updates leave request status
 func (r *VacationRepo) UpdateStatus(ctx context.Context, id string, status models.LeaveRequestStatus, reviewedBy string, reviewComments *string) error {
 	now := time.Now()
-	updates := map[string]interface{}{
+	updates := bson.M{
 		"status":     string(status),
 		"reviewedBy": reviewedBy,
-		"reviewedAt": now.Format(time.RFC3339),
+		"reviewedAt": now,
 	}
 
 	if reviewComments != nil {
 		updates["reviewComments"] = *reviewComments
 	}
 
-	return r.UpdateItem(ctx, id, updates)
+	return r.UpdateOne(ctx, id, updates)
 }
 
 // Delete deletes a leave request
 func (r *VacationRepo) Delete(ctx context.Context, id string) error {
 	return r.DeleteByID(ctx, id)
 }
+

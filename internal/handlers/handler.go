@@ -21,7 +21,6 @@ type Handler struct {
 	ProjectDetails *ProjectDetailsHandler
 	ActivityLog    *ActivityLogHandler
 	GoogleAccount  *GoogleAccountHandler
-	Backup         *BackupHandler
 }
 
 // NewHandler creates a new handler instance
@@ -49,6 +48,5 @@ func NewHandler(cfg *config.Config) *Handler {
 		ProjectDetails: NewProjectDetailsHandler(),
 		ActivityLog:    NewActivityLogHandler(),
 		GoogleAccount:  NewGoogleAccountHandler(),
-		Backup:         NewBackupHandler(),
 	}
 }

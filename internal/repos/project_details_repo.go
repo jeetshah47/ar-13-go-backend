@@ -6,32 +6,39 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
+	"github.com/ar-13-go-backend/pkg/mongodb"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// ProjectDetailsRepo handles project details data operations
+// ProjectDetailsRepo handles project details data operations with MongoDB
 type ProjectDetailsRepo struct {
-	*DynamoBaseRepo
+	*MongoBaseRepo
 }
 
-// NewProjectDetailsRepo creates a new project details repository
+// NewProjectDetailsRepo creates a new MongoDB project details repository
 func NewProjectDetailsRepo() *ProjectDetailsRepo {
+	client := mongodb.GetClient()
+	dbName := mongodb.GetDatabaseName()
 	return &ProjectDetailsRepo{
-		DynamoBaseRepo: NewDynamoBaseRepo("project_details"),
+		MongoBaseRepo: NewMongoBaseRepo(client, dbName, "project_details"),
 	}
 }
 
 // Get gets project details for a project
 func (r *ProjectDetailsRepo) Get(ctx context.Context, projectID string) (*models.ProjectDetails, error) {
-	items, err := r.QueryByIndex(ctx, "projectId-index", "projectId", projectID)
-	if err != nil {
-		return nil, err
-	}
-	if len(items) == 0 {
+	filter := bson.M{"projectId": projectID}
+	result := r.FindOne(ctx, filter)
+
+	if result.Err() == mongo.ErrNoDocuments {
 		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
 	var details models.ProjectDetails
-	if err := UnmarshalItem(items[0], &details); err != nil {
+	if err := result.Decode(&details); err != nil {
 		return nil, err
 	}
 	return &details, nil
@@ -45,27 +52,21 @@ func (r *ProjectDetailsRepo) Add(ctx context.Context, projectID string, details 
 	details.ProjectID = projectID
 	details.Created = time.Now()
 
-	data := map[string]interface{}{
-		"id":        details.ID,
-		"projectId": details.ProjectID,
-		"data":      details.Data,
-		"created":   details.Created.Format(time.RFC3339),
-	}
-
-	return r.PutItem(ctx, data)
+	return r.InsertOne(ctx, details)
 }
 
 // Update updates project details
 func (r *ProjectDetailsRepo) Update(ctx context.Context, projectID string, details *models.ProjectDetails) error {
-	updates := map[string]interface{}{
+	updates := bson.M{
 		"projectId": details.ProjectID,
 		"data":      details.Data,
 	}
 
-	return r.UpdateItem(ctx, details.ID, updates)
+	return r.UpdateOne(ctx, details.ID, updates)
 }
 
 // Delete deletes project details
 func (r *ProjectDetailsRepo) Delete(ctx context.Context, projectID, detailsID string) error {
 	return r.DeleteByID(ctx, detailsID)
 }
+

@@ -31,12 +31,12 @@ const (
 // Notification represents a notification
 type Notification struct {
 	Model
-	Title             string            `json:"title" firestore:"title"`
-	Message           string            `json:"message" firestore:"message"`
-	Type              NotificationType  `json:"type" firestore:"type"`
-	UserID            string            `json:"userId" firestore:"userId"`
-	RelatedEntityID   string            `json:"relatedEntityId" firestore:"relatedEntityId"`
-	RelatedEntityType RelatedEntityType `json:"relatedEntityType" firestore:"relatedEntityType"`
-	IsRead            bool              `json:"isRead" firestore:"isRead"`
-	CreatedAt         time.Time         `json:"createdAt" firestore:"createdAt"`
+	Title             string            `json:"title" firestore:"title" bson:"title"`
+	Message           string            `json:"message" firestore:"message" bson:"message"`
+	Type              NotificationType  `json:"type" firestore:"type" bson:"type"`
+	UserID            string            `json:"userId" firestore:"userId" bson:"userId"`
+	RelatedEntityID   string            `json:"relatedEntityId" firestore:"relatedEntityId" bson:"relatedEntityId"`
+	RelatedEntityType RelatedEntityType `json:"relatedEntityType" firestore:"relatedEntityType" bson:"relatedEntityType"`
+	IsRead            bool              `json:"isRead" firestore:"isRead" bson:"isRead"`
+	CreatedAt         time.Time         `json:"createdAt" firestore:"createdAt" bson:"createdAt"`
 }

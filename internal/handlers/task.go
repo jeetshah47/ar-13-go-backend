@@ -72,6 +72,19 @@ func (h *TaskHandler) Add(c *gin.Context) {
 		return
 	}
 
+	// Normalize and validate status if provided
+	if task.Status != "" {
+		normalizedStatus := constants.NormalizeTaskStatus(task.Status)
+		if normalizedStatus == "" {
+			c.JSON(constants.StatusBadRequest, gin.H{"error": "Invalid task status. Valid statuses are: pending, in_progress, in_review, completed, accepted, rejected"})
+			return
+		}
+		task.Status = normalizedStatus
+	} else {
+		// Default to pending if not provided
+		task.Status = constants.GetTaskStatusString(constants.TaskStatusPending)
+	}
+
 	if err := h.taskService.Add(c.Request.Context(), &task); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -88,6 +101,21 @@ func (h *TaskHandler) AddMultiple(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Normalize and validate statuses for all tasks
+	for i := range req.Tasks {
+		if req.Tasks[i].Status != "" {
+			normalizedStatus := constants.NormalizeTaskStatus(req.Tasks[i].Status)
+			if normalizedStatus == "" {
+				c.JSON(constants.StatusBadRequest, gin.H{"error": "Invalid task status for task at index " + strconv.Itoa(i) + ". Valid statuses are: pending, in_progress, in_review, completed, accepted, rejected"})
+				return
+			}
+			req.Tasks[i].Status = normalizedStatus
+		} else {
+			// Default to pending if not provided
+			req.Tasks[i].Status = constants.GetTaskStatusString(constants.TaskStatusPending)
+		}
 	}
 
 	if err := h.taskService.AddMultiple(c.Request.Context(), req.Tasks); err != nil {
@@ -114,6 +142,16 @@ func (h *TaskHandler) Update(c *gin.Context) {
 	if err := c.ShouldBindJSON(&task); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Normalize and validate status if provided
+	if task.Status != "" {
+		normalizedStatus := constants.NormalizeTaskStatus(task.Status)
+		if normalizedStatus == "" {
+			c.JSON(constants.StatusBadRequest, gin.H{"error": "Invalid task status. Valid statuses are: pending, in_progress, in_review, completed, accepted, rejected"})
+			return
+		}
+		task.Status = normalizedStatus
 	}
 
 	// Check authorization: user must be assigned to task OR project owner/member
@@ -252,10 +290,18 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 	taskID := c.Param("taskId")
 
 	var req struct {
-		Status string `json:"status" binding:"required"`
+		Status string  `json:"status" binding:"required"`
+		Remark *string `json:"remark,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Normalize and validate status
+	normalizedStatus := constants.NormalizeTaskStatus(req.Status)
+	if normalizedStatus == "" {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "Invalid task status. Valid statuses are: pending, in_progress, in_review, completed, accepted, rejected"})
 		return
 	}
 
@@ -265,7 +311,7 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.taskService.UpdateStatus(c.Request.Context(), projectID, taskID, req.Status); err != nil {
+	if err := h.taskService.UpdateStatus(c.Request.Context(), projectID, taskID, normalizedStatus, req.Remark); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -578,4 +624,63 @@ func (h *TaskHandler) GetAssignableUsers(c *gin.Context) {
 		return
 	}
 	c.JSON(constants.StatusOK, gin.H{"users": users})
+}
+
+// GetStatuses returns all available task statuses with their metadata
+func (h *TaskHandler) GetStatuses(c *gin.Context) {
+	statuses := []map[string]interface{}{
+		{
+			"value":       constants.GetTaskStatusString(constants.TaskStatusPending),
+			"displayName": "Pending",
+			"description": "Task is pending/not started",
+			"category":    "active",
+			"isActive":    true,
+			"isCompleted": false,
+		},
+		{
+			"value":       constants.GetTaskStatusString(constants.TaskStatusInProgress),
+			"displayName": "In Progress",
+			"description": "Task is currently being worked on",
+			"category":    "active",
+			"isActive":    true,
+			"isCompleted": false,
+		},
+		{
+			"value":       constants.GetTaskStatusString(constants.TaskStatusInReview),
+			"displayName": "In Review",
+			"description": "Task is under review",
+			"category":    "active",
+			"isActive":    true,
+			"isCompleted": false,
+		},
+		{
+			"value":       constants.GetTaskStatusString(constants.TaskStatusCompleted),
+			"displayName": "Completed",
+			"description": "Task is completed",
+			"category":    "completed",
+			"isActive":    false,
+			"isCompleted": true,
+		},
+		{
+			"value":       constants.GetTaskStatusString(constants.TaskStatusAccepted),
+			"displayName": "Accepted",
+			"description": "Task has been accepted",
+			"category":    "final",
+			"isActive":    false,
+			"isCompleted": true,
+		},
+		{
+			"value":       constants.GetTaskStatusString(constants.TaskStatusRejected),
+			"displayName": "Rejected",
+			"description": "Task has been rejected",
+			"category":    "final",
+			"isActive":    false,
+			"isCompleted": false,
+		},
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"statuses": statuses,
+		"total":    len(statuses),
+	})
 }

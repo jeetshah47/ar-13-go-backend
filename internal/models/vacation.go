@@ -31,26 +31,26 @@ const (
 
 // WorkingHours represents working hours for remote work
 type WorkingHours struct {
-	From string `json:"from" firestore:"from"` // Time format like "9:00 AM"
-	To   string `json:"to" firestore:"to"`     // Time format like "1:00 PM"
+	From string `json:"from" firestore:"from" bson:"from"` // Time format like "9:00 AM"
+	To   string `json:"to" firestore:"to" bson:"to"`       // Time format like "1:00 PM"
 }
 
 // LeaveRequest represents a leave request
 type LeaveRequest struct {
 	Model
-	UserID         string             `json:"userId" firestore:"userId"`
-	RequestType    LeaveRequestType   `json:"requestType" firestore:"requestType"`
-	StartDate      time.Time          `json:"startDate" firestore:"startDate"`
-	EndDate        *time.Time         `json:"endDate,omitempty" firestore:"endDate,omitempty"`
-	Duration       float64            `json:"duration" firestore:"duration"`
-	DurationType   DurationType       `json:"durationType" firestore:"durationType"`
-	Status         LeaveRequestStatus `json:"status" firestore:"status"`
-	Comments       *string            `json:"comments,omitempty" firestore:"comments,omitempty"`
-	RequestedAt    time.Time          `json:"requestedAt" firestore:"requestedAt"`
-	ReviewedBy     *string            `json:"reviewedBy,omitempty" firestore:"reviewedBy,omitempty"`
-	ReviewedAt     *time.Time         `json:"reviewedAt,omitempty" firestore:"reviewedAt,omitempty"`
-	ReviewComments *string            `json:"reviewComments,omitempty" firestore:"reviewComments,omitempty"`
-	WorkingHours   *WorkingHours      `json:"workingHours,omitempty" firestore:"workingHours,omitempty"`
+	UserID         string             `json:"userId" firestore:"userId" bson:"userId"`
+	RequestType    LeaveRequestType   `json:"requestType" firestore:"requestType" bson:"requestType"`
+	StartDate      time.Time          `json:"startDate" firestore:"startDate" bson:"startDate"`
+	EndDate        *time.Time         `json:"endDate,omitempty" firestore:"endDate,omitempty" bson:"endDate,omitempty"`
+	Duration       float64            `json:"duration" firestore:"duration" bson:"duration"`
+	DurationType   DurationType       `json:"durationType" firestore:"durationType" bson:"durationType"`
+	Status         LeaveRequestStatus `json:"status" firestore:"status" bson:"status"`
+	Comments       *string            `json:"comments,omitempty" firestore:"comments,omitempty" bson:"comments,omitempty"`
+	RequestedAt    time.Time          `json:"requestedAt" firestore:"requestedAt" bson:"requestedAt"`
+	ReviewedBy     *string            `json:"reviewedBy,omitempty" firestore:"reviewedBy,omitempty" bson:"reviewedBy,omitempty"`
+	ReviewedAt     *time.Time         `json:"reviewedAt,omitempty" firestore:"reviewedAt,omitempty" bson:"reviewedAt,omitempty"`
+	ReviewComments *string            `json:"reviewComments,omitempty" firestore:"reviewComments,omitempty" bson:"reviewComments,omitempty"`
+	WorkingHours   *WorkingHours      `json:"workingHours,omitempty" firestore:"workingHours,omitempty" bson:"workingHours,omitempty"`
 }
 
 // VacationSummary represents a vacation summary for a user

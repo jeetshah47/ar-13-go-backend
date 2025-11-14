@@ -6,25 +6,28 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/ar-13-go-backend/pkg/mongodb"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-// ActivityLogRepo handles activity log data operations
+// ActivityLogRepo handles activity log data operations with MongoDB
 type ActivityLogRepo struct {
-	*DynamoBaseRepo
+	*MongoBaseRepo
 }
 
-// NewActivityLogRepo creates a new activity log repository
+// NewActivityLogRepo creates a new MongoDB activity log repository
 func NewActivityLogRepo() *ActivityLogRepo {
+	client := mongodb.GetClient()
+	dbName := mongodb.GetDatabaseName()
 	return &ActivityLogRepo{
-		DynamoBaseRepo: NewDynamoBaseRepo("activity_logs"),
+		MongoBaseRepo: NewMongoBaseRepo(client, dbName, "activity_logs"),
 	}
 }
 
 // Add adds an activity log
 func (r *ActivityLogRepo) Add(ctx context.Context, log *models.ActivityLogBase) error {
 	now := time.Now()
-	
+
 	if log.ID == "" {
 		log.ID = fmt.Sprintf("%s-%s-%d", log.EntityType, log.EntityID, now.Unix())
 	}
@@ -37,31 +40,13 @@ func (r *ActivityLogRepo) Add(ctx context.Context, log *models.ActivityLogBase) 
 		log.CreatedAt = now
 	}
 
-	data := map[string]interface{}{
-		"id":         log.ID,
-		"entityType": string(log.EntityType),
-		"entityId":   log.EntityID,
-		"action":     string(log.Action),
-		"createdAt":  log.CreatedAt.Format(time.RFC3339),
-		"createdBy":  log.CreatedBy,
-		"created":    log.Created.Format(time.RFC3339),
-	}
-	if log.Description != nil {
-		data["description"] = *log.Description
-	}
-	if log.Fields != nil {
-		data["fields"] = log.Fields
-	}
-	if log.Metadata != nil {
-		data["metadata"] = log.Metadata
-	}
-
-	return r.PutItem(ctx, data)
+	return r.InsertOne(ctx, log)
 }
 
 // GetByEntity gets activity logs for a specific entity
 func (r *ActivityLogRepo) GetByEntity(ctx context.Context, entityType models.ActivityLogEntityType, entityID string) ([]models.ActivityLogBase, error) {
-	items, err := r.QueryByIndex(ctx, "entityId-index", "entityId", entityID)
+	filter := bson.M{"entityId": entityID}
+	items, err := r.FindAll(ctx, filter, nil, bson.M{"createdAt": -1}) // Sort by createdAt descending
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +54,9 @@ func (r *ActivityLogRepo) GetByEntity(ctx context.Context, entityType models.Act
 	logs := make([]models.ActivityLogBase, 0, len(items))
 	for _, item := range items {
 		var log models.ActivityLogBase
-		if err := UnmarshalItem(item, &log); err != nil {
-			return nil, err
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &log); err != nil {
+			continue
 		}
 		logs = append(logs, log)
 	}
@@ -79,24 +65,15 @@ func (r *ActivityLogRepo) GetByEntity(ctx context.Context, entityType models.Act
 }
 
 // GetByEntityType gets activity logs by entity type
-// Optimized to use DynamoDB filter expression instead of scan + in-memory filtering
 func (r *ActivityLogRepo) GetByEntityType(ctx context.Context, entityType models.ActivityLogEntityType, limit *int) ([]models.ActivityLogBase, error) {
-	var limitInt32 *int32
+	var limitInt64 *int64
 	if limit != nil {
-		l := int32(*limit)
-		limitInt32 = &l
+		l := int64(*limit)
+		limitInt64 = &l
 	}
 
-	// Use DynamoDB filter expression to filter at database level
-	filterExpression := "#entityType = :entityType"
-	expressionAttributeNames := map[string]string{
-		"#entityType": "entityType",
-	}
-	expressionAttributeValues := map[string]types.AttributeValue{
-		":entityType": &types.AttributeValueMemberS{Value: string(entityType)},
-	}
-
-	items, err := r.ScanItemsWithFilter(ctx, filterExpression, expressionAttributeNames, expressionAttributeValues, limitInt32)
+	filter := bson.M{"entityType": string(entityType)}
+	items, err := r.FindAll(ctx, filter, limitInt64, bson.M{"createdAt": -1})
 	if err != nil {
 		return nil, err
 	}
@@ -104,11 +81,13 @@ func (r *ActivityLogRepo) GetByEntityType(ctx context.Context, entityType models
 	logs := make([]models.ActivityLogBase, 0, len(items))
 	for _, item := range items {
 		var log models.ActivityLogBase
-		if err := UnmarshalItem(item, &log); err != nil {
-			return nil, err
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &log); err != nil {
+			continue
 		}
 		logs = append(logs, log)
 	}
 
 	return logs, nil
 }
+

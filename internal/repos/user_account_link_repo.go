@@ -6,25 +6,30 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/ar-13-go-backend/pkg/mongodb"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// UserAccountLinkRepo handles user account link data operations
+// UserAccountLinkRepo handles user account link data operations with MongoDB
 type UserAccountLinkRepo struct {
-	*DynamoBaseRepo
+	*MongoBaseRepo
 }
 
-// NewUserAccountLinkRepo creates a new user account link repository
+// NewUserAccountLinkRepo creates a new MongoDB user account link repository
 func NewUserAccountLinkRepo() *UserAccountLinkRepo {
+	client := mongodb.GetClient()
+	dbName := mongodb.GetDatabaseName()
 	return &UserAccountLinkRepo{
-		DynamoBaseRepo: NewDynamoBaseRepo("userAccountLinks"),
+		MongoBaseRepo: NewMongoBaseRepo(client, dbName, "user_account_links"),
 	}
 }
 
 // GetByUserID gets all account links for a user
 func (r *UserAccountLinkRepo) GetByUserID(ctx context.Context, userID string) ([]models.UserAccountLink, error) {
-	items, err := r.QueryByIndex(ctx, "userId-index", "userId", userID)
+	filter := bson.M{"userId": userID}
+	items, err := r.FindAll(ctx, filter, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -32,8 +37,9 @@ func (r *UserAccountLinkRepo) GetByUserID(ctx context.Context, userID string) ([
 	links := make([]models.UserAccountLink, 0, len(items))
 	for _, item := range items {
 		var link models.UserAccountLink
-		if err := UnmarshalItem(item, &link); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal account link: %w", err)
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &link); err != nil {
+			continue
 		}
 		links = append(links, link)
 	}
@@ -43,24 +49,25 @@ func (r *UserAccountLinkRepo) GetByUserID(ctx context.Context, userID string) ([
 
 // GetByProvider gets account link by provider and provider user ID
 func (r *UserAccountLinkRepo) GetByProvider(ctx context.Context, provider models.AccountProvider, providerUserID string) (*models.UserAccountLink, error) {
-	items, err := r.ScanItems(ctx, nil)
-	if err != nil {
-		return nil, err
+	filter := bson.M{
+		"provider":       string(provider),
+		"providerUserId": providerUserID,
+	}
+	result := r.FindOne(ctx, filter)
+
+	if result.Err() == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
-	for _, item := range items {
-		p, ok1 := item["provider"].(*types.AttributeValueMemberS)
-		pu, ok2 := item["providerUserId"].(*types.AttributeValueMemberS)
-		if ok1 && ok2 && p.Value == string(provider) && pu.Value == providerUserID {
-			var link models.UserAccountLink
-			if err := UnmarshalItem(item, &link); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal account link: %w", err)
-			}
-			return &link, nil
-		}
+	var link models.UserAccountLink
+	if err := result.Decode(&link); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal account link: %w", err)
 	}
 
-	return nil, nil
+	return &link, nil
 }
 
 // Add creates a new account link
@@ -72,31 +79,7 @@ func (r *UserAccountLinkRepo) Add(ctx context.Context, link *models.UserAccountL
 	link.Created = now
 	link.LinkedAt = now
 
-	data := map[string]interface{}{
-		"id":             link.ID,
-		"userId":         link.UserID,
-		"provider":       string(link.Provider),
-		"providerUserId": link.ProviderUserID,
-		"providerEmail":  link.ProviderEmail,
-		"isActive":       link.IsActive,
-		"linkedAt":       link.LinkedAt.Format(time.RFC3339),
-		"created":        link.Created.Format(time.RFC3339),
-	}
-
-	if link.ProviderDisplayName != nil {
-		data["providerDisplayName"] = *link.ProviderDisplayName
-	}
-	if link.AccessToken != nil {
-		data["accessToken"] = *link.AccessToken
-	}
-	if link.RefreshToken != nil {
-		data["refreshToken"] = *link.RefreshToken
-	}
-	if link.ExpiresAt != nil {
-		data["expiresAt"] = link.ExpiresAt.Format(time.RFC3339)
-	}
-
-	return r.PutItem(ctx, data)
+	return r.InsertOne(ctx, link)
 }
 
 // Update updates an account link
@@ -104,13 +87,13 @@ func (r *UserAccountLinkRepo) Update(ctx context.Context, link *models.UserAccou
 	now := time.Now()
 	link.Updated = &now
 
-	updates := map[string]interface{}{
+	updates := bson.M{
 		"userId":         link.UserID,
 		"provider":       string(link.Provider),
 		"providerUserId": link.ProviderUserID,
 		"providerEmail":  link.ProviderEmail,
 		"isActive":       link.IsActive,
-		"updated":        link.Updated.Format(time.RFC3339),
+		"updated":        link.Updated,
 	}
 
 	if link.ProviderDisplayName != nil {
@@ -123,45 +106,44 @@ func (r *UserAccountLinkRepo) Update(ctx context.Context, link *models.UserAccou
 		updates["refreshToken"] = *link.RefreshToken
 	}
 	if link.ExpiresAt != nil {
-		updates["expiresAt"] = link.ExpiresAt.Format(time.RFC3339)
+		updates["expiresAt"] = link.ExpiresAt
 	}
 
-	return r.UpdateItem(ctx, link.ID, updates)
+	return r.UpdateOne(ctx, link.ID, updates)
 }
 
 // GetByUserIDAndProvider gets account link by user ID and provider
 func (r *UserAccountLinkRepo) GetByUserIDAndProvider(ctx context.Context, userID string, provider models.AccountProvider) (*models.UserAccountLink, error) {
-	items, err := r.QueryByIndex(ctx, "userId-index", "userId", userID)
-	if err != nil {
-		return nil, err
+	filter := bson.M{
+		"userId":   userID,
+		"provider": string(provider),
+		"isActive": true,
+	}
+	result := r.FindOne(ctx, filter)
+
+	if result.Err() == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
-	for _, item := range items {
-		if p, ok := item["provider"].(*types.AttributeValueMemberS); ok && p.Value == string(provider) {
-			if isActive, ok := item["isActive"].(*types.AttributeValueMemberBOOL); ok && isActive.Value {
-				var link models.UserAccountLink
-				if err := UnmarshalItem(item, &link); err != nil {
-					return nil, fmt.Errorf("failed to unmarshal account link: %w", err)
-				}
-				return &link, nil
-			}
-		}
+	var link models.UserAccountLink
+	if err := result.Decode(&link); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal account link: %w", err)
 	}
 
-	return nil, nil
+	return &link, nil
 }
 
 // Deactivate deactivates an account link
 func (r *UserAccountLinkRepo) Deactivate(ctx context.Context, id string) error {
-	now := time.Now()
-	updates := map[string]interface{}{
-		"isActive": false,
-		"updated":  now.Format(time.RFC3339),
-	}
-	return r.UpdateItem(ctx, id, updates)
+	updates := bson.M{"isActive": false}
+	return r.UpdateOne(ctx, id, updates)
 }
 
 // Delete deletes an account link
 func (r *UserAccountLinkRepo) Delete(ctx context.Context, id string) error {
 	return r.DeleteByID(ctx, id)
 }
+

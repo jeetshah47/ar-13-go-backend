@@ -5,101 +5,76 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/ar-13-go-backend/pkg/mongodb"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// ProjectRepo handles project data operations
-// TODO: Migrate to DynamoDB
+// ProjectRepo handles project data operations with MongoDB
 type ProjectRepo struct {
-	*DynamoBaseRepo
+	*MongoBaseRepo
 }
 
-// NewProjectRepo creates a new project repository
+// NewProjectRepo creates a new MongoDB project repository
 func NewProjectRepo() *ProjectRepo {
+	client := mongodb.GetClient()
+	dbName := mongodb.GetDatabaseName()
 	return &ProjectRepo{
-		DynamoBaseRepo: NewDynamoBaseRepo("projects"),
+		MongoBaseRepo: NewMongoBaseRepo(client, dbName, "projects"),
 	}
-}
-
-// convertDeadlineIfNeeded converts deadLine from string to time.Time if needed
-func (r *ProjectRepo) convertDeadlineIfNeeded(data map[string]interface{}) error {
-	return ConvertTimeFieldsInMap(data, []string{"deadLine", "created", "updated"})
-}
-
-// dataToProject converts a data map to a Project struct
-func (r *ProjectRepo) dataToProject(data map[string]interface{}, id string) (*models.Project, error) {
-	project := &models.Project{}
-	project.ID = id
-
-	if title, ok := data["title"].(string); ok {
-		project.Title = title
-	}
-	if description, ok := data["description"].(string); ok {
-		project.Description = description
-	}
-	if ownerID, ok := data["ownerId"].(string); ok {
-		project.OwnerID = ownerID
-	}
-	if membersIDs, ok := data["membersIds"].([]interface{}); ok {
-		project.MembersIDs = make([]string, 0, len(membersIDs))
-		for _, id := range membersIDs {
-			if strID, ok := id.(string); ok {
-				project.MembersIDs = append(project.MembersIDs, strID)
-			}
-		}
-	}
-	// Handle deadLine - use ConvertToTime helper
-	if deadLineVal, ok := data["deadLine"]; ok && deadLineVal != nil {
-		if deadLine, err := ConvertToTime(deadLineVal); err == nil {
-			project.Deadline = deadLine
-		}
-	}
-	if logoURL, ok := data["logoUrl"].(string); ok {
-		project.LogoURL = &logoURL
-	}
-	// Handle created - use ConvertToTime helper
-	if createdVal, ok := data["created"]; ok && createdVal != nil {
-		if created, err := ConvertToTime(createdVal); err == nil {
-			project.Created = created
-		}
-	}
-	// Handle updated - use ConvertToTime helper
-	if updatedVal, ok := data["updated"]; ok && updatedVal != nil {
-		if updated, err := ConvertToTime(updatedVal); err == nil {
-			project.Updated = &updated
-		}
-	}
-
-	return project, nil
 }
 
 // GetByID gets a project by ID
 func (r *ProjectRepo) GetByID(ctx context.Context, id string) (*models.Project, error) {
-	item, err := r.DynamoBaseRepo.GetByID(ctx, id)
+	// Query by id field - check both root level and nested "model.id"
+	// (MongoDB may store embedded structs as nested objects)
+	filter := bson.M{
+		"$or": []bson.M{
+			{"id": id},
+			{"model.id": id},
+			{"_id": id},
+		},
+	}
+	result := r.FindOne(ctx, filter)
+
+	if result.Err() == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
+	}
+
+	// Decode into a map first for better compatibility with MongoDB document structure
+	var rawDoc bson.M
+	if err := result.Decode(&rawDoc); err != nil {
+		return nil, err
+	}
+
+	// Convert map to BSON bytes, then unmarshal to struct
+	// This approach handles type conversions and missing fields better
+	bsonBytes, err := bson.Marshal(rawDoc)
 	if err != nil {
 		return nil, err
 	}
-	if item == nil {
-		return nil, nil
-	}
 
 	var project models.Project
-	if err := UnmarshalItem(item, &project); err != nil {
+	if err := bson.Unmarshal(bsonBytes, &project); err != nil {
 		return nil, err
 	}
+
 	return &project, nil
 }
 
 // GetAll gets all projects
 func (r *ProjectRepo) GetAll(ctx context.Context, limit *int) ([]models.Project, error) {
-	var limitInt32 *int32
+	var limitInt64 *int64
 	if limit != nil {
-		l := int32(*limit)
-		limitInt32 = &l
+		l := int64(*limit)
+		limitInt64 = &l
 	}
 
-	items, err := r.ScanItems(ctx, limitInt32)
+	items, err := r.FindAll(ctx, bson.M{}, limitInt64)
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +82,9 @@ func (r *ProjectRepo) GetAll(ctx context.Context, limit *int) ([]models.Project,
 	projects := make([]models.Project, 0, len(items))
 	for _, item := range items {
 		var project models.Project
-		if err := UnmarshalItem(item, &project); err != nil {
-			return nil, err
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &project); err != nil {
+			continue
 		}
 		projects = append(projects, project)
 	}
@@ -123,20 +99,7 @@ func (r *ProjectRepo) Add(ctx context.Context, project *models.Project) error {
 	}
 	project.Created = time.Now()
 
-	data := map[string]interface{}{
-		"id":          project.ID,
-		"title":       project.Title,
-		"description": project.Description,
-		"ownerId":     project.OwnerID,
-		"membersIds":  project.MembersIDs,
-		"deadLine":    project.Deadline.Format(time.RFC3339),
-		"created":     project.Created.Format(time.RFC3339),
-	}
-	if project.LogoURL != nil {
-		data["logoUrl"] = *project.LogoURL
-	}
-
-	return r.PutItem(ctx, data)
+	return r.InsertOne(ctx, project)
 }
 
 // Update updates a project
@@ -144,18 +107,26 @@ func (r *ProjectRepo) Update(ctx context.Context, project *models.Project) error
 	now := time.Now()
 	project.Updated = &now
 
-	updates := map[string]interface{}{
+	updates := bson.M{
 		"title":       project.Title,
 		"description": project.Description,
 		"ownerId":     project.OwnerID,
 		"membersIds":  project.MembersIDs,
-		"deadLine":    project.Deadline.Format(time.RFC3339),
+		"deadLine":    project.Deadline,
+		"updated":     project.Updated,
+	}
+
+	if project.StartDate != nil {
+		updates["startDate"] = *project.StartDate
+	}
+	if project.EndDate != nil {
+		updates["endDate"] = *project.EndDate
 	}
 	if project.LogoURL != nil {
 		updates["logoUrl"] = *project.LogoURL
 	}
 
-	return r.UpdateItem(ctx, project.ID, updates)
+	return r.UpdateOne(ctx, project.ID, updates)
 }
 
 // Delete deletes a project
@@ -165,16 +136,10 @@ func (r *ProjectRepo) Delete(ctx context.Context, id string) error {
 
 // Persists checks if a project exists by title
 func (r *ProjectRepo) Persists(ctx context.Context, title string) (bool, error) {
-	// TODO: Implement DynamoDB scan with filter by title
-	items, err := r.ScanItems(ctx, nil)
+	filter := bson.M{"title": title}
+	count, err := r.CountDocuments(ctx, filter)
 	if err != nil {
 		return false, err
 	}
-
-	for _, item := range items {
-		if t, ok := item["title"].(*types.AttributeValueMemberS); ok && t.Value == title {
-			return true, nil
-		}
-	}
-	return false, nil
+	return count > 0, nil
 }

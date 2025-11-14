@@ -6,33 +6,40 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
+	"github.com/ar-13-go-backend/pkg/mongodb"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// SignupInvitationRepo handles signup invitation data access
+// SignupInvitationRepo handles signup invitation data operations with MongoDB
 type SignupInvitationRepo struct {
-	*DynamoBaseRepo
+	*MongoBaseRepo
 }
 
-// NewSignupInvitationRepo creates a new signup invitation repository
+// NewSignupInvitationRepo creates a new MongoDB signup invitation repository
 func NewSignupInvitationRepo() *SignupInvitationRepo {
+	client := mongodb.GetClient()
+	dbName := mongodb.GetDatabaseName()
 	return &SignupInvitationRepo{
-		DynamoBaseRepo: NewDynamoBaseRepo("signupInvitations"),
+		MongoBaseRepo: NewMongoBaseRepo(client, dbName, "signupInvitations"),
 	}
 }
 
 // GetByEmail gets a signup invitation by email
 func (r *SignupInvitationRepo) GetByEmail(ctx context.Context, email string) (*models.SignupInvitation, error) {
-	items, err := r.QueryByIndex(ctx, "email-index", "email", email)
-	if err != nil {
-		return nil, err
-	}
-	if len(items) == 0 {
+	filter := bson.M{"email": email}
+	result := r.FindOne(ctx, filter)
+
+	if result.Err() == mongo.ErrNoDocuments {
 		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
 	var invitation models.SignupInvitation
-	if err := UnmarshalItem(items[0], &invitation); err != nil {
+	if err := result.Decode(&invitation); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal invitation: %w", err)
 	}
 
@@ -41,16 +48,18 @@ func (r *SignupInvitationRepo) GetByEmail(ctx context.Context, email string) (*m
 
 // GetByToken gets a signup invitation by token
 func (r *SignupInvitationRepo) GetByToken(ctx context.Context, token string) (*models.SignupInvitation, error) {
-	items, err := r.QueryByIndex(ctx, "token-index", "token", token)
-	if err != nil {
-		return nil, err
-	}
-	if len(items) == 0 {
+	filter := bson.M{"token": token}
+	result := r.FindOne(ctx, filter)
+
+	if result.Err() == mongo.ErrNoDocuments {
 		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
 	var invitation models.SignupInvitation
-	if err := UnmarshalItem(items[0], &invitation); err != nil {
+	if err := result.Decode(&invitation); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal invitation: %w", err)
 	}
 
@@ -65,22 +74,12 @@ func (r *SignupInvitationRepo) Add(ctx context.Context, invitation *models.Signu
 	}
 	invitation.Created = now
 
-	data := map[string]interface{}{
-		"id":         invitation.ID,
-		"email":      invitation.Email,
-		"token":      invitation.Token,
-		"linkExpiry": invitation.LinkExpiry.Format(time.RFC3339),
-		"hasSignup":  invitation.HasSignup,
-		"created":    invitation.Created.Format(time.RFC3339),
-	}
-
-	return r.PutItem(ctx, data)
+	return r.InsertOne(ctx, invitation)
 }
 
 // MarkAsSignedUp marks an invitation as used
 func (r *SignupInvitationRepo) MarkAsSignedUp(ctx context.Context, id string) error {
-	updates := map[string]interface{}{
-		"hasSignup": true,
-	}
-	return r.UpdateItem(ctx, id, updates)
+	updates := bson.M{"hasSignup": true}
+	return r.UpdateOne(ctx, id, updates)
 }
+

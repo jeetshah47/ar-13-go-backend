@@ -1,0 +1,28 @@
+---
+alwaysApply: true
+---
+    enforcement:
+      - approval_required: true
+
+# -----------------------------
+# Examples
+# -----------------------------
+Examples:
+  acceptable:
+    - "db.users.find({status: 'active'}).project({name:1, email:1}).limit(50)"
+    - "Use an aggregation with $match then $group on a small filtered subset; run explain() and verify index usage."
+  non_acceptable:
+    - "db.orders.find({}).toArray()  // returns entire collection without pagination"
+    - "Large $lookup across collections without pre-filtering"
+
+# -----------------------------
+# Notes & Operational Guidance
+# -----------------------------
+# - These rules are intentionally conservative because the project uses MongoDB Free Tier.
+# - Adjust numeric thresholds (page size, batch size, inline blob size) only after a documented review.
+# - When in doubt, prefer a smaller page size, projections, and server-side filters.
+# - For documentation creation flow: ALWAYS require an explicit user request to create files. If a prompt hints at creating docs but does not explicitly request a file creation verb, ASK the user first.
+
+# -----------------------------
+# End of File
+# -----------------------------

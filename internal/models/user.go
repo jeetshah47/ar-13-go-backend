@@ -12,15 +12,15 @@ const (
 
 // User represents a user in the system
 type User struct {
-	ID          string    `json:"id" firestore:"id" dynamodbav:"id"`
-	Name        string    `json:"name" firestore:"name" dynamodbav:"name"`
-	Email       string    `json:"email" firestore:"email" dynamodbav:"email"`
-	PhoneNumber string    `json:"phoneNumber" firestore:"phoneNumber" dynamodbav:"phoneNumber"`
-	Role        UserRole  `json:"role" firestore:"role" dynamodbav:"role"`
-	Password    string    `json:"-" firestore:"password" dynamodbav:"password"` // Hidden from JSON
-	Designation *string   `json:"designation,omitempty" firestore:"designation,omitempty" dynamodbav:"designation,omitempty"`
-	CreatedAt   time.Time `json:"createdAt" firestore:"createdAt" dynamodbav:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt" firestore:"updatedAt" dynamodbav:"updatedAt"`
+	ID          string    `json:"id" firestore:"id" dynamodbav:"id" bson:"id"`
+	Name        string    `json:"name" firestore:"name" dynamodbav:"name" bson:"name"`
+	Email       string    `json:"email" firestore:"email" dynamodbav:"email" bson:"email"`
+	PhoneNumber string    `json:"phoneNumber" firestore:"phoneNumber" dynamodbav:"phoneNumber" bson:"phoneNumber"`
+	Role        UserRole  `json:"role" firestore:"role" dynamodbav:"role" bson:"role"`
+	Password    string    `json:"-" firestore:"password" dynamodbav:"password" bson:"password"` // Hidden from JSON
+	Designation *string   `json:"designation,omitempty" firestore:"designation,omitempty" dynamodbav:"designation,omitempty" bson:"designation,omitempty"`
+	CreatedAt   time.Time `json:"createdAt" firestore:"createdAt" dynamodbav:"createdAt" bson:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt" firestore:"updatedAt" dynamodbav:"updatedAt" bson:"updatedAt"`
 }
 
 // LoginRequest represents a login request

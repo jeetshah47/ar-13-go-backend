@@ -7,61 +7,63 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/ar-13-go-backend/pkg/mongodb"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// InfoPortalRepo handles info portal data operations
+// InfoPortalRepo handles info portal data operations with MongoDB
 type InfoPortalRepo struct {
-	*DynamoBaseRepo
+	*MongoBaseRepo
 }
 
-// NewInfoPortalRepo creates a new info portal repository
+// NewInfoPortalRepo creates a new MongoDB info portal repository
 func NewInfoPortalRepo() *InfoPortalRepo {
+	client := mongodb.GetClient()
+	dbName := mongodb.GetDatabaseName()
 	return &InfoPortalRepo{
-		DynamoBaseRepo: NewDynamoBaseRepo("info-portal"),
+		MongoBaseRepo: NewMongoBaseRepo(client, dbName, "info-portal"),
 	}
 }
 
 // Folder operations
 func (r *InfoPortalRepo) GetAllFolders(ctx context.Context) ([]models.Folder, error) {
-	items, err := r.ScanItems(ctx, nil)
+	filter := bson.M{"type": "folder"}
+	items, err := r.FindAll(ctx, filter, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	folders := make([]models.Folder, 0)
+	folders := make([]models.Folder, 0, len(items))
 	for _, item := range items {
-		// Filter by type = "folder"
-		if itemType, ok := item["type"].(*types.AttributeValueMemberS); ok && itemType.Value == "folder" {
-			var folder models.Folder
-			if err := UnmarshalItem(item, &folder); err != nil {
-				continue
-			}
-			folders = append(folders, folder)
+		var folder models.Folder
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &folder); err != nil {
+			continue
 		}
+		folders = append(folders, folder)
 	}
 
 	return folders, nil
 }
 
 func (r *InfoPortalRepo) GetFolderByID(ctx context.Context, folderID string) (*models.Folder, error) {
-	// Use prefix if not already present
 	id := folderID
 	if !strings.HasPrefix(id, "folder-") {
 		id = "folder-" + folderID
 	}
 
-	item, err := r.DynamoBaseRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if item == nil {
+	result := r.MongoBaseRepo.GetByID(ctx, id)
+	if result.Err() == mongo.ErrNoDocuments {
 		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
 	var folder models.Folder
-	if err := UnmarshalItem(item, &folder); err != nil {
+	if err := result.Decode(&folder); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal folder: %w", err)
 	}
 
@@ -76,16 +78,9 @@ func (r *InfoPortalRepo) CreateFolder(ctx context.Context, folder *models.Folder
 		folder.ID = "folder-" + folder.ID
 	}
 	folder.Created = now
+	folder.Type = "folder"
 
-	data := map[string]interface{}{
-		"id":      folder.ID,
-		"type":    "folder",
-		"name":    folder.Name,
-		"color":   folder.Color,
-		"created": folder.Created.Format(time.RFC3339),
-	}
-
-	return r.PutItem(ctx, data)
+	return r.InsertOne(ctx, folder)
 }
 
 func (r *InfoPortalRepo) UpdateFolder(ctx context.Context, folderID string, updates map[string]interface{}) error {
@@ -96,7 +91,7 @@ func (r *InfoPortalRepo) UpdateFolder(ctx context.Context, folderID string, upda
 
 	// Remove type from updates if present
 	delete(updates, "type")
-	return r.UpdateItem(ctx, id, updates)
+	return r.UpdateOne(ctx, id, updates)
 }
 
 func (r *InfoPortalRepo) DeleteFolder(ctx context.Context, folderID string) error {
@@ -109,22 +104,21 @@ func (r *InfoPortalRepo) DeleteFolder(ctx context.Context, folderID string) erro
 
 // Page operations
 func (r *InfoPortalRepo) GetPageByID(ctx context.Context, pageID string) (*models.Page, error) {
-	// Use prefix if not already present
 	id := pageID
 	if !strings.HasPrefix(id, "page-") {
 		id = "page-" + pageID
 	}
 
-	item, err := r.DynamoBaseRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if item == nil {
+	result := r.MongoBaseRepo.GetByID(ctx, id)
+	if result.Err() == mongo.ErrNoDocuments {
 		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
 	var page models.Page
-	if err := UnmarshalItem(item, &page); err != nil {
+	if err := result.Decode(&page); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal page: %w", err)
 	}
 
@@ -140,17 +134,9 @@ func (r *InfoPortalRepo) CreatePage(ctx context.Context, folderID string, page *
 	}
 	page.FolderID = folderID
 	page.Created = now
+	page.Type = "page"
 
-	data := map[string]interface{}{
-		"id":       page.ID,
-		"type":     "page",
-		"title":    page.Title,
-		"isActive": page.IsActive,
-		"folderId": page.FolderID,
-		"created":  page.Created.Format(time.RFC3339),
-	}
-
-	return r.PutItem(ctx, data)
+	return r.InsertOne(ctx, page)
 }
 
 func (r *InfoPortalRepo) UpdatePage(ctx context.Context, pageID string, updates map[string]interface{}) error {
@@ -161,7 +147,7 @@ func (r *InfoPortalRepo) UpdatePage(ctx context.Context, pageID string, updates 
 
 	// Remove type from updates if present
 	delete(updates, "type")
-	return r.UpdateItem(ctx, id, updates)
+	return r.UpdateOne(ctx, id, updates)
 }
 
 func (r *InfoPortalRepo) DeletePage(ctx context.Context, pageID string) error {
@@ -178,10 +164,8 @@ func (r *InfoPortalRepo) UpdatePageSections(ctx context.Context, pageID string, 
 		id = "page-" + pageID
 	}
 
-	updates := map[string]interface{}{
-		"sections": sections,
-	}
-	return r.UpdateItem(ctx, id, updates)
+	updates := bson.M{"sections": sections}
+	return r.UpdateOne(ctx, id, updates)
 }
 
 // Attachment operations
@@ -194,20 +178,9 @@ func (r *InfoPortalRepo) CreateAttachment(ctx context.Context, pageID string, at
 	}
 	attachment.PageID = pageID
 	attachment.Created = now
+	attachment.Type = "attachment"
 
-	data := map[string]interface{}{
-		"id":       attachment.ID,
-		"type":     "attachment",
-		"name":     attachment.Name,
-		"imageUrl": attachment.ImageURL,
-		"fileUrl":  attachment.FileURL,
-		"fileType": attachment.FileType,
-		"fileSize": attachment.FileSize,
-		"pageId":   attachment.PageID,
-		"created":  attachment.Created.Format(time.RFC3339),
-	}
-
-	return r.PutItem(ctx, data)
+	return r.InsertOne(ctx, attachment)
 }
 
 func (r *InfoPortalRepo) DeleteAttachment(ctx context.Context, attachmentID string) error {
@@ -217,3 +190,4 @@ func (r *InfoPortalRepo) DeleteAttachment(ctx context.Context, attachmentID stri
 	}
 	return r.DeleteByID(ctx, id)
 }
+

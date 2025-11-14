@@ -14,8 +14,8 @@ import (
 	"github.com/ar-13-go-backend/internal/handlers"
 	"github.com/ar-13-go-backend/internal/middleware"
 	"github.com/ar-13-go-backend/pkg/cache"
-	"github.com/ar-13-go-backend/pkg/dynamodb"
 	"github.com/ar-13-go-backend/pkg/jwt"
+	"github.com/ar-13-go-backend/pkg/mongodb"
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,12 +37,12 @@ func main() {
 	}
 	jwt.InitializeJWT(cfg.JWTSecret)
 
-	// Initialize DynamoDB
-	_, err = dynamodb.InitializeDynamoDB(cfg.AWSRegion)
+	// Initialize MongoDB (required)
+	_, err = mongodb.InitializeMongoDB(cfg.MongoDBURI, cfg.MongoDBDatabase)
 	if err != nil {
-		log.Fatalf("Failed to initialize DynamoDB: %v", err)
+		log.Fatalf("Failed to initialize MongoDB: %v. MongoDB is required for the application to run.", err)
 	}
-	log.Println("DynamoDB initialized successfully")
+	log.Println("MongoDB initialized successfully")
 
 	// Initialize Redis (optional - will continue if Redis is unavailable)
 	_, err = cache.InitializeRedis(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
@@ -100,6 +100,11 @@ func main() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	// Close MongoDB connection
+	if err := mongodb.Close(); err != nil {
+		log.Printf("Error closing MongoDB connection: %v", err)
 	}
 
 	log.Println("Server exited")
@@ -177,6 +182,7 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			tasks.PUT("/assign/:taskId/:userId", middleware.RequirePermission("tasks:assign"), handler.Task.Assign)
 			tasks.PUT("/claim/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.Claim)
 			tasks.GET("/assignable/:projectId", middleware.RequirePermission("tasks:assign"), handler.Task.GetAssignableUsers)
+			tasks.GET("/statuses", middleware.RequirePermission("tasks:read"), handler.Task.GetStatuses)
 		}
 
 		// Dashboard routes
@@ -285,11 +291,6 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			googleAccount.GET("/calendar/events", handler.GoogleAccount.GetGoogleCalendarEvents)
 		}
 
-		// Backup routes (admin only)
-		backup := protected.Group("/backup")
-		{
-			backup.POST("/all", middleware.RequireAdmin(), handler.Backup.BackupAllCollections)
-		}
 	}
 
 	// Google OAuth callback (public - called by Google, not by authenticated user)

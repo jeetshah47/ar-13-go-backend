@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ar-13-go-backend/internal/constants"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/repos"
 )
@@ -99,20 +100,21 @@ func (s *EmployeeService) GetEmployeeList(ctx context.Context) ([]EmployeeTaskCo
 			if counts, exists := taskCounts[assignID]; exists {
 				counts.totalTasks++
 
-				// Count by status (case-insensitive)
-				switch status {
-				case "backlog", "todo", "to-do":
-					counts.backlogTasks++
-				case "inprogress", "in-progress", "in_progress", "in progress":
-					counts.tasksInProgress++
-				case "inreview", "in-review", "in_review", "in review":
-					counts.tasksInReview++
-				case "pending":
+				// Normalize status and count by master status
+				normalizedStatus := constants.NormalizeTaskStatus(status)
+				switch normalizedStatus {
+				case constants.GetTaskStatusString(constants.TaskStatusPending):
 					counts.pendingTasks++
+					counts.backlogTasks++ // Keep backward compatibility
+				case constants.GetTaskStatusString(constants.TaskStatusInProgress):
+					counts.tasksInProgress++
+				case constants.GetTaskStatusString(constants.TaskStatusInReview):
+					counts.tasksInReview++
 				}
 
-				// Count active tasks (not completed or cancelled)
-				if status != "completed" && status != "cancelled" && status != "canceled" {
+				// Count active tasks (not completed or rejected)
+				if normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusCompleted) &&
+					normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusRejected) {
 					counts.activeTasks++
 				}
 
@@ -182,25 +184,25 @@ func (s *EmployeeService) GetEmployeeTaskCounts(ctx context.Context, userID stri
 				continue
 			}
 
-			// Normalize status to lowercase for comparison
-			status := strings.ToLower(strings.TrimSpace(task.Status))
+			// Normalize status
+			normalizedStatus := constants.NormalizeTaskStatus(task.Status)
 
 			totalTasks++
 
-			// Count by status (case-insensitive)
-			switch status {
-			case "backlog", "todo", "to-do":
-				backlogTasks++
-			case "inprogress", "in-progress", "in_progress", "in progress":
-				tasksInProgress++
-			case "inreview", "in-review", "in_review", "in review":
-				tasksInReview++
-			case "pending":
+			// Count by master status
+			switch normalizedStatus {
+			case constants.GetTaskStatusString(constants.TaskStatusPending):
 				pendingTasks++
+				backlogTasks++ // Keep backward compatibility
+			case constants.GetTaskStatusString(constants.TaskStatusInProgress):
+				tasksInProgress++
+			case constants.GetTaskStatusString(constants.TaskStatusInReview):
+				tasksInReview++
 			}
 
-			// Count active tasks (not completed or cancelled)
-			if status != "completed" && status != "cancelled" && status != "canceled" {
+			// Count active tasks (not completed or rejected)
+			if normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusCompleted) &&
+				normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusRejected) {
 				activeTasks++
 			}
 		}
@@ -459,24 +461,24 @@ func calculateTaskStats(tasks []models.Task, userID string) TaskStatsOverview {
 	completedCount := 0
 
 	for _, task := range tasks {
-		status := strings.ToLower(strings.TrimSpace(task.Status))
+		normalizedStatus := constants.NormalizeTaskStatus(task.Status)
 
-		// Count by status
-		switch status {
-		case "backlog", "todo", "to-do":
-			stats.BacklogTasks++
-		case "inprogress", "in-progress", "in_progress", "in progress":
-			stats.TasksInProgress++
-		case "inreview", "in-review", "in_review", "in review":
-			stats.TasksInReview++
-		case "pending":
+		// Count by master status
+		switch normalizedStatus {
+		case constants.GetTaskStatusString(constants.TaskStatusPending):
 			stats.PendingTasks++
-		case "completed":
+			stats.BacklogTasks++ // Keep backward compatibility
+		case constants.GetTaskStatusString(constants.TaskStatusInProgress):
+			stats.TasksInProgress++
+		case constants.GetTaskStatusString(constants.TaskStatusInReview):
+			stats.TasksInReview++
+		case constants.GetTaskStatusString(constants.TaskStatusCompleted):
 			completedCount++
 		}
 
-		// Count active tasks
-		if status != "completed" && status != "cancelled" && status != "canceled" {
+		// Count active tasks (not completed or rejected)
+		if normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusCompleted) &&
+			normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusRejected) {
 			stats.ActiveTasks++
 		}
 
@@ -519,8 +521,8 @@ func calculateTaskAnalysis(tasks []models.Task, byProject []ProjectTaskStats, by
 	totalCompletionTime := 0
 	completedTasksWithTime := 0
 	for _, task := range tasks {
-		status := strings.ToLower(strings.TrimSpace(task.Status))
-		if status == "completed" && task.Updated != nil {
+		normalizedStatus := constants.NormalizeTaskStatus(task.Status)
+		if normalizedStatus == constants.GetTaskStatusString(constants.TaskStatusCompleted) && task.Updated != nil {
 			duration := task.Updated.Sub(task.Created).Minutes()
 			if duration > 0 {
 				totalCompletionTime += int(duration)
@@ -563,10 +565,12 @@ func calculateTaskAnalysis(tasks []models.Task, byProject []ProjectTaskStats, by
 		analysis.ProductivityTrend = "stable"
 	}
 
-	// Task distribution by status
+	// Task distribution by status (using normalized master statuses)
 	for _, task := range tasks {
-		status := strings.ToLower(strings.TrimSpace(task.Status))
-		analysis.TaskDistribution[status]++
+		normalizedStatus := constants.NormalizeTaskStatus(task.Status)
+		if normalizedStatus != "" {
+			analysis.TaskDistribution[normalizedStatus]++
+		}
 	}
 
 	return analysis

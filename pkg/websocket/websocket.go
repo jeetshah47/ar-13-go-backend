@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ar-13-go-backend/internal/constants"
+	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/services"
 	"github.com/gorilla/websocket"
 )
@@ -225,6 +227,7 @@ func (ws *WebSocketService) SendToUser(userID string, messageType string, data i
 }
 
 // BroadcastToProjectMembers broadcasts a message to all connected members of a project
+// This version accepts a projectID and fetches the project from the database
 func (ws *WebSocketService) BroadcastToProjectMembers(projectID string, messageType string, data interface{}) {
 	log.Printf("[WebSocket] Starting broadcast - project: %s, type: %s", projectID, messageType)
 	ctx := context.Background()
@@ -235,6 +238,16 @@ func (ws *WebSocketService) BroadcastToProjectMembers(projectID string, messageT
 		log.Printf("[WebSocket] ERROR: Failed to get project %s for broadcast: %v", projectID, err)
 		return
 	}
+
+	// Use the overloaded version with project object
+	ws.BroadcastToProjectMembersWithProject(project, messageType, data)
+}
+
+// BroadcastToProjectMembersWithProject broadcasts a message to all connected members of a project
+// This version accepts a project object to avoid redundant database reads
+func (ws *WebSocketService) BroadcastToProjectMembersWithProject(project *models.Project, messageType string, data interface{}) {
+	projectID := project.ID
+	log.Printf("[WebSocket] Starting broadcast - project: %s, type: %s", projectID, messageType)
 
 	// Collect all user IDs (owner + members)
 	userIDs := make(map[string]bool)
@@ -447,6 +460,15 @@ func (c *Client) handleTaskUpdateStatus(data interface{}) {
 		return
 	}
 
+	// Normalize and validate status
+	normalizedStatus := constants.NormalizeTaskStatus(status)
+	if normalizedStatus == "" {
+		log.Printf("[WebSocket] ERROR: Invalid task status from user %s - status: %s", c.userID, status)
+		c.sendError("Invalid task status. Valid statuses are: pending, in_progress, in_review, completed, accepted, rejected")
+		return
+	}
+	status = normalizedStatus
+
 	log.Printf("[WebSocket] Processing task status update - user: %s, project: %s, task: %s, new status: %s", 
 		c.userID, projectID, taskID, status)
 
@@ -485,8 +507,21 @@ func (c *Client) handleTaskUpdateStatus(data interface{}) {
 	log.Printf("[WebSocket] Access verified - user %s has access to project %s, updating task %s", 
 		c.userID, projectID, taskID)
 
+	// Get task first to reuse it after update (avoids redundant DB read)
+	task, err := c.service.taskService.GetByID(ctx, projectID, taskID)
+	if err != nil {
+		log.Printf("[WebSocket] ERROR: Failed to get task %s for user %s: %v", taskID, c.userID, err)
+		c.sendError("Failed to get task")
+		return
+	}
+	if task == nil {
+		log.Printf("[WebSocket] ERROR: Task %s not found for user %s", taskID, c.userID)
+		c.sendError("Task not found")
+		return
+	}
+
 	// Update task status
-	err = c.service.taskService.UpdateStatus(ctx, projectID, taskID, status)
+	err = c.service.taskService.UpdateStatus(ctx, projectID, taskID, status, nil)
 	if err != nil {
 		log.Printf("[WebSocket] ERROR: Failed to update task status - user: %s, project: %s, task: %s, status: %s, error: %v", 
 			c.userID, projectID, taskID, status, err)
@@ -497,13 +532,8 @@ func (c *Client) handleTaskUpdateStatus(data interface{}) {
 	log.Printf("[WebSocket] Task status updated successfully - user: %s, project: %s, task: %s, status: %s", 
 		c.userID, projectID, taskID, status)
 
-	// Get updated task
-	task, err := c.service.taskService.GetByID(ctx, projectID, taskID)
-	if err != nil {
-		log.Printf("[WebSocket] WARNING: Failed to get updated task - project: %s, task: %s, error: %v", 
-			projectID, taskID, err)
-		// Still send success, task was updated
-	}
+	// Update the task object in memory with the new status (reuse existing task to avoid another DB read)
+	task.Status = status
 
 	// Prepare response
 	response := map[string]interface{}{
@@ -511,9 +541,7 @@ func (c *Client) handleTaskUpdateStatus(data interface{}) {
 		"taskId":    taskID,
 		"status":    status,
 		"updatedBy": c.userID,
-	}
-	if task != nil {
-		response["task"] = task
+		"task":      task,
 	}
 
 	// Send success to the sender
@@ -521,8 +549,9 @@ func (c *Client) handleTaskUpdateStatus(data interface{}) {
 	c.sendMessage("task:update-status:success", response)
 
 	// Broadcast update to all project members who are connected
+	// Pass project object to avoid redundant DB read
 	log.Printf("[WebSocket] Broadcasting task status update to project %s members", projectID)
-	c.service.BroadcastToProjectMembers(projectID, "task:status-updated", response)
+	c.service.BroadcastToProjectMembersWithProject(project, "task:status-updated", response)
 }
 
 // sendMessage sends a message to the client

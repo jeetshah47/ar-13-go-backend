@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/config"
+	"github.com/ar-13-go-backend/internal/constants"
 	"github.com/ar-13-go-backend/internal/middleware"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/repos"
@@ -39,7 +40,7 @@ func NewTaskService(cfg *config.Config) *TaskService {
 }
 
 // populateActivityLogUsers populates user details for activity logs
-// Optimized to use batch operations and caching to reduce DynamoDB reads
+// Optimized to use batch operations and caching to reduce database reads
 func (s *TaskService) populateActivityLogUsers(ctx context.Context, activityLogs []models.ActivityLog) ([]models.ActivityLog, error) {
 	if len(activityLogs) == 0 {
 		return activityLogs, nil
@@ -79,7 +80,7 @@ func (s *TaskService) populateActivityLogUsers(ctx context.Context, activityLogs
 		}
 	}
 
-	// Batch fetch missing users from DynamoDB
+	// Batch fetch missing users from MongoDB
 	if len(missingUserIDs) > 0 {
 		// Use batch get for efficiency
 		userRepo := repos.NewUserRepo()
@@ -95,13 +96,12 @@ func (s *TaskService) populateActivityLogUsers(ctx context.Context, activityLogs
 				}
 			}
 		} else {
-			// Process batch results
-			for userID, item := range items {
-				var user models.User
-				if err := repos.UnmarshalItem(item, &user); err == nil {
-					userCache[userID] = &user
+			// Process batch results (items is now map[string]*models.User)
+			for userID, user := range items {
+				if user != nil {
+					userCache[userID] = user
 					// Cache the user for future requests
-					_ = s.cacheSvc.SetUser(ctx, userID, &user)
+					_ = s.cacheSvc.SetUser(ctx, userID, user)
 				}
 			}
 		}
@@ -140,7 +140,7 @@ func (s *TaskService) getUserIDFromContext(ctx context.Context) string {
 }
 
 // createActivityLog creates an activity log entry for a task operation
-func (s *TaskService) createActivityLog(ctx context.Context, taskID string, action models.ActivityLogAction, description *string, fields map[string]interface{}) {
+func (s *TaskService) createActivityLog(ctx context.Context, taskID string, action models.ActivityLogAction, description *string, remark *string, fields map[string]interface{}) {
 	userID := s.getUserIDFromContext(ctx)
 	if userID == "" {
 		// Skip activity log if no user ID in context
@@ -153,6 +153,7 @@ func (s *TaskService) createActivityLog(ctx context.Context, taskID string, acti
 		Action:      action,
 		CreatedBy:   userID,
 		Description: description,
+		Remark:      remark,
 		Fields:      fields,
 	}
 
@@ -164,19 +165,36 @@ func (s *TaskService) createActivityLog(ctx context.Context, taskID string, acti
 	}()
 }
 
+// normalizeTaskStatus normalizes a task's status to master status value
+func (s *TaskService) normalizeTaskStatus(task *models.Task) {
+	if task != nil && task.Status != "" {
+		if normalized := constants.NormalizeTaskStatus(task.Status); normalized != "" {
+			task.Status = normalized
+		}
+	}
+}
+
 // GetAll gets all tasks for a project
 func (s *TaskService) GetAll(ctx context.Context, projectID string) ([]models.Task, error) {
-	return s.taskRepo.GetAll(ctx, projectID)
+	tasks, err := s.taskRepo.GetAll(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	// Normalize statuses for all tasks
+	for i := range tasks {
+		s.normalizeTaskStatus(&tasks[i])
+	}
+	return tasks, nil
 }
 
 // GetByID gets a task by ID with populated activity log user details
-// Optimized to use caching to reduce DynamoDB reads
+// Optimized to use caching to reduce database reads
 func (s *TaskService) GetByID(ctx context.Context, projectID, taskID string) (*models.Task, error) {
 	// Try cache first
 	var task models.Task
 	err := s.cacheSvc.GetTask(ctx, taskID, &task)
 	if err != nil {
-		// Not in cache, fetch from DynamoDB
+		// Not in cache, fetch from database
 		fetchedTask, err := s.taskRepo.GetByID(ctx, projectID, taskID)
 		if err != nil {
 			return nil, err
@@ -188,6 +206,9 @@ func (s *TaskService) GetByID(ctx context.Context, projectID, taskID string) (*m
 		// Cache the task for future requests
 		_ = s.cacheSvc.SetTask(ctx, taskID, &task)
 	}
+
+	// Normalize task status
+	s.normalizeTaskStatus(&task)
 
 	// Populate user details for activity logs
 	if len(task.ActivityLogs) > 0 {
@@ -202,6 +223,13 @@ func (s *TaskService) GetByID(ctx context.Context, projectID, taskID string) (*m
 
 // Add creates a new task
 func (s *TaskService) Add(ctx context.Context, task *models.Task) error {
+	// Normalize status before saving
+	s.normalizeTaskStatus(task)
+	// Default to pending if status is empty
+	if task.Status == "" {
+		task.Status = constants.GetTaskStatusString(constants.TaskStatusPending)
+	}
+
 	if err := s.taskRepo.Add(ctx, task); err != nil {
 		return err
 	}
@@ -211,7 +239,7 @@ func (s *TaskService) Add(ctx context.Context, task *models.Task) error {
 
 	// Create activity log for task creation
 	desc := fmt.Sprintf("Task '%s' was created", task.Subject)
-	s.createActivityLog(ctx, task.ID, models.ActivityLogActionCreated, &desc, map[string]interface{}{
+	s.createActivityLog(ctx, task.ID, models.ActivityLogActionCreated, &desc, nil, map[string]interface{}{
 		"subject":   task.Subject,
 		"status":    task.Status,
 		"priority":  task.Priority,
@@ -227,13 +255,20 @@ func (s *TaskService) Add(ctx context.Context, task *models.Task) error {
 // AddMultiple creates multiple tasks
 func (s *TaskService) AddMultiple(ctx context.Context, tasks []models.Task) error {
 	for i := range tasks {
+		// Normalize status before saving
+		s.normalizeTaskStatus(&tasks[i])
+		// Default to pending if status is empty
+		if tasks[i].Status == "" {
+			tasks[i].Status = constants.GetTaskStatusString(constants.TaskStatusPending)
+		}
+
 		if err := s.taskRepo.Add(ctx, &tasks[i]); err != nil {
 			return err
 		}
 
 		// Create activity log for each task creation
 		desc := fmt.Sprintf("Task '%s' was created", tasks[i].Subject)
-		s.createActivityLog(ctx, tasks[i].ID, models.ActivityLogActionCreated, &desc, map[string]interface{}{
+		s.createActivityLog(ctx, tasks[i].ID, models.ActivityLogActionCreated, &desc, nil, map[string]interface{}{
 			"subject":   tasks[i].Subject,
 			"status":    tasks[i].Status,
 			"priority":  tasks[i].Priority,
@@ -248,11 +283,16 @@ func (s *TaskService) AddMultiple(ctx context.Context, tasks []models.Task) erro
 
 // Update updates a task
 func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
+	// Normalize status before saving
+	if task.Status != "" {
+		s.normalizeTaskStatus(task)
+	}
+
 	// Check if task exists (try cache first)
 	var existing models.Task
 	err := s.cacheSvc.GetTask(ctx, task.ID, &existing)
 	if err != nil {
-		// Not in cache, fetch from DynamoDB
+		// Not in cache, fetch from database
 		fetchedTask, err := s.taskRepo.GetByID(ctx, task.ProjectID, task.ID)
 		if err != nil {
 			return err
@@ -261,24 +301,46 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 			return errors.New("task not found")
 		}
 		existing = *fetchedTask
+		// Normalize existing status for comparison
+		s.normalizeTaskStatus(&existing)
 	}
 
 	// Track changes for activity log
 	fields := make(map[string]interface{})
+	hasChanges := false
 	if existing.Subject != task.Subject {
 		fields["subject"] = map[string]interface{}{"old": existing.Subject, "new": task.Subject}
+		hasChanges = true
 	}
 	if existing.Status != task.Status {
 		fields["status"] = map[string]interface{}{"old": existing.Status, "new": task.Status}
+		hasChanges = true
 	}
 	if existing.Priority != task.Priority {
 		fields["priority"] = map[string]interface{}{"old": existing.Priority, "new": task.Priority}
+		hasChanges = true
 	}
 	if existing.Deadline.Format(time.RFC3339) != task.Deadline.Format(time.RFC3339) {
 		fields["deadline"] = map[string]interface{}{"old": existing.Deadline.Format(time.RFC3339), "new": task.Deadline.Format(time.RFC3339)}
+		hasChanges = true
 	}
 	if existing.Progress != nil && task.Progress != nil && *existing.Progress != *task.Progress {
 		fields["progress"] = map[string]interface{}{"old": *existing.Progress, "new": *task.Progress}
+		hasChanges = true
+	}
+
+	// Check description changes
+	existingDesc := ""
+	if existing.Description != nil {
+		existingDesc = *existing.Description
+	}
+	newDesc := ""
+	if task.Description != nil {
+		newDesc = *task.Description
+	}
+	if existingDesc != newDesc {
+		fields["description"] = map[string]interface{}{"old": existingDesc, "new": newDesc}
+		hasChanges = true
 	}
 
 	if err := s.taskRepo.Update(ctx, task); err != nil {
@@ -289,9 +351,88 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 	_ = s.cacheSvc.InvalidateTask(ctx, task.ID)
 
 	// Create activity log for task update
-	if len(fields) > 0 {
+	if hasChanges {
 		desc := fmt.Sprintf("Task '%s' was updated", task.Subject)
-		s.createActivityLog(ctx, task.ID, models.ActivityLogActionUpdated, &desc, fields)
+		s.createActivityLog(ctx, task.ID, models.ActivityLogActionUpdated, &desc, nil, fields)
+	}
+
+	// Send email notification to assigned member when task is updated (non-blocking)
+	if s.emailClient != nil && hasChanges && task.AssignTo != nil && *task.AssignTo != "" {
+		go func() {
+			// Get assigned user
+			assignedUser, err := s.userRepo.GetByID(context.Background(), *task.AssignTo)
+			if err != nil || assignedUser == nil {
+				log.Printf("Failed to get assigned user for task update email: %v", err)
+				return
+			}
+
+			// Get project details
+			projectRepo := repos.NewProjectRepo()
+			project, err := projectRepo.GetByID(context.Background(), task.ProjectID)
+			if err != nil {
+				log.Printf("Failed to get project for task update email: %v", err)
+			}
+
+			projectTitle := "the project"
+			if project != nil {
+				projectTitle = project.Title
+			}
+
+			// Get updater info
+			updaterID := s.getUserIDFromContext(ctx)
+			updaterName := "Someone"
+			if updaterID != "" {
+				updaterUser, err := s.userRepo.GetByID(context.Background(), updaterID)
+				if err == nil && updaterUser != nil {
+					updaterName = updaterUser.Name
+				}
+			}
+
+			// Build change summary
+			changeSummary := "The following changes were made:\n"
+			if subjectChange, ok := fields["subject"].(map[string]interface{}); ok {
+				changeSummary += fmt.Sprintf("- Subject: '%s' → '%s'\n", subjectChange["old"], subjectChange["new"])
+			}
+			if statusChange, ok := fields["status"].(map[string]interface{}); ok {
+				changeSummary += fmt.Sprintf("- Status: '%s' → '%s'\n", statusChange["old"], statusChange["new"])
+			}
+			if priorityChange, ok := fields["priority"].(map[string]interface{}); ok {
+				changeSummary += fmt.Sprintf("- Priority: '%s' → '%s'\n", priorityChange["old"], priorityChange["new"])
+			}
+			if deadlineChange, ok := fields["deadline"].(map[string]interface{}); ok {
+				changeSummary += fmt.Sprintf("- Deadline: '%s' → '%s'\n", deadlineChange["old"], deadlineChange["new"])
+			}
+			if progressChange, ok := fields["progress"].(map[string]interface{}); ok {
+				changeSummary += fmt.Sprintf("- Progress: %v%% → %v%%\n", progressChange["old"], progressChange["new"])
+			}
+			if descChange, ok := fields["description"].(map[string]interface{}); ok {
+				oldDesc := descChange["old"].(string)
+				newDesc := descChange["new"].(string)
+				if oldDesc == "" {
+					changeSummary += "- Description: Added\n"
+				} else if newDesc == "" {
+					changeSummary += "- Description: Removed\n"
+				} else {
+					changeSummary += "- Description: Updated\n"
+				}
+			}
+
+			message := fmt.Sprintf("%s has updated task '%s' in project '%s'.\n\n%s", updaterName, task.Subject, projectTitle, changeSummary)
+
+			notification := &models.Notification{
+				Title:             fmt.Sprintf("Task Updated: %s", task.Subject),
+				Message:           message,
+				Type:              models.NotificationTypeTaskUpdated,
+				UserID:            *task.AssignTo,
+				RelatedEntityID:   task.ID,
+				RelatedEntityType: models.RelatedEntityTypeTask,
+				IsRead:            false,
+			}
+
+			if err := s.emailClient.SendNotificationEmail(notification, assignedUser.Email); err != nil {
+				log.Printf("Failed to send task update email to assigned member: %v", err)
+			}
+		}()
 	}
 
 	// Invalidate caches that depend on tasks
@@ -320,7 +461,7 @@ func (s *TaskService) Delete(ctx context.Context, projectID, taskID string) erro
 
 	// Create activity log for task deletion
 	desc := fmt.Sprintf("Task '%s' was deleted", existing.Subject)
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionDeleted, &desc, map[string]interface{}{
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionDeleted, &desc, nil, map[string]interface{}{
 		"subject": existing.Subject,
 	})
 
@@ -347,7 +488,7 @@ func (s *TaskService) UpdateDeadline(ctx context.Context, projectID, taskID stri
 
 	// Create activity log for deadline update
 	desc := fmt.Sprintf("Deadline for task '%s' was updated", existing.Subject)
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionDeadlineUpdated, &desc, map[string]interface{}{
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionDeadlineUpdated, &desc, nil, map[string]interface{}{
 		"oldDeadline": existing.Deadline.Format(time.RFC3339),
 		"newDeadline": deadline.Format(time.RFC3339),
 	})
@@ -389,13 +530,20 @@ func (s *TaskService) UpdateDescription(ctx context.Context, projectID, taskID, 
 		"oldDescription": oldDescription,
 		"newDescription": description,
 	}
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionDescriptionUpdated, &logDesc, fields)
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionDescriptionUpdated, &logDesc, nil, fields)
 
 	return nil
 }
 
 // UpdateStatus updates task status
-func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, status string) error {
+func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, status string, remark *string) error {
+	// Normalize the incoming status (should already be normalized from handler, but ensure it)
+	normalizedStatus := constants.NormalizeTaskStatus(status)
+	if normalizedStatus == "" {
+		return errors.New("invalid task status")
+	}
+	status = normalizedStatus
+
 	// Check if task exists
 	existing, err := s.taskRepo.GetByID(ctx, projectID, taskID)
 	if err != nil {
@@ -404,6 +552,9 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 	if existing == nil {
 		return errors.New("task not found")
 	}
+
+	// Normalize existing status for comparison
+	s.normalizeTaskStatus(existing)
 
 	// Only update if status is actually changing
 	if existing.Status == status {
@@ -416,10 +567,65 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 
 	// Create activity log for status change
 	desc := fmt.Sprintf("Status changed from \"%s\" to \"%s\"", existing.Status, status)
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionStatusChanged, &desc, map[string]interface{}{
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionStatusChanged, &desc, remark, map[string]interface{}{
 		"oldStatus": existing.Status,
 		"newStatus": status,
 	})
+
+	// Send email notifications for status update (non-blocking)
+	if s.emailClient != nil {
+		// Capture updater ID before goroutine
+		updaterID := s.getUserIDFromContext(ctx)
+		
+		go func() {
+			// Get project details
+			projectRepo := repos.NewProjectRepo()
+			project, err := projectRepo.GetByID(context.Background(), projectID)
+			if err != nil {
+				log.Printf("Failed to get project for status update email: %v", err)
+			}
+
+			projectTitle := "the project"
+			if project != nil {
+				projectTitle = project.Title
+			}
+
+			// Notify assigned member if task is assigned
+			if existing.AssignTo != nil && *existing.AssignTo != "" {
+				assignedUser, err := s.userRepo.GetByID(context.Background(), *existing.AssignTo)
+				if err == nil && assignedUser != nil {
+					message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
+					
+					notification := &models.Notification{
+						Title:             fmt.Sprintf("Task Status Updated: %s", existing.Subject),
+						Message:           message,
+						Type:              models.NotificationTypeTaskUpdated,
+						UserID:            *existing.AssignTo,
+						RelatedEntityID:   taskID,
+						RelatedEntityType: models.RelatedEntityTypeTask,
+						IsRead:            false,
+					}
+
+					if err := s.emailClient.SendNotificationEmail(notification, assignedUser.Email); err != nil {
+						log.Printf("Failed to send task status update email to assigned member: %v", err)
+					}
+				}
+			}
+
+			// Notify project owner (skip if owner is the one who made the change)
+			if project != nil && project.OwnerID != "" && updaterID != project.OwnerID {
+				ownerUser, err := s.userRepo.GetByID(context.Background(), project.OwnerID)
+				if err == nil && ownerUser != nil {
+					message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
+					
+					title := fmt.Sprintf("Task Status Updated: %s", existing.Subject)
+					if err := s.emailClient.SendAlertEmail([]string{ownerUser.Email}, title, message, "info"); err != nil {
+						log.Printf("Failed to send task status update email to project owner: %v", err)
+					}
+				}
+			}
+		}()
+	}
 
 	// Invalidate caches that depend on task status
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
@@ -457,7 +663,7 @@ func (s *TaskService) UpdateProgress(ctx context.Context, projectID, taskID stri
 
 	// Create activity log for progress update
 	desc := fmt.Sprintf("Progress for task '%s' was updated from %d%% to %d%%", existing.Subject, oldProgress, progress)
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionProgressUpdated, &desc, map[string]interface{}{
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionProgressUpdated, &desc, nil, map[string]interface{}{
 		"oldProgress": oldProgress,
 		"newProgress": progress,
 	})
@@ -492,7 +698,61 @@ func (s *TaskService) AddTimeSpent(ctx context.Context, projectID, taskID string
 	if timeSpent.Description != nil {
 		fields["description"] = *timeSpent.Description
 	}
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentAdded, &desc, fields)
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentAdded, &desc, nil, fields)
+
+	// Send email notification to project owner when member adds time log (non-blocking)
+	if s.emailClient != nil {
+		go func() {
+			// Get project details
+			projectRepo := repos.NewProjectRepo()
+			project, err := projectRepo.GetByID(context.Background(), projectID)
+			if err != nil || project == nil {
+				log.Printf("Failed to get project for time log email: %v", err)
+				return
+			}
+
+			// Get member who added the time log
+			memberUser, err := s.userRepo.GetByID(context.Background(), timeSpent.UserID)
+			if err != nil || memberUser == nil {
+				log.Printf("Failed to get member user for time log email: %v", err)
+				return
+			}
+
+			// Notify project owner (skip if owner is the one who added the time log)
+			if project.OwnerID != "" && project.OwnerID != timeSpent.UserID {
+				ownerUser, err := s.userRepo.GetByID(context.Background(), project.OwnerID)
+				if err == nil && ownerUser != nil {
+					timeDescription := ""
+					if timeSpent.Description != nil && *timeSpent.Description != "" {
+						timeDescription = fmt.Sprintf("\nDescription: %s", *timeSpent.Description)
+					}
+
+					// Parse date string and format it nicely
+					dateStr := timeSpent.Date
+					parsedDate, err := time.Parse("2006-01-02", timeSpent.Date)
+					if err == nil {
+						dateStr = parsedDate.Format("January 2, 2006")
+					}
+
+					// Convert minutes to hours
+					hours := float64(timeSpent.TimeSpent) / 60.0
+
+					message := fmt.Sprintf("Member %s has logged %.2f hours for task '%s' in project '%s' on %s.%s", 
+						memberUser.Name, 
+						hours,
+						task.Subject, 
+						project.Title,
+						dateStr,
+						timeDescription)
+
+					title := fmt.Sprintf("Time Logged: %s", task.Subject)
+					if err := s.emailClient.SendAlertEmail([]string{ownerUser.Email}, title, message, "info"); err != nil {
+						log.Printf("Failed to send time log email to project owner: %v", err)
+					}
+				}
+			}
+		}()
+	}
 
 	return nil
 }
@@ -532,7 +792,7 @@ func (s *TaskService) UpdateTimeSpent(ctx context.Context, projectID, taskID str
 	if timeSpent.Description != nil {
 		fields["description"] = *timeSpent.Description
 	}
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentUpdated, &desc, fields)
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentUpdated, &desc, nil, fields)
 
 	return nil
 }
@@ -565,7 +825,7 @@ func (s *TaskService) RemoveTimeSpent(ctx context.Context, projectID, taskID str
 		fields["date"] = timeSpent.Date
 		fields["userId"] = timeSpent.UserID
 	}
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentRemoved, &desc, fields)
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentRemoved, &desc, nil, fields)
 
 	return nil
 }
@@ -591,7 +851,7 @@ func (s *TaskService) AddFileAttachment(ctx context.Context, projectID, taskID s
 
 	// Create activity log for file upload
 	desc := fmt.Sprintf("File '%s' was uploaded to task '%s'", attachment.FileName, task.Subject)
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionFileUploaded, &desc, map[string]interface{}{
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionFileUploaded, &desc, nil, map[string]interface{}{
 		"fileName":     attachment.FileName,
 		"originalName": attachment.OriginalName,
 		"fileSize":     attachment.FileSize,
@@ -629,7 +889,7 @@ func (s *TaskService) RemoveFileAttachment(ctx context.Context, projectID, taskI
 		fields["fileName"] = attachment.FileName
 		desc = fmt.Sprintf("File '%s' was removed from task '%s'", attachment.FileName, task.Subject)
 	}
-	s.createActivityLog(ctx, taskID, models.ActivityLogActionFileRemoved, &desc, fields)
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionFileRemoved, &desc, nil, fields)
 
 	return nil
 }
@@ -669,12 +929,12 @@ func (s *TaskService) AssignTask(ctx context.Context, projectID, taskID, userID 
 	// Create activity log for task assignment
 	if oldAssignTo == "" {
 		desc := fmt.Sprintf("Task '%s' was assigned to user", task.Subject)
-		s.createActivityLog(ctx, taskID, models.ActivityLogActionAssigned, &desc, map[string]interface{}{
+		s.createActivityLog(ctx, taskID, models.ActivityLogActionAssigned, &desc, nil, map[string]interface{}{
 			"assignedTo": userID,
 		})
 	} else if oldAssignTo != userID {
 		desc := fmt.Sprintf("Task '%s' was reassigned from user '%s' to user '%s'", task.Subject, oldAssignTo, userID)
-		s.createActivityLog(ctx, taskID, models.ActivityLogActionAssigned, &desc, map[string]interface{}{
+		s.createActivityLog(ctx, taskID, models.ActivityLogActionAssigned, &desc, nil, map[string]interface{}{
 			"oldAssignedTo": oldAssignTo,
 			"newAssignedTo": userID,
 		})

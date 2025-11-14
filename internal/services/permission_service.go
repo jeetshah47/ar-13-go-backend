@@ -134,4 +134,3 @@ func (s *PermissionService) getHardcodedPermissions(role models.UserRole) []stri
 		return []string{}
 	}
 }
-

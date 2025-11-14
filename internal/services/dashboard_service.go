@@ -2,9 +2,9 @@ package services
 
 import (
 	"context"
-	"strings"
 	"sync"
 
+	"github.com/ar-13-go-backend/internal/constants"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/repos"
 )
@@ -175,27 +175,27 @@ func (s *DashboardService) calculateEmployeeWorkload(ctx context.Context, employ
 
 				assignID := *task.AssignTo
 
-				// Normalize status to lowercase for comparison
-				status := strings.ToLower(strings.TrimSpace(task.Status))
+				// Normalize status to master status value
+				normalizedStatus := constants.NormalizeTaskStatus(task.Status)
 
 				// Count tasks for assigned user
 				if counts, exists := taskCounts[assignID]; exists {
 					counts.TotalTasks++
 
-					// Count by status (case-insensitive)
-					switch status {
-					case "backlog", "todo", "to-do":
-						counts.BacklogTasks++
-					case "inprogress", "in-progress", "in_progress", "in progress":
-						counts.TasksInProgress++
-					case "inreview", "in-review", "in_review", "in review":
-						counts.TasksInReview++
-					case "pending":
+					// Count by master status
+					switch normalizedStatus {
+					case constants.GetTaskStatusString(constants.TaskStatusPending):
 						counts.PendingTasks++
+						counts.BacklogTasks++ // Keep backward compatibility
+					case constants.GetTaskStatusString(constants.TaskStatusInProgress):
+						counts.TasksInProgress++
+					case constants.GetTaskStatusString(constants.TaskStatusInReview):
+						counts.TasksInReview++
 					}
 
-					// Count active tasks (not completed or cancelled)
-					if status != "completed" && status != "cancelled" && status != "canceled" {
+					// Count active tasks (not completed or rejected)
+					if normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusCompleted) &&
+						normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusRejected) {
 						counts.ActiveTasks++
 					}
 

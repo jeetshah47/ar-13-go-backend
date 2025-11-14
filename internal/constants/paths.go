@@ -60,6 +60,7 @@ const (
 	TaskAssign               = "/assign/:taskId/:userId"
 	TaskClaim                = "/claim/:projectId/:taskId"
 	TaskGetAssignableUsers   = "/assignable/:projectId"
+	TaskGetStatuses          = "/statuses"
 )
 
 // Dashboard paths

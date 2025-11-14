@@ -14,8 +14,9 @@ type Config struct {
 	Port    int
 	NodeEnv string
 
-	// DynamoDB
-	AWSRegion string
+	// MongoDB
+	MongoDBURI      string
+	MongoDBDatabase string
 
 	// JWT
 	JWTSecret        string
@@ -64,7 +65,8 @@ func LoadConfig() (*Config, error) {
 		Port:    port,
 		NodeEnv: getEnv("NODE_ENV", "development"),
 
-		AWSRegion: getEnv("AWS_REGION", "us-east-1"),
+		MongoDBURI:      getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+		MongoDBDatabase: getEnv("MONGODB_DATABASE", "ar13_backend"),
 
 		JWTSecret:        getEnv("JWT_SECRET", ""),
 		JWTExpiration:   getEnvAsInt("JWT_EXPIRATION_HOURS", 24),

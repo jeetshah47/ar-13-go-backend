@@ -5,34 +5,41 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/ar-13-go-backend/pkg/mongodb"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// UserRepo handles user data operations
+// UserRepo handles user data operations with MongoDB
 type UserRepo struct {
-	*DynamoBaseRepo
+	*MongoBaseRepo
 }
 
-// NewUserRepo creates a new user repository
+// NewUserRepo creates a new MongoDB user repository
 func NewUserRepo() *UserRepo {
+	client := mongodb.GetClient()
+	if client == nil {
+		panic("MongoDB client is not initialized. Please ensure MongoDB is connected before creating repositories.")
+	}
 	return &UserRepo{
-		DynamoBaseRepo: NewDynamoBaseRepo("users"),
+		MongoBaseRepo: NewMongoBaseRepo(client, mongodb.GetDatabaseName(), "users"),
 	}
 }
 
-// GetByEmail gets a user by email using GSI
+// GetByEmail gets a user by email
 func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.User, error) {
-	items, err := r.QueryByIndex(ctx, "email-index", "email", email)
-	if err != nil {
-		return nil, err
-	}
+	filter := bson.M{"email": email}
+	result := r.FindOne(ctx, filter)
 
-	if len(items) == 0 {
+	if result.Err() == mongo.ErrNoDocuments {
 		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
 	var user models.User
-	if err := UnmarshalItem(items[0], &user); err != nil {
+	if err := result.Decode(&user); err != nil {
 		return nil, err
 	}
 
@@ -41,16 +48,17 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.User, 
 
 // GetByID gets a user by ID
 func (r *UserRepo) GetByID(ctx context.Context, id string) (*models.User, error) {
-	item, err := r.DynamoBaseRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if item == nil {
+	result := r.MongoBaseRepo.GetByID(ctx, id)
+
+	if result.Err() == mongo.ErrNoDocuments {
 		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
 	}
 
 	var user models.User
-	if err := UnmarshalItem(item, &user); err != nil {
+	if err := result.Decode(&user); err != nil {
 		return nil, err
 	}
 
@@ -59,13 +67,13 @@ func (r *UserRepo) GetByID(ctx context.Context, id string) (*models.User, error)
 
 // GetAll gets all users
 func (r *UserRepo) GetAll(ctx context.Context, limit *int) ([]models.User, error) {
-	var limitInt32 *int32
+	var limitInt64 *int64
 	if limit != nil {
-		l := int32(*limit)
-		limitInt32 = &l
+		l := int64(*limit)
+		limitInt64 = &l
 	}
 
-	items, err := r.ScanItems(ctx, limitInt32)
+	items, err := r.FindAll(ctx, bson.M{}, limitInt64)
 	if err != nil {
 		return nil, err
 	}
@@ -73,8 +81,9 @@ func (r *UserRepo) GetAll(ctx context.Context, limit *int) ([]models.User, error
 	users := make([]models.User, 0, len(items))
 	for _, item := range items {
 		var user models.User
-		if err := UnmarshalItem(item, &user); err != nil {
-			return nil, err
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &user); err != nil {
+			continue // Skip invalid items
 		}
 		users = append(users, user)
 	}
@@ -84,35 +93,19 @@ func (r *UserRepo) GetAll(ctx context.Context, limit *int) ([]models.User, error
 
 // Add creates a new user
 func (r *UserRepo) Add(ctx context.Context, user *models.User) error {
-	// Set timestamps
 	now := time.Now()
 	if user.CreatedAt.IsZero() {
 		user.CreatedAt = now
 	}
 	user.UpdatedAt = now
 
-	// Prepare user data for DynamoDB
-	userData := map[string]interface{}{
-		"id":          user.ID,
-		"name":        user.Name,
-		"email":       user.Email,
-		"phoneNumber": user.PhoneNumber,
-		"role":        string(user.Role),
-		"password":    user.Password, // Already hashed
-		"createdAt":   user.CreatedAt.Format(time.RFC3339),
-		"updatedAt":   user.UpdatedAt.Format(time.RFC3339),
-	}
-
-	if user.Designation != nil {
-		userData["designation"] = *user.Designation
-	}
-
-	return r.PutItem(ctx, userData)
+	// MongoDB will automatically handle BSON marshaling
+	return r.InsertOne(ctx, user)
 }
 
 // Update updates a user
 func (r *UserRepo) Update(ctx context.Context, user *models.User) error {
-	updates := map[string]interface{}{
+	updates := bson.M{
 		"name":        user.Name,
 		"email":       user.Email,
 		"phoneNumber": user.PhoneNumber,
@@ -124,10 +117,10 @@ func (r *UserRepo) Update(ctx context.Context, user *models.User) error {
 	}
 
 	if user.Password != "" {
-		updates["password"] = user.Password // Already hashed
+		updates["password"] = user.Password
 	}
 
-	return r.UpdateItem(ctx, user.ID, updates)
+	return r.UpdateOne(ctx, user.ID, updates)
 }
 
 // Delete deletes a user
@@ -140,8 +133,23 @@ func (r *UserRepo) Persists(ctx context.Context, id string) (bool, error) {
 	return r.Exists(ctx, id)
 }
 
-// BatchGetItems retrieves multiple users by IDs using batch operation
-// This is more efficient than individual GetByID calls
-func (r *UserRepo) BatchGetItems(ctx context.Context, ids []string) (map[string]map[string]types.AttributeValue, error) {
-	return r.DynamoBaseRepo.BatchGetItems(ctx, ids)
+// BatchGetItems retrieves multiple users by IDs
+func (r *UserRepo) BatchGetItems(ctx context.Context, ids []string) (map[string]*models.User, error) {
+	items, err := r.BatchGetItems(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]*models.User)
+	for _, item := range items {
+		var user models.User
+		bsonBytes, _ := bson.Marshal(item)
+		if err := bson.Unmarshal(bsonBytes, &user); err != nil {
+			continue
+		}
+		result[user.ID] = &user
+	}
+
+	return result, nil
 }
+

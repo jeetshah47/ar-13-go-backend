@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/ar-13-go-backend/internal/constants"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/repos"
 )
@@ -212,29 +213,31 @@ func (s *ProjectService) calculateProjectStatisticsFromTasks(tasks []models.Task
 	for _, task := range tasks {
 		stats.TotalTasks++
 
-		// Normalize status to lowercase for consistent counting
-		status := strings.ToLower(strings.TrimSpace(task.Status))
+		// Normalize status to master status value
+		normalizedStatus := constants.NormalizeTaskStatus(task.Status)
 		priority := strings.ToLower(strings.TrimSpace(task.Priority))
 
-		// Count by status (case-insensitive)
-		stats.ByStatus[status]++
-		switch status {
-		case "backlog", "todo", "to-do":
-			stats.BacklogTasks++
-		case "inprogress", "in-progress", "in_progress", "in progress":
-			stats.TasksInProgress++
-		case "inreview", "in-review", "in_review", "in review":
-			stats.TasksInReview++
-		case "pending":
+		// Count by master status (use normalized status in ByStatus map)
+		if normalizedStatus != "" {
+			stats.ByStatus[normalizedStatus]++
+		}
+		switch normalizedStatus {
+		case constants.GetTaskStatusString(constants.TaskStatusPending):
 			stats.PendingTasks++
-		case "completed":
+			stats.BacklogTasks++ // Keep backward compatibility
+		case constants.GetTaskStatusString(constants.TaskStatusInProgress):
+			stats.TasksInProgress++
+		case constants.GetTaskStatusString(constants.TaskStatusInReview):
+			stats.TasksInReview++
+		case constants.GetTaskStatusString(constants.TaskStatusCompleted):
 			stats.CompletedTasks++
-		case "cancelled", "canceled":
-			stats.CancelledTasks++
+		case constants.GetTaskStatusString(constants.TaskStatusRejected):
+			stats.CancelledTasks++ // Map rejected to cancelled for backward compatibility
 		}
 
-		// Count active tasks (not completed or cancelled)
-		if status != "completed" && status != "cancelled" && status != "canceled" {
+		// Count active tasks (not completed or rejected)
+		if normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusCompleted) &&
+			normalizedStatus != constants.GetTaskStatusString(constants.TaskStatusRejected) {
 			stats.ActiveTasks++
 		}
 
