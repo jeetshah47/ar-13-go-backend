@@ -19,8 +19,8 @@ type Config struct {
 	MongoDBDatabase string
 
 	// JWT
-	JWTSecret        string
-	JWTExpiration   int // in hours
+	JWTSecret         string
+	JWTExpiration     int // in hours
 	RefreshExpiration int // in days
 
 	// Email
@@ -68,8 +68,8 @@ func LoadConfig() (*Config, error) {
 		MongoDBURI:      getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDBDatabase: getEnv("MONGODB_DATABASE", "ar13_backend"),
 
-		JWTSecret:        getEnv("JWT_SECRET", ""),
-		JWTExpiration:   getEnvAsInt("JWT_EXPIRATION_HOURS", 24),
+		JWTSecret:         getEnv("JWT_SECRET", ""),
+		JWTExpiration:     getEnvAsInt("JWT_EXPIRATION_HOURS", 24),
 		RefreshExpiration: getEnvAsInt("REFRESH_EXPIRATION_DAYS", 30),
 
 		EmailHost:     getEnv("EMAIL_HOST", ""),

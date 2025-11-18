@@ -17,11 +17,13 @@ import (
 
 // TaskService handles task business logic
 type TaskService struct {
-	taskRepo       repos.TaskRepository
-	userRepo       repos.UserRepository
-	emailClient    EmailClientInterface
-	cacheSvc       CacheServiceInterface
-	activityLogSvc ActivityLogServiceInterface
+	taskRepo        repos.TaskRepository
+	userRepo        repos.UserRepository
+	emailClient     EmailClientInterface
+	cacheSvc        CacheServiceInterface
+	activityLogSvc  ActivityLogServiceInterface
+	sseService      SSEServiceInterface
+	notificationSvc *NotificationService
 }
 
 // NewTaskService creates a new task service with dependency injection
@@ -31,18 +33,23 @@ func NewTaskService(
 	emailClient EmailClientInterface,
 	cacheSvc CacheServiceInterface,
 	activityLogSvc ActivityLogServiceInterface,
+	sseService SSEServiceInterface,
+	notificationSvc *NotificationService,
 ) *TaskService {
 	return &TaskService{
-		taskRepo:       taskRepo,
-		userRepo:       userRepo,
-		emailClient:    emailClient,
-		cacheSvc:       cacheSvc,
-		activityLogSvc: activityLogSvc,
+		taskRepo:        taskRepo,
+		userRepo:        userRepo,
+		emailClient:     emailClient,
+		cacheSvc:        cacheSvc,
+		activityLogSvc:  activityLogSvc,
+		sseService:      sseService,
+		notificationSvc: notificationSvc,
 	}
 }
 
 // NewTaskServiceWithDefaults creates a new task service with default implementations
 // This is a convenience constructor for backward compatibility
+// SSE and Notification services are optional and can be set later via SetSSEService and SetNotificationService
 func NewTaskServiceWithDefaults(cfg *config.Config) *TaskService {
 	var emailClient EmailClientInterface
 	if cfg != nil {
@@ -54,7 +61,19 @@ func NewTaskServiceWithDefaults(cfg *config.Config) *TaskService {
 		emailClient,
 		NewCacheService(),
 		NewActivityLogServiceWithDefaults(),
+		nil, // SSE service - can be set later
+		nil, // Notification service - can be set later
 	)
+}
+
+// SetSSEService sets the SSE service for sending real-time notifications
+func (s *TaskService) SetSSEService(sseService SSEServiceInterface) {
+	s.sseService = sseService
+}
+
+// SetNotificationService sets the notification service for storing notifications
+func (s *TaskService) SetNotificationService(notificationSvc *NotificationService) {
+	s.notificationSvc = notificationSvc
 }
 
 // populateActivityLogUsers populates user details for activity logs
@@ -416,21 +435,14 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 		s.createActivityLog(ctx, task.ID, models.ActivityLogActionUpdated, &desc, nil, fields)
 	}
 
-	// Send email notification to assigned member when task is updated (non-blocking)
-	if s.emailClient != nil && hasChanges && task.AssignTo != nil && *task.AssignTo != "" {
+	// Send notification to assigned member when task is updated via SSE and store in database (non-blocking)
+	if s.notificationSvc != nil && hasChanges && task.AssignTo != nil && *task.AssignTo != "" {
 		go func() {
-			// Get assigned user
-			assignedUser, err := s.userRepo.GetByID(context.Background(), *task.AssignTo)
-			if err != nil || assignedUser == nil {
-				log.Printf("Failed to get assigned user for task update email: %v", err)
-				return
-			}
-
 			// Get project details
 			projectRepo := repos.NewProjectRepo()
 			project, err := projectRepo.GetByID(context.Background(), task.ProjectID)
 			if err != nil {
-				log.Printf("Failed to get project for task update email: %v", err)
+				log.Printf("Failed to get project for task update notification: %v", err)
 			}
 
 			projectTitle := "the project"
@@ -489,8 +501,23 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 				IsRead:            false,
 			}
 
-			if err := s.emailClient.SendNotificationEmail(notification, assignedUser.Email); err != nil {
-				log.Printf("Failed to send task update email to assigned member: %v", err)
+			// Store notification in database
+			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
+				log.Printf("Failed to create task update notification: %v", err)
+			}
+
+			// Send notification via SSE
+			if s.sseService != nil {
+				sseData := map[string]interface{}{
+					"notification": notification,
+					"taskId":       task.ID,
+					"projectId":    task.ProjectID,
+					"projectTitle": projectTitle,
+					"updaterName":  updaterName,
+				}
+				if err := s.sseService.SendToUser(*task.AssignTo, "notification", sseData); err != nil {
+					log.Printf("Failed to send task update notification via SSE: %v", err)
+				}
 			}
 		}()
 	}
@@ -632,8 +659,8 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 		"newStatus": status,
 	})
 
-	// Send email notifications for status update (non-blocking)
-	if s.emailClient != nil {
+	// Send notifications for status update via SSE and store in database (non-blocking)
+	if s.notificationSvc != nil {
 		// Capture updater ID before goroutine
 		updaterID := s.getUserIDFromContext(ctx)
 
@@ -642,7 +669,7 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 			projectRepo := repos.NewProjectRepo()
 			project, err := projectRepo.GetByID(context.Background(), projectID)
 			if err != nil {
-				log.Printf("Failed to get project for status update email: %v", err)
+				log.Printf("Failed to get project for status update notification: %v", err)
 			}
 
 			projectTitle := "the project"
@@ -652,35 +679,70 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 
 			// Notify assigned member if task is assigned
 			if existing.AssignTo != nil && *existing.AssignTo != "" {
-				assignedUser, err := s.userRepo.GetByID(context.Background(), *existing.AssignTo)
-				if err == nil && assignedUser != nil {
-					message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
+				message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
 
-					notification := &models.Notification{
-						Title:             fmt.Sprintf("Task Status Updated: %s", existing.Subject),
-						Message:           message,
-						Type:              models.NotificationTypeTaskUpdated,
-						UserID:            *existing.AssignTo,
-						RelatedEntityID:   taskID,
-						RelatedEntityType: models.RelatedEntityTypeTask,
-						IsRead:            false,
+				notification := &models.Notification{
+					Title:             fmt.Sprintf("Task Status Updated: %s", existing.Subject),
+					Message:           message,
+					Type:              models.NotificationTypeTaskUpdated,
+					UserID:            *existing.AssignTo,
+					RelatedEntityID:   taskID,
+					RelatedEntityType: models.RelatedEntityTypeTask,
+					IsRead:            false,
+				}
+
+				// Store notification in database
+				if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
+					log.Printf("Failed to create task status update notification for assigned member: %v", err)
+				}
+
+				// Send notification via SSE
+				if s.sseService != nil {
+					sseData := map[string]interface{}{
+						"notification": notification,
+						"taskId":       taskID,
+						"projectId":    projectID,
+						"projectTitle": projectTitle,
+						"oldStatus":    existing.Status,
+						"newStatus":    status,
 					}
-
-					if err := s.emailClient.SendNotificationEmail(notification, assignedUser.Email); err != nil {
-						log.Printf("Failed to send task status update email to assigned member: %v", err)
+					if err := s.sseService.SendToUser(*existing.AssignTo, "notification", sseData); err != nil {
+						log.Printf("Failed to send task status update notification via SSE to assigned member: %v", err)
 					}
 				}
 			}
 
 			// Notify project owner (skip if owner is the one who made the change)
 			if project != nil && project.OwnerID != "" && updaterID != project.OwnerID {
-				ownerUser, err := s.userRepo.GetByID(context.Background(), project.OwnerID)
-				if err == nil && ownerUser != nil {
-					message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
+				message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
 
-					title := fmt.Sprintf("Task Status Updated: %s", existing.Subject)
-					if err := s.emailClient.SendAlertEmail([]string{ownerUser.Email}, title, message, "info"); err != nil {
-						log.Printf("Failed to send task status update email to project owner: %v", err)
+				notification := &models.Notification{
+					Title:             fmt.Sprintf("Task Status Updated: %s", existing.Subject),
+					Message:           message,
+					Type:              models.NotificationTypeTaskUpdated,
+					UserID:            project.OwnerID,
+					RelatedEntityID:   taskID,
+					RelatedEntityType: models.RelatedEntityTypeTask,
+					IsRead:            false,
+				}
+
+				// Store notification in database
+				if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
+					log.Printf("Failed to create task status update notification for project owner: %v", err)
+				}
+
+				// Send notification via SSE
+				if s.sseService != nil {
+					sseData := map[string]interface{}{
+						"notification": notification,
+						"taskId":       taskID,
+						"projectId":    projectID,
+						"projectTitle": projectTitle,
+						"oldStatus":    existing.Status,
+						"newStatus":    status,
+					}
+					if err := s.sseService.SendToUser(project.OwnerID, "notification", sseData); err != nil {
+						log.Printf("Failed to send task status update notification via SSE to project owner: %v", err)
 					}
 				}
 			}
@@ -760,54 +822,78 @@ func (s *TaskService) AddTimeSpent(ctx context.Context, projectID, taskID string
 	}
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentAdded, &desc, nil, fields)
 
-	// Send email notification to project owner when member adds time log (non-blocking)
-	if s.emailClient != nil {
+	// Send notification to project owner when member adds time log via SSE and store in database (non-blocking)
+	if s.notificationSvc != nil {
 		go func() {
 			// Get project details
 			projectRepo := repos.NewProjectRepo()
 			project, err := projectRepo.GetByID(context.Background(), projectID)
 			if err != nil || project == nil {
-				log.Printf("Failed to get project for time log email: %v", err)
+				log.Printf("Failed to get project for time log notification: %v", err)
 				return
 			}
 
 			// Get member who added the time log
 			memberUser, err := s.userRepo.GetByID(context.Background(), timeSpent.UserID)
 			if err != nil || memberUser == nil {
-				log.Printf("Failed to get member user for time log email: %v", err)
+				log.Printf("Failed to get member user for time log notification: %v", err)
 				return
 			}
 
 			// Notify project owner (skip if owner is the one who added the time log)
 			if project.OwnerID != "" && project.OwnerID != timeSpent.UserID {
-				ownerUser, err := s.userRepo.GetByID(context.Background(), project.OwnerID)
-				if err == nil && ownerUser != nil {
-					timeDescription := ""
-					if timeSpent.Description != nil && *timeSpent.Description != "" {
-						timeDescription = fmt.Sprintf("\nDescription: %s", *timeSpent.Description)
+				timeDescription := ""
+				if timeSpent.Description != nil && *timeSpent.Description != "" {
+					timeDescription = fmt.Sprintf("\nDescription: %s", *timeSpent.Description)
+				}
+
+				// Parse date string and format it nicely
+				dateStr := timeSpent.Date
+				parsedDate, err := time.Parse("2006-01-02", timeSpent.Date)
+				if err == nil {
+					dateStr = parsedDate.Format("January 2, 2006")
+				}
+
+				// Convert minutes to hours
+				hours := float64(timeSpent.TimeSpent) / 60.0
+
+				message := fmt.Sprintf("Member %s has logged %.2f hours for task '%s' in project '%s' on %s.%s",
+					memberUser.Name,
+					hours,
+					task.Subject,
+					project.Title,
+					dateStr,
+					timeDescription)
+
+				notification := &models.Notification{
+					Title:             fmt.Sprintf("Time Logged: %s", task.Subject),
+					Message:           message,
+					Type:              models.NotificationTypeTaskUpdated, // Using TaskUpdated as there's no specific type for time log
+					UserID:            project.OwnerID,
+					RelatedEntityID:   taskID,
+					RelatedEntityType: models.RelatedEntityTypeTask,
+					IsRead:            false,
+				}
+
+				// Store notification in database
+				if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
+					log.Printf("Failed to create time log notification: %v", err)
+				}
+
+				// Send notification via SSE
+				if s.sseService != nil {
+					sseData := map[string]interface{}{
+						"notification":    notification,
+						"taskId":          taskID,
+						"projectId":       projectID,
+						"projectTitle":    project.Title,
+						"memberName":      memberUser.Name,
+						"hours":           hours,
+						"date":            dateStr,
+						"timeDescription": timeDescription,
 					}
-
-					// Parse date string and format it nicely
-					dateStr := timeSpent.Date
-					parsedDate, err := time.Parse("2006-01-02", timeSpent.Date)
-					if err == nil {
-						dateStr = parsedDate.Format("January 2, 2006")
-					}
-
-					// Convert minutes to hours
-					hours := float64(timeSpent.TimeSpent) / 60.0
-
-					message := fmt.Sprintf("Member %s has logged %.2f hours for task '%s' in project '%s' on %s.%s",
-						memberUser.Name,
-						hours,
-						task.Subject,
-						project.Title,
-						dateStr,
-						timeDescription)
-
-					title := fmt.Sprintf("Time Logged: %s", task.Subject)
-					if err := s.emailClient.SendAlertEmail([]string{ownerUser.Email}, title, message, "info"); err != nil {
-						log.Printf("Failed to send time log email to project owner: %v", err)
+					if err := s.sseService.SendToUser(project.OwnerID, "notification", sseData); err != nil {
+						log.Printf("Failed to send time log notification via SSE: %v", err)
 					}
 				}
 			}
@@ -1000,20 +1086,14 @@ func (s *TaskService) AssignTask(ctx context.Context, projectID, taskID, userID 
 		})
 	}
 
-	// Send email notification to assigned user (non-blocking)
-	if s.emailClient != nil {
+	// Send notification to assigned user via SSE and store in database (non-blocking)
+	if s.notificationSvc != nil {
 		go func() {
-			user, err := s.userRepo.GetByID(context.Background(), userID)
-			if err != nil || user == nil {
-				log.Printf("Failed to get user for email notification: %v", err)
-				return
-			}
-
-			// Get project details for email
+			// Get project details
 			projectRepo := repos.NewProjectRepo()
 			project, err := projectRepo.GetByID(context.Background(), projectID)
 			if err != nil {
-				log.Printf("Failed to get project for email notification: %v", err)
+				log.Printf("Failed to get project for task assignment notification: %v", err)
 			}
 
 			projectTitle := "the project"
@@ -1036,8 +1116,22 @@ func (s *TaskService) AssignTask(ctx context.Context, projectID, taskID, userID 
 				IsRead:            false,
 			}
 
-			if err := s.emailClient.SendNotificationEmail(notification, user.Email); err != nil {
-				log.Printf("Failed to send task assignment email: %v", err)
+			// Store notification in database
+			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
+				log.Printf("Failed to create task assignment notification: %v", err)
+			}
+
+			// Send notification via SSE
+			if s.sseService != nil {
+				sseData := map[string]interface{}{
+					"notification": notification,
+					"taskId":       taskID,
+					"projectId":    projectID,
+					"projectTitle": projectTitle,
+				}
+				if err := s.sseService.SendToUser(userID, "notification", sseData); err != nil {
+					log.Printf("Failed to send task assignment notification via SSE: %v", err)
+				}
 			}
 		}()
 	}

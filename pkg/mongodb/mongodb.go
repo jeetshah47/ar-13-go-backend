@@ -28,12 +28,12 @@ func InitializeMongoDB(uri, databaseName string) (*mongo.Client, error) {
 	// - SocketTimeout: 30 seconds (timeout for socket operations)
 	clientOptions := options.Client().
 		ApplyURI(uri).
-		SetMaxPoolSize(20).                    // Maximum connections in pool (reduced from 100)
-		SetMinPoolSize(2).                     // Minimum connections to maintain (reduced from 10)
-		SetMaxConnecting(5).                   // Max concurrent connection attempts
-		SetMaxConnIdleTime(5 * time.Minute).  // Close idle connections after 5 minutes (increased from 30s)
-		SetConnectTimeout(10 * time.Second).  // Timeout for establishing connections
-		SetSocketTimeout(30 * time.Second).   // Timeout for socket operations
+		SetMaxPoolSize(20).                        // Maximum connections in pool (reduced from 100)
+		SetMinPoolSize(2).                         // Minimum connections to maintain (reduced from 10)
+		SetMaxConnecting(5).                       // Max concurrent connection attempts
+		SetMaxConnIdleTime(5 * time.Minute).       // Close idle connections after 5 minutes (increased from 30s)
+		SetConnectTimeout(10 * time.Second).       // Timeout for establishing connections
+		SetSocketTimeout(30 * time.Second).        // Timeout for socket operations
 		SetServerSelectionTimeout(5 * time.Second) // Timeout for server selection
 
 	client, err := mongo.Connect(ctx, clientOptions)
@@ -97,7 +97,7 @@ func GetConnectionPoolStats() (map[string]interface{}, error) {
 
 	// Get server description to access connection pool stats
 	serverStatus := mongoClient.NumberSessionsInProgress()
-	
+
 	stats := map[string]interface{}{
 		"sessionsInProgress": serverStatus,
 		"clientInitialized":  mongoClient != nil,
@@ -108,4 +108,3 @@ func GetConnectionPoolStats() (map[string]interface{}, error) {
 	// but we can monitor sessions in progress as an indicator
 	return stats, nil
 }
-

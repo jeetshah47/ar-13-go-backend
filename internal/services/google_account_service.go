@@ -205,15 +205,15 @@ func (s *GoogleAccountService) LinkGoogleAccount(ctx context.Context, userID, go
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var link *models.UserAccountLink
-	
+
 	if existingUserLink != nil {
 		// If link exists and is active, return error
 		if existingUserLink.IsActive {
 			return nil, errors.New("user already has a Google account linked")
 		}
-		
+
 		// If link exists but is inactive, reactivate and update it
 		existingUserLink.IsActive = true
 		existingUserLink.ProviderUserID = googleInfo.Sub
@@ -221,12 +221,27 @@ func (s *GoogleAccountService) LinkGoogleAccount(ctx context.Context, userID, go
 		if googleInfo.Name != "" {
 			existingUserLink.ProviderDisplayName = &googleInfo.Name
 		}
-		
+
 		if err := s.userAccountLinkRepo.Update(ctx, existingUserLink); err != nil {
 			return nil, fmt.Errorf("failed to reactivate Google account link: %w", err)
 		}
-		
+
 		link = existingUserLink
+	} else if existingLink != nil && existingLink.UserID != userID {
+		// If an inactive link exists for a different user, update it to point to the current user
+		existingLink.UserID = userID
+		existingLink.IsActive = true
+		existingLink.ProviderUserID = googleInfo.Sub
+		existingLink.ProviderEmail = googleInfo.Email
+		if googleInfo.Name != "" {
+			existingLink.ProviderDisplayName = &googleInfo.Name
+		}
+
+		if err := s.userAccountLinkRepo.Update(ctx, existingLink); err != nil {
+			return nil, fmt.Errorf("failed to update Google account link: %w", err)
+		}
+
+		link = existingLink
 	} else {
 		// Create new account link
 		link = &models.UserAccountLink{

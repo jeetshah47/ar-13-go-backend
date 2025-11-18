@@ -28,15 +28,20 @@ func NewHandler(cfg *config.Config) *Handler {
 	// Create services for SSE
 	taskService := services.NewTaskServiceWithDefaults(cfg)
 	projectService := services.NewProjectServiceWithDefaults()
-	
+
 	sseHandler := NewSSEHandler(taskService, projectService)
-	
+
+	// Set SSE and Notification services on TaskService
+	notificationService := services.NewNotificationServiceWithDefaults()
+	taskService.SetSSEService(sseHandler.GetSSEService())
+	taskService.SetNotificationService(notificationService)
+
 	// Create handlers with dependency injection
 	projectHandler := NewProjectHandlerWithDefaults()
 	taskHandler := NewTaskHandlerWithDefaults(cfg)
 	// Pass SSE service to task handler for event broadcasting
 	taskHandler.SetSSEService(sseHandler.GetSSEService())
-	
+
 	return &Handler{
 		SSE:            sseHandler,
 		Auth:           NewAuthHandler(cfg),
