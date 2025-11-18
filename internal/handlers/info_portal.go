@@ -12,11 +12,18 @@ type InfoPortalHandler struct {
 	infoPortalService *services.InfoPortalService
 }
 
-// NewInfoPortalHandler creates a new info portal handler
-func NewInfoPortalHandler() *InfoPortalHandler {
+// NewInfoPortalHandler creates a new info portal handler with dependency injection
+func NewInfoPortalHandler(infoPortalService *services.InfoPortalService) *InfoPortalHandler {
 	return &InfoPortalHandler{
-		infoPortalService: services.NewInfoPortalService(),
+		infoPortalService: infoPortalService,
 	}
+}
+
+// NewInfoPortalHandlerWithDefaults creates a new info portal handler with default dependencies
+func NewInfoPortalHandlerWithDefaults() *InfoPortalHandler {
+	return NewInfoPortalHandler(
+		services.NewInfoPortalServiceWithDefaults(),
+	)
 }
 
 // GetAllFolders gets all folders

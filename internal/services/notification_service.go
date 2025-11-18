@@ -17,19 +17,24 @@ type countCacheEntry struct {
 
 // NotificationService handles notification business logic
 type NotificationService struct {
-	notificationRepo *repos.NotificationRepo
+	notificationRepo repos.NotificationRepository
 	countCache       map[string]countCacheEntry
 	cacheMutex       sync.RWMutex
 	cacheTTL         time.Duration
 }
 
-// NewNotificationService creates a new notification service
-func NewNotificationService() *NotificationService {
+// NewNotificationService creates a new notification service with dependency injection
+func NewNotificationService(notificationRepo repos.NotificationRepository) *NotificationService {
 	return &NotificationService{
-		notificationRepo: repos.NewNotificationRepo(),
+		notificationRepo: notificationRepo,
 		countCache:       make(map[string]countCacheEntry),
 		cacheTTL:         30 * time.Second, // Cache for 30 seconds
 	}
+}
+
+// NewNotificationServiceWithDefaults creates a new notification service with default dependencies
+func NewNotificationServiceWithDefaults() *NotificationService {
+	return NewNotificationService(repos.NewNotificationRepo())
 }
 
 // invalidateCountCache invalidates the count cache for a user

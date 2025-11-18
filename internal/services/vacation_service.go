@@ -11,14 +11,27 @@ import (
 
 // VacationService handles vacation/leave request business logic
 type VacationService struct {
-	vacationRepo *repos.VacationRepo
+	vacationRepo repos.VacationRepository
+	userRepo     repos.UserRepository
 }
 
-// NewVacationService creates a new vacation service
-func NewVacationService() *VacationService {
+// NewVacationService creates a new vacation service with dependency injection
+func NewVacationService(
+	vacationRepo repos.VacationRepository,
+	userRepo repos.UserRepository,
+) *VacationService {
 	return &VacationService{
-		vacationRepo: repos.NewVacationRepo(),
+		vacationRepo: vacationRepo,
+		userRepo:     userRepo,
 	}
+}
+
+// NewVacationServiceWithDefaults creates a new vacation service with default dependencies
+func NewVacationServiceWithDefaults() *VacationService {
+	return NewVacationService(
+		repos.NewVacationRepo(),
+		repos.NewUserRepo(),
+	)
 }
 
 // GetByUserID gets leave requests for a user
@@ -120,8 +133,7 @@ func (s *VacationService) GetVacationSummaries(ctx context.Context) ([]models.Va
 	}
 
 	// Get all users
-	userRepo := repos.NewUserRepo()
-	users, err := userRepo.GetAll(ctx, nil)
+	users, err := s.userRepo.GetAll(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

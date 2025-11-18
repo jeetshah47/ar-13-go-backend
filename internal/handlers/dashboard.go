@@ -13,11 +13,18 @@ type DashboardHandler struct {
 	dashboardService *services.DashboardService
 }
 
-// NewDashboardHandler creates a new dashboard handler
-func NewDashboardHandler() *DashboardHandler {
+// NewDashboardHandler creates a new dashboard handler with dependency injection
+func NewDashboardHandler(dashboardService *services.DashboardService) *DashboardHandler {
 	return &DashboardHandler{
-		dashboardService: services.NewDashboardService(),
+		dashboardService: dashboardService,
 	}
+}
+
+// NewDashboardHandlerWithDefaults creates a new dashboard handler with default dependencies
+func NewDashboardHandlerWithDefaults() *DashboardHandler {
+	return NewDashboardHandler(
+		services.NewDashboardServiceWithDefaults(),
+	)
 }
 
 // GetAllStats gets all dashboard statistics

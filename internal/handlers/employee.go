@@ -11,11 +11,18 @@ type EmployeeHandler struct {
 	employeeService *services.EmployeeService
 }
 
-// NewEmployeeHandler creates a new employee handler
-func NewEmployeeHandler() *EmployeeHandler {
+// NewEmployeeHandler creates a new employee handler with dependency injection
+func NewEmployeeHandler(employeeService *services.EmployeeService) *EmployeeHandler {
 	return &EmployeeHandler{
-		employeeService: services.NewEmployeeService(),
+		employeeService: employeeService,
 	}
+}
+
+// NewEmployeeHandlerWithDefaults creates a new employee handler with default dependencies
+func NewEmployeeHandlerWithDefaults() *EmployeeHandler {
+	return NewEmployeeHandler(
+		services.NewEmployeeServiceWithDefaults(),
+	)
 }
 
 // GetEmployeeList gets employee list with task counts

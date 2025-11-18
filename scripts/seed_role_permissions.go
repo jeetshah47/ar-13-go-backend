@@ -4,24 +4,25 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
+	"github.com/ar-13-go-backend/internal/config"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/repos"
-	"github.com/ar-13-go-backend/pkg/dynamodb"
+	"github.com/ar-13-go-backend/pkg/mongodb"
 	"github.com/google/uuid"
 )
 
 func main() {
-	// Initialize DynamoDB
-	region := os.Getenv("AWS_REGION")
-	if region == "" {
-		region = "us-east-1"
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	_, err := dynamodb.InitializeDynamoDB(region)
+	// Initialize MongoDB
+	_, err = mongodb.InitializeMongoDB(cfg.MongoDBURI, cfg.MongoDBDatabase)
 	if err != nil {
-		log.Fatalf("Failed to initialize DynamoDB: %v", err)
+		log.Fatalf("Failed to initialize MongoDB: %v", err)
 	}
 
 	ctx := context.Background()

@@ -40,11 +40,18 @@ type VacationHandler struct {
 	vacationService *services.VacationService
 }
 
-// NewVacationHandler creates a new vacation handler
-func NewVacationHandler() *VacationHandler {
+// NewVacationHandler creates a new vacation handler with dependency injection
+func NewVacationHandler(vacationService *services.VacationService) *VacationHandler {
 	return &VacationHandler{
-		vacationService: services.NewVacationService(),
+		vacationService: vacationService,
 	}
+}
+
+// NewVacationHandlerWithDefaults creates a new vacation handler with default dependencies
+func NewVacationHandlerWithDefaults() *VacationHandler {
+	return NewVacationHandler(
+		services.NewVacationServiceWithDefaults(),
+	)
 }
 
 // GetMyRequests gets leave requests for the authenticated user

@@ -33,20 +33,35 @@ type WorkloadData struct {
 
 // DashboardService handles dashboard business logic
 type DashboardService struct {
-	projectRepo *repos.ProjectRepo
-	userRepo    *repos.UserRepo
-	taskRepo    *repos.TaskRepo
-	cacheSvc    *CacheService
+	projectRepo repos.ProjectRepository
+	userRepo    repos.UserRepository
+	taskRepo    repos.TaskRepository
+	cacheSvc    CacheServiceInterface
 }
 
-// NewDashboardService creates a new dashboard service
-func NewDashboardService() *DashboardService {
+// NewDashboardService creates a new dashboard service with dependency injection
+func NewDashboardService(
+	projectRepo repos.ProjectRepository,
+	userRepo repos.UserRepository,
+	taskRepo repos.TaskRepository,
+	cacheSvc CacheServiceInterface,
+) *DashboardService {
 	return &DashboardService{
-		projectRepo: repos.NewProjectRepo(),
-		userRepo:    repos.NewUserRepo(),
-		taskRepo:    repos.NewTaskRepo(),
-		cacheSvc:    NewCacheService(),
+		projectRepo: projectRepo,
+		userRepo:    userRepo,
+		taskRepo:    taskRepo,
+		cacheSvc:    cacheSvc,
 	}
+}
+
+// NewDashboardServiceWithDefaults creates a new dashboard service with default dependencies
+func NewDashboardServiceWithDefaults() *DashboardService {
+	return NewDashboardService(
+		repos.NewProjectRepo(),
+		repos.NewUserRepo(),
+		repos.NewTaskRepo(),
+		NewCacheService(),
+	)
 }
 
 // GetAllStats gets all dashboard statistics

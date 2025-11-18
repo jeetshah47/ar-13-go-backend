@@ -14,11 +14,18 @@ type ActivityLogHandler struct {
 	activityLogService *services.ActivityLogService
 }
 
-// NewActivityLogHandler creates a new activity log handler
-func NewActivityLogHandler() *ActivityLogHandler {
+// NewActivityLogHandler creates a new activity log handler with dependency injection
+func NewActivityLogHandler(activityLogService *services.ActivityLogService) *ActivityLogHandler {
 	return &ActivityLogHandler{
-		activityLogService: services.NewActivityLogService(),
+		activityLogService: activityLogService,
 	}
+}
+
+// NewActivityLogHandlerWithDefaults creates a new activity log handler with default dependencies
+func NewActivityLogHandlerWithDefaults() *ActivityLogHandler {
+	return NewActivityLogHandler(
+		services.NewActivityLogServiceWithDefaults(),
+	)
 }
 
 // GetByEntity gets activity logs for a specific entity

@@ -105,11 +105,20 @@ func (r *UserRepo) Add(ctx context.Context, user *models.User) error {
 
 // Update updates a user
 func (r *UserRepo) Update(ctx context.Context, user *models.User) error {
-	updates := bson.M{
-		"name":        user.Name,
-		"email":       user.Email,
-		"phoneNumber": user.PhoneNumber,
-		"role":        string(user.Role),
+	updates := bson.M{}
+
+	// Only update fields that are provided (non-empty)
+	if user.Name != "" {
+		updates["name"] = user.Name
+	}
+	if user.Email != "" {
+		updates["email"] = user.Email
+	}
+	if user.PhoneNumber != "" {
+		updates["phoneNumber"] = user.PhoneNumber
+	}
+	if user.Role != "" {
+		updates["role"] = string(user.Role)
 	}
 
 	if user.Designation != nil {
@@ -135,7 +144,7 @@ func (r *UserRepo) Persists(ctx context.Context, id string) (bool, error) {
 
 // BatchGetItems retrieves multiple users by IDs
 func (r *UserRepo) BatchGetItems(ctx context.Context, ids []string) (map[string]*models.User, error) {
-	items, err := r.BatchGetItems(ctx, ids)
+	items, err := r.MongoBaseRepo.BatchGetItems(ctx, ids)
 	if err != nil {
 		return nil, err
 	}

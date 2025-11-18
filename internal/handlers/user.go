@@ -10,17 +10,36 @@ import (
 
 // UserHandler handles user routes
 type UserHandler struct {
-	userService *services.UserService
+	userService       *services.UserService
+	permissionService *services.PermissionService
+	vacationService   *services.VacationService
 }
 
-// NewUserHandler creates a new user handler
-func NewUserHandler(cfg *config.Config) *UserHandler {
+// NewUserHandler creates a new user handler with dependency injection
+func NewUserHandler(
+	userService *services.UserService,
+	permissionService *services.PermissionService,
+	vacationService *services.VacationService,
+) *UserHandler {
 	return &UserHandler{
-		userService: services.NewUserService(cfg),
+		userService:       userService,
+		permissionService: permissionService,
+		vacationService:   vacationService,
 	}
 }
 
+// NewUserHandlerWithDefaults creates a new user handler with default dependencies
+func NewUserHandlerWithDefaults(cfg *config.Config) *UserHandler {
+	return NewUserHandler(
+		services.NewUserServiceWithDefaults(cfg),
+		services.NewPermissionServiceWithDefaults(),
+		services.NewVacationServiceWithDefaults(),
+	)
+}
+
 // GetAll gets all users
+// All authenticated users can view the user list (read access)
+// Only admins can create, update, or delete users
 func (h *UserHandler) GetAll(c *gin.Context) {
 	users, err := h.userService.GetAll(c.Request.Context(), nil)
 	if err != nil {
@@ -72,7 +91,7 @@ func (h *UserHandler) Delete(c *gin.Context) {
 	c.JSON(constants.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
-// GetProfile gets user profile
+// GetProfile gets user profile with permissions
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	id := c.Param("id")
 	user, err := h.userService.GetProfile(c.Request.Context(), id)
@@ -80,5 +99,52 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		c.JSON(constants.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(constants.StatusOK, gin.H{"user": user})
+
+	// Get permissions for the user's role
+	permissions, err := h.permissionService.GetPermissionsByRole(c.Request.Context(), user.Role)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Failed to get permissions"})
+		return
+	}
+
+	// Get leave requests for the user
+	leaveRequests, err := h.vacationService.GetByUserID(c.Request.Context(), id)
+	if err != nil {
+		// Log error but don't fail the request - leave requests are optional
+		leaveRequests = []models.LeaveRequest{}
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"user":         user,
+		"role":          user.Role,
+		"permissions":   permissions,
+		"leaveRequests": leaveRequests,
+	})
+}
+
+// GetUserPermissions gets permissions for a specific user by ID
+func (h *UserHandler) GetUserPermissions(c *gin.Context) {
+	id := c.Param("id")
+	user, err := h.userService.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(constants.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	if user == nil {
+		c.JSON(constants.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Get permissions for the user's role
+	permissions, err := h.permissionService.GetPermissionsByRole(c.Request.Context(), user.Role)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Failed to get permissions"})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"userId":      user.ID,
+		"role":        user.Role,
+		"permissions": permissions,
+	})
 }

@@ -17,24 +17,39 @@ import (
 
 // UserService handles user business logic
 type UserService struct {
-	userRepo             *repos.UserRepo
-	signupInvitationRepo *repos.SignupInvitationRepo
-	emailClient          *email.Client
+	userRepo             repos.UserRepository
+	signupInvitationRepo repos.SignupInvitationRepository
+	emailClient          EmailClientInterface
 	config               *config.Config
 }
 
-// NewUserService creates a new user service
-func NewUserService(cfg *config.Config) *UserService {
-	var emailClient *email.Client
-	if cfg != nil {
-		emailClient = email.NewClient(cfg)
-	}
+// NewUserService creates a new user service with dependency injection
+func NewUserService(
+	userRepo repos.UserRepository,
+	signupInvitationRepo repos.SignupInvitationRepository,
+	emailClient EmailClientInterface,
+	cfg *config.Config,
+) *UserService {
 	return &UserService{
-		userRepo:             repos.NewUserRepo(),
-		signupInvitationRepo: repos.NewSignupInvitationRepo(),
+		userRepo:             userRepo,
+		signupInvitationRepo: signupInvitationRepo,
 		emailClient:          emailClient,
 		config:               cfg,
 	}
+}
+
+// NewUserServiceWithDefaults creates a new user service with default dependencies
+func NewUserServiceWithDefaults(cfg *config.Config) *UserService {
+	var emailClient EmailClientInterface
+	if cfg != nil {
+		emailClient = email.NewClient(cfg)
+	}
+	return NewUserService(
+		repos.NewUserRepo(),
+		repos.NewSignupInvitationRepo(),
+		emailClient,
+		cfg,
+	)
 }
 
 // CreateInvitationRequest represents a signup invitation request
@@ -70,16 +85,37 @@ func (s *UserService) Add(ctx context.Context, user *models.User) error {
 
 // Update updates a user
 func (s *UserService) Update(ctx context.Context, user *models.User) error {
-	// Check if user exists
-	exists, err := s.userRepo.Persists(ctx, user.ID)
+	// Fetch existing user to merge updates
+	existingUser, err := s.userRepo.GetByID(ctx, user.ID)
 	if err != nil {
 		return err
 	}
-	if !exists {
+	if existingUser == nil {
 		return errors.New("user not found")
 	}
 
-	return s.userRepo.Update(ctx, user)
+	// Merge only non-empty fields from the update request
+	// This prevents empty strings from overwriting existing values
+	if user.Name != "" {
+		existingUser.Name = user.Name
+	}
+	if user.Email != "" {
+		existingUser.Email = user.Email
+	}
+	if user.PhoneNumber != "" {
+		existingUser.PhoneNumber = user.PhoneNumber
+	}
+	if user.Role != "" {
+		existingUser.Role = user.Role
+	}
+	if user.Designation != nil {
+		existingUser.Designation = user.Designation
+	}
+	if user.Password != "" {
+		existingUser.Password = user.Password
+	}
+
+	return s.userRepo.Update(ctx, existingUser)
 }
 
 // Delete deletes a user

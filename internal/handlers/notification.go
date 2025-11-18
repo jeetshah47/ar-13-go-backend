@@ -9,15 +9,26 @@ import (
 // NotificationHandler handles notification routes
 type NotificationHandler struct {
 	notificationService *services.NotificationService
-	webSocketHandler    *WebSocketHandler
+	sseHandler          *SSEHandler
 }
 
-// NewNotificationHandler creates a new notification handler
-func NewNotificationHandler(webSocketHandler *WebSocketHandler) *NotificationHandler {
+// NewNotificationHandler creates a new notification handler with dependency injection
+func NewNotificationHandler(
+	notificationService *services.NotificationService,
+	sseHandler *SSEHandler,
+) *NotificationHandler {
 	return &NotificationHandler{
-		notificationService: services.NewNotificationService(),
-		webSocketHandler:    webSocketHandler,
+		notificationService: notificationService,
+		sseHandler:          sseHandler,
 	}
+}
+
+// NewNotificationHandlerWithDefaults creates a new notification handler with default dependencies
+func NewNotificationHandlerWithDefaults(sseHandler *SSEHandler) *NotificationHandler {
+	return NewNotificationHandler(
+		services.NewNotificationServiceWithDefaults(),
+		sseHandler,
+	)
 }
 
 // GetAll gets all notifications for a user
@@ -93,12 +104,12 @@ func (h *NotificationHandler) DeleteAllForUser(c *gin.Context) {
 	c.JSON(constants.StatusOK, gin.H{"message": "All notifications deleted successfully"})
 }
 
-// GetConnectionInfo gets WebSocket connection info
+// GetConnectionInfo gets SSE connection info
 func (h *NotificationHandler) GetConnectionInfo(c *gin.Context) {
-	wsService := h.webSocketHandler.GetWebSocketService()
+	sseService := h.sseHandler.GetSSEService()
 	info := gin.H{
-		"connectedUsers":   wsService.GetConnectedUsersCount(),
-		"connectedUserIds": wsService.GetConnectedUserIDs(),
+		"connectedUsers":   sseService.GetConnectedUsersCount(),
+		"connectedUserIds": sseService.GetConnectedUserIDs(),
 	}
 	c.JSON(constants.StatusOK, info)
 }

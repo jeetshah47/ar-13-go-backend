@@ -1,128 +1,176 @@
-# Firebase to DynamoDB + JWT Migration - Summary
+# DynamoDB to MongoDB Migration - Quick Summary
 
-## ✅ Completed
+## Overview
 
-### 1. Core Infrastructure
-- ✅ Created `pkg/dynamodb/dynamodb.go` - DynamoDB client package
-- ✅ Created `pkg/jwt/jwt.go` - JWT token generation and verification
-- ✅ Created `pkg/password/password.go` - Password hashing with bcrypt
+This is a quick reference guide for the DynamoDB to MongoDB migration. For detailed information, see the full migration plan.
 
-### 2. Configuration
-- ✅ Updated `internal/config/config.go`:
-  - Removed Firebase config fields
-  - Added AWS Region for DynamoDB
-  - Added JWT expiration settings
+## Key Documents
 
-### 3. Authentication
-- ✅ Updated `internal/middleware/auth.go`:
-  - Replaced Firebase token verification with JWT verification
-  - Added user role to context
+1. **[DYNAMODB_TO_MONGODB_MIGRATION_PLAN.md](./DYNAMODB_TO_MONGODB_MIGRATION_PLAN.md)** - Complete migration plan
+2. **[MIGRATION_CHECKLIST.md](./MIGRATION_CHECKLIST.md)** - Step-by-step checklist
+3. **[MONGODB_REPOSITORY_EXAMPLES.md](./MONGODB_REPOSITORY_EXAMPLES.md)** - Code examples
+4. **[DATA_TRANSFORMATION_GUIDE.md](./DATA_TRANSFORMATION_GUIDE.md)** - Data transformation guide
 
-### 4. Auth Service
-- ✅ Updated `internal/services/auth_service.go`:
-  - Replaced Firebase Auth login with JWT-based login
-  - Added password hashing verification
-  - Added Register method with password hashing
-  - Returns access token and refresh token
+## Migration Strategy
 
-### 5. Auth Handler
-- ✅ Updated `internal/handlers/auth.go`:
-  - Updated Login to return new token format
-  - Updated Register to use new AuthService.Register method
+**Approach**: Dual-write with gradual cutover
 
-### 6. Models
-- ✅ Added `RegisterRequest` model to `internal/models/user.go`
+1. **Phase 1**: Write to both DynamoDB and MongoDB
+2. **Phase 2**: Read from MongoDB, write to both
+3. **Phase 3**: Write only to MongoDB
+4. **Phase 4**: Remove DynamoDB code
 
-### 7. Main Application
-- ✅ Updated `cmd/server/main.go`:
-  - Removed Firebase initialization
-  - Added JWT initialization
-  - Added DynamoDB initialization
+## Timeline
 
-## ⚠️ Remaining Work (Critical)
+**Estimated Duration**: 6-8 weeks
 
-### 1. Repository Migration (HIGH PRIORITY)
-All repositories currently use Firestore and need to be migrated to DynamoDB:
+| Phase | Duration | Key Activities |
+|-------|----------|----------------|
+| Infrastructure Setup | 1 week | MongoDB setup, driver installation |
+| Repository Abstraction | 1 week | Create MongoDB repositories |
+| Data Migration Scripts | 1-2 weeks | Export, transform, import scripts |
+| Dual-Write | 1 week | Write to both databases |
+| Read Migration | 1 week | Switch reads to MongoDB |
+| Cutover | 1 week | MongoDB-only operation |
+| Cleanup | 1 week | Remove DynamoDB code |
 
-**Files to Migrate:**
-- `internal/repos/base.go` - Create DynamoDB base repository
-- `internal/repos/user_repo.go` - Remove Firebase Auth, use password hashing
-- `internal/repos/project_repo.go`
-- `internal/repos/task_repo.go`
-- `internal/repos/notification_repo.go`
-- `internal/repos/calendar_repo.go`
-- `internal/repos/vacation_repo.go`
-- `internal/repos/activity_log_repo.go`
-- `internal/repos/info_portal_repo.go`
-- `internal/repos/project_details_repo.go`
-- `internal/repos/user_account_link_repo.go`
-- `internal/repos/signup_invitation_repo.go`
+## Current State
 
-### 2. Dependencies
-Install required packages:
-```bash
-go get github.com/aws/aws-sdk-go-v2/config
-go get github.com/aws/aws-sdk-go-v2/service/dynamodb
-go get github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue
-go get golang.org/x/crypto/bcrypt
-go get github.com/google/uuid
-```
-
-### 3. DynamoDB Tables
-Create all required DynamoDB tables in AWS:
+### DynamoDB Tables (12 total)
 - users
 - projects
 - tasks
 - notifications
 - calendar_events
-- vacations
+- leaveRequests
 - activity_logs
-- info_portal
+- info-portal
 - project_details
 - user_account_links
-- signup_invitations
+- signupInvitations
+- role_permissions
 
-### 4. Environment Variables
-Update `.env` file:
-```env
-# Remove these:
-# FIREBASE_WEB_API_KEY=
-# FIREBASE_PROJECT_ID=
-# FIREBASE_CLIENT_EMAIL=
-# FIREBASE_PRIVATE_KEY=
+### Architecture
+- Repository pattern (`internal/repos/`)
+- Service layer (`internal/services/`)
+- Models with DynamoDB tags (`internal/models/`)
 
-# Add these:
-AWS_REGION=us-east-1
-JWT_SECRET=your-secret-key-here
-JWT_EXPIRATION_HOURS=24
-REFRESH_EXPIRATION_DAYS=30
+## MongoDB Schema
+
+### Database
+- **Name**: `ar13_backend` (configurable)
+
+### Collections
+- Same names as DynamoDB tables
+- `_id` as ObjectId (auto-generated)
+- Original `id` field preserved (unique index)
+- Indexes for all query patterns
+
+## Key Code Changes
+
+### 1. Add MongoDB Driver
+```bash
+go get go.mongodb.org/mongo-driver/mongo
 ```
 
-### 5. Cleanup
-- Remove `pkg/firebase/` directory
-- Run `go mod tidy` to remove unused Firebase dependencies
+### 2. Create MongoDB Package
+- `pkg/mongodb/mongodb.go` - Connection management
 
-## 🔧 Socket.IO Status
+### 3. Create MongoDB Repositories
+- `internal/repos/mongodb_base.go` - Base repository
+- `internal/repos/*_repo_mongodb.go` - Collection-specific repos
 
-Socket.IO is already implemented and working. No changes needed for realtime functionality.
+### 4. Update Configuration
+```go
+type Config struct {
+    MongoDBURI      string
+    MongoDBDatabase string
+}
+```
 
-## 📋 Next Steps
+### 5. Update Services
+- Add dual-write logic
+- Feature flag for database selection
+- Error handling and monitoring
 
-1. **Create DynamoDB Base Repository** - This will be the foundation for all other repositories
-2. **Migrate User Repository** - Critical for authentication to work
-3. **Migrate Other Repositories** - One by one, test each after migration
-4. **Create DynamoDB Tables** - Set up tables in AWS
-5. **Test Authentication Flow** - Register, Login, Token Verification
-6. **Test All Endpoints** - Ensure everything works with DynamoDB
+## Data Migration Steps
 
-## 🚨 Important Notes
+1. **Export** from DynamoDB to JSON
+2. **Transform** DynamoDB format to MongoDB format
+3. **Import** to MongoDB with batching
+4. **Verify** record counts and sample data
 
-- **Password Storage**: Passwords are now hashed with bcrypt before storage
-- **Token Format**: Login now returns `{accessToken, refreshToken, expiresIn}` instead of just a token string
-- **User IDs**: Will use UUID instead of Firebase UID
-- **No Firebase Auth**: User creation no longer uses Firebase Auth - passwords are hashed and stored directly
+## Success Criteria
 
-## 📚 Reference
+- ✅ All data migrated successfully
+- ✅ All queries working correctly
+- ✅ Performance equal or better
+- ✅ Zero data loss
+- ✅ Zero downtime
 
-See `MIGRATION_GUIDE.md` for detailed migration instructions.
+## Quick Start
 
+### 1. Set Up MongoDB
+```bash
+# Install MongoDB locally or use cloud service
+# Update .env with connection string
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DATABASE=ar13_backend
+```
+
+### 2. Create Collections and Indexes
+```bash
+go run scripts/create_mongodb_indexes.go
+```
+
+### 3. Export DynamoDB Data
+```bash
+go run scripts/export_dynamodb_data.go
+```
+
+### 4. Transform and Import
+```bash
+go run scripts/transform_to_mongodb.go
+go run scripts/import_to_mongodb.go
+```
+
+### 5. Verify Migration
+```bash
+go run scripts/verify_migration.go
+```
+
+## Rollback Plan
+
+If issues occur:
+1. Switch reads back to DynamoDB (feature flag)
+2. Stop MongoDB writes
+3. Investigate and fix issues
+4. Retry migration
+
+## Risks and Mitigations
+
+| Risk | Mitigation |
+|------|------------|
+| Data Loss | Dual-write, backups, verification |
+| Performance Issues | Load testing, optimization |
+| Downtime | Gradual migration, feature flags |
+
+## Next Steps
+
+1. Review and approve migration plan
+2. Set up MongoDB instance
+3. Create proof of concept (one table)
+4. Begin Phase 1 implementation
+
+## Support
+
+For questions or issues:
+- Review detailed migration plan
+- Check code examples
+- Consult MongoDB documentation
+- Review transformation guide
+
+---
+
+**Status**: Planning Phase  
+**Last Updated**: 2025-01-XX

@@ -28,16 +28,31 @@ type EmployeeTaskCounts struct {
 
 // EmployeeService handles employee business logic
 type EmployeeService struct {
-	userRepo *repos.UserRepo
-	taskRepo *repos.TaskRepo
+	userRepo    repos.UserRepository
+	taskRepo    repos.TaskRepository
+	projectRepo repos.ProjectRepository
 }
 
-// NewEmployeeService creates a new employee service
-func NewEmployeeService() *EmployeeService {
+// NewEmployeeService creates a new employee service with dependency injection
+func NewEmployeeService(
+	userRepo repos.UserRepository,
+	taskRepo repos.TaskRepository,
+	projectRepo repos.ProjectRepository,
+) *EmployeeService {
 	return &EmployeeService{
-		userRepo: repos.NewUserRepo(),
-		taskRepo: repos.NewTaskRepo(),
+		userRepo:    userRepo,
+		taskRepo:    taskRepo,
+		projectRepo: projectRepo,
 	}
+}
+
+// NewEmployeeServiceWithDefaults creates a new employee service with default dependencies
+func NewEmployeeServiceWithDefaults() *EmployeeService {
+	return NewEmployeeService(
+		repos.NewUserRepo(),
+		repos.NewTaskRepo(),
+		repos.NewProjectRepo(),
+	)
 }
 
 // GetEmployeeList gets employee list with task counts
@@ -49,8 +64,7 @@ func (s *EmployeeService) GetEmployeeList(ctx context.Context) ([]EmployeeTaskCo
 	}
 
 	// Fetch all projects once
-	projectRepo := repos.NewProjectRepo()
-	projects, err := projectRepo.GetAll(ctx, nil)
+	projects, err := s.projectRepo.GetAll(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -154,8 +168,7 @@ func (s *EmployeeService) GetEmployeeTaskCounts(ctx context.Context, userID stri
 	}
 
 	// Get all projects to count tasks
-	projectRepo := repos.NewProjectRepo()
-	projects, err := projectRepo.GetAll(ctx, nil)
+	projects, err := s.projectRepo.GetAll(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -284,8 +297,7 @@ func (s *EmployeeService) GetEmployeeTaskStats(ctx context.Context, userID strin
 	}
 
 	// Get all projects
-	projectRepo := repos.NewProjectRepo()
-	projects, err := projectRepo.GetAll(ctx, nil)
+	projects, err := s.projectRepo.GetAll(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

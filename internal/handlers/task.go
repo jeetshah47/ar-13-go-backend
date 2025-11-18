@@ -9,6 +9,7 @@ import (
 	"github.com/ar-13-go-backend/internal/middleware"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/services"
+	"github.com/ar-13-go-backend/pkg/sse"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,20 +17,38 @@ import (
 type TaskHandler struct {
 	taskService          *services.TaskService
 	authorizationService *services.AuthorizationService
+	sseService           *sse.SSEService
 }
 
-// NewTaskHandler creates a new task handler
-func NewTaskHandler(cfg *config.Config) *TaskHandler {
+// NewTaskHandler creates a new task handler with dependency injection
+func NewTaskHandler(
+	taskService *services.TaskService,
+	authorizationService *services.AuthorizationService,
+) *TaskHandler {
 	return &TaskHandler{
-		taskService:          services.NewTaskService(cfg),
-		authorizationService: services.NewAuthorizationService(),
+		taskService:          taskService,
+		authorizationService: authorizationService,
 	}
 }
 
-// GetAll gets all tasks for a project
+// NewTaskHandlerWithDefaults creates a new task handler with default implementations
+// This is a convenience constructor for backward compatibility
+func NewTaskHandlerWithDefaults(cfg *config.Config) *TaskHandler {
+	return NewTaskHandler(
+		services.NewTaskServiceWithDefaults(cfg),
+		services.NewAuthorizationServiceWithDefaults(),
+	)
+}
+
+// SetSSEService sets the SSE service for broadcasting events
+func (h *TaskHandler) SetSSEService(sseService *sse.SSEService) {
+	h.sseService = sseService
+}
+
+// GetAll gets all tasks for a project with user details in assignTo field
 func (h *TaskHandler) GetAll(c *gin.Context) {
 	projectID := c.Param("projectId")
-	tasks, err := h.taskService.GetAll(c.Request.Context(), projectID)
+	tasks, err := h.taskService.GetAllWithUserDetails(c.Request.Context(), projectID)
 	if err != nil {
 		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -37,10 +56,10 @@ func (h *TaskHandler) GetAll(c *gin.Context) {
 	c.JSON(constants.StatusOK, gin.H{"tasks": tasks})
 }
 
-// GetAllTaskDetail gets all task details for a project
+// GetAllTaskDetail gets all task details for a project with user details in assignTo field
 func (h *TaskHandler) GetAllTaskDetail(c *gin.Context) {
 	projectID := c.Param("projectId")
-	tasks, err := h.taskService.GetAll(c.Request.Context(), projectID)
+	tasks, err := h.taskService.GetAllWithUserDetails(c.Request.Context(), projectID)
 	if err != nil {
 		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -48,11 +67,11 @@ func (h *TaskHandler) GetAllTaskDetail(c *gin.Context) {
 	c.JSON(constants.StatusOK, gin.H{"tasks": tasks})
 }
 
-// GetOneTaskDetail gets one task detail
+// GetOneTaskDetail gets one task detail with user details in assignTo field
 func (h *TaskHandler) GetOneTaskDetail(c *gin.Context) {
 	projectID := c.Param("projectId")
 	taskID := c.Param("taskId")
-	task, err := h.taskService.GetByID(c.Request.Context(), projectID, taskID)
+	task, err := h.taskService.GetByIDWithUserDetails(c.Request.Context(), projectID, taskID)
 	if err != nil {
 		c.JSON(constants.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -138,11 +157,24 @@ func (h *TaskHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Get projectId and taskId from URL parameters
+	projectID := c.Param("projectId")
+	taskID := c.Param("taskId")
+
+	if projectID == "" || taskID == "" {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "projectId and taskId are required"})
+		return
+	}
+
 	var task models.Task
 	if err := c.ShouldBindJSON(&task); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Set projectId and taskId from URL parameters (ignore any values from request body)
+	task.ProjectID = projectID
+	task.ID = taskID
 
 	// Normalize and validate status if provided
 	if task.Status != "" {
@@ -155,7 +187,7 @@ func (h *TaskHandler) Update(c *gin.Context) {
 	}
 
 	// Check authorization: user must be assigned to task OR project owner/member
-	if err := h.authorizationService.CanModifyTask(c.Request.Context(), task.ProjectID, task.ID, userID); err != nil {
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
 		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
@@ -311,12 +343,50 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	// Get project before update (for broadcasting)
+	projectService := services.NewProjectServiceWithDefaults()
+	project, err := projectService.GetByID(c.Request.Context(), projectID)
+	if err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "Failed to get project: " + err.Error()})
+		return
+	}
+	if project == nil {
+		c.JSON(constants.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	// Update task status
 	if err := h.taskService.UpdateStatus(c.Request.Context(), projectID, taskID, normalizedStatus, req.Remark); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskStatusUpdated})
+	// Get updated task for SSE event with user details
+	task, err := h.taskService.GetByIDWithUserDetails(c.Request.Context(), projectID, taskID)
+	if err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "Failed to get updated task: " + err.Error()})
+		return
+	}
+
+	// Send SSE events if SSE service is available
+	if h.sseService != nil {
+		// Prepare response data
+		response := map[string]interface{}{
+			"projectId": projectID,
+			"taskId":    taskID,
+			"status":    normalizedStatus,
+			"updatedBy": userID,
+			"task":      task,
+		}
+
+		// Send success event to the user who made the update
+		h.sseService.SendToUser(userID, "task:update-status:success", response)
+
+		// Broadcast to all project members
+		h.sseService.BroadcastToProjectMembersWithProject(project, "task:status-updated", response)
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskStatusUpdated, "task": task})
 }
 
 // AddTimeSpent adds time spent entry
@@ -628,55 +698,10 @@ func (h *TaskHandler) GetAssignableUsers(c *gin.Context) {
 
 // GetStatuses returns all available task statuses with their metadata
 func (h *TaskHandler) GetStatuses(c *gin.Context) {
-	statuses := []map[string]interface{}{
-		{
-			"value":       constants.GetTaskStatusString(constants.TaskStatusPending),
-			"displayName": "Pending",
-			"description": "Task is pending/not started",
-			"category":    "active",
-			"isActive":    true,
-			"isCompleted": false,
-		},
-		{
-			"value":       constants.GetTaskStatusString(constants.TaskStatusInProgress),
-			"displayName": "In Progress",
-			"description": "Task is currently being worked on",
-			"category":    "active",
-			"isActive":    true,
-			"isCompleted": false,
-		},
-		{
-			"value":       constants.GetTaskStatusString(constants.TaskStatusInReview),
-			"displayName": "In Review",
-			"description": "Task is under review",
-			"category":    "active",
-			"isActive":    true,
-			"isCompleted": false,
-		},
-		{
-			"value":       constants.GetTaskStatusString(constants.TaskStatusCompleted),
-			"displayName": "Completed",
-			"description": "Task is completed",
-			"category":    "completed",
-			"isActive":    false,
-			"isCompleted": true,
-		},
-		{
-			"value":       constants.GetTaskStatusString(constants.TaskStatusAccepted),
-			"displayName": "Accepted",
-			"description": "Task has been accepted",
-			"category":    "final",
-			"isActive":    false,
-			"isCompleted": true,
-		},
-		{
-			"value":       constants.GetTaskStatusString(constants.TaskStatusRejected),
-			"displayName": "Rejected",
-			"description": "Task has been rejected",
-			"category":    "final",
-			"isActive":    false,
-			"isCompleted": false,
-		},
+	statuses, err := h.taskService.GetStatuses(c.Request.Context())
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	c.JSON(constants.StatusOK, gin.H{

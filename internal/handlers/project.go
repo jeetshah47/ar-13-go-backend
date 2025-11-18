@@ -16,16 +16,30 @@ type ProjectHandler struct {
 	authorizationService *services.AuthorizationService
 }
 
-// NewProjectHandler creates a new project handler
-func NewProjectHandler() *ProjectHandler {
+// NewProjectHandler creates a new project handler with dependency injection
+func NewProjectHandler(
+	projectService *services.ProjectService,
+	authorizationService *services.AuthorizationService,
+) *ProjectHandler {
 	return &ProjectHandler{
-		projectService:      services.NewProjectService(),
-		authorizationService: services.NewAuthorizationService(),
+		projectService:      projectService,
+		authorizationService: authorizationService,
 	}
+}
+
+// NewProjectHandlerWithDefaults creates a new project handler with default dependencies
+func NewProjectHandlerWithDefaults() *ProjectHandler {
+	return NewProjectHandler(
+		services.NewProjectServiceWithDefaults(),
+		services.NewAuthorizationServiceWithDefaults(),
+	)
 }
 
 // GetAll gets all projects
 func (h *ProjectHandler) GetAll(c *gin.Context) {
+	// This endpoint is accessible to all authenticated users
+	// No additional permission checks required
+	
 	var limit *int
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil {

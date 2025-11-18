@@ -21,18 +21,31 @@ import (
 
 // GoogleAccountService handles Google account linking business logic
 type GoogleAccountService struct {
-	userAccountLinkRepo *repos.UserAccountLinkRepo
-	userRepo            *repos.UserRepo
+	userAccountLinkRepo repos.UserAccountLinkRepository
+	userRepo            repos.UserRepository
 	cfg                 *config.Config
 }
 
-// NewGoogleAccountService creates a new Google account service
-func NewGoogleAccountService() *GoogleAccountService {
+// NewGoogleAccountService creates a new Google account service with dependency injection
+func NewGoogleAccountService(
+	userAccountLinkRepo repos.UserAccountLinkRepository,
+	userRepo repos.UserRepository,
+	cfg *config.Config,
+) *GoogleAccountService {
 	return &GoogleAccountService{
-		userAccountLinkRepo: repos.NewUserAccountLinkRepo(),
-		userRepo:            repos.NewUserRepo(),
-		cfg:                 config.AppConfig,
+		userAccountLinkRepo: userAccountLinkRepo,
+		userRepo:            userRepo,
+		cfg:                 cfg,
 	}
+}
+
+// NewGoogleAccountServiceWithDefaults creates a new Google account service with default dependencies
+func NewGoogleAccountServiceWithDefaults() *GoogleAccountService {
+	return NewGoogleAccountService(
+		repos.NewUserAccountLinkRepo(),
+		repos.NewUserRepo(),
+		config.AppConfig,
+	)
 }
 
 // BoolString is a custom type that can unmarshal both boolean and string values
@@ -192,24 +205,44 @@ func (s *GoogleAccountService) LinkGoogleAccount(ctx context.Context, userID, go
 	if err != nil {
 		return nil, err
 	}
+	
+	var link *models.UserAccountLink
+	
 	if existingUserLink != nil {
-		return nil, errors.New("user already has a Google account linked")
-	}
+		// If link exists and is active, return error
+		if existingUserLink.IsActive {
+			return nil, errors.New("user already has a Google account linked")
+		}
+		
+		// If link exists but is inactive, reactivate and update it
+		existingUserLink.IsActive = true
+		existingUserLink.ProviderUserID = googleInfo.Sub
+		existingUserLink.ProviderEmail = googleInfo.Email
+		if googleInfo.Name != "" {
+			existingUserLink.ProviderDisplayName = &googleInfo.Name
+		}
+		
+		if err := s.userAccountLinkRepo.Update(ctx, existingUserLink); err != nil {
+			return nil, fmt.Errorf("failed to reactivate Google account link: %w", err)
+		}
+		
+		link = existingUserLink
+	} else {
+		// Create new account link
+		link = &models.UserAccountLink{
+			UserID:         userID,
+			Provider:       models.AccountProviderGoogle,
+			ProviderUserID: googleInfo.Sub,
+			ProviderEmail:  googleInfo.Email,
+			IsActive:       true,
+		}
+		if googleInfo.Name != "" {
+			link.ProviderDisplayName = &googleInfo.Name
+		}
 
-	// Create account link
-	link := &models.UserAccountLink{
-		UserID:         userID,
-		Provider:       models.AccountProviderGoogle,
-		ProviderUserID: googleInfo.Sub,
-		ProviderEmail:  googleInfo.Email,
-		IsActive:       true,
-	}
-	if googleInfo.Name != "" {
-		link.ProviderDisplayName = &googleInfo.Name
-	}
-
-	if err := s.userAccountLinkRepo.Add(ctx, link); err != nil {
-		return nil, fmt.Errorf("failed to link Google account: %w", err)
+		if err := s.userAccountLinkRepo.Add(ctx, link); err != nil {
+			return nil, fmt.Errorf("failed to link Google account: %w", err)
+		}
 	}
 
 	return link, nil

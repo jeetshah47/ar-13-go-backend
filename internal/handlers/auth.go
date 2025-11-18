@@ -21,7 +21,7 @@ type AuthHandler struct {
 func NewAuthHandler(cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
 		authService:      services.NewAuthService(cfg),
-		permissionService: services.NewPermissionService(),
+		permissionService: services.NewPermissionServiceWithDefaults(),
 	}
 }
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=Ngrok Tunnel
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+ExecStart=/usr/local/bin/ngrok http 80 --url="https://parve-yolando-subcrenately.ngrok-free.dev"
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

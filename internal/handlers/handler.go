@@ -7,7 +7,7 @@ import (
 
 // Handler contains all route handlers
 type Handler struct {
-	WebSocket      *WebSocketHandler
+	SSE            *SSEHandler
 	Auth           *AuthHandler
 	User           *UserHandler
 	Project        *ProjectHandler
@@ -25,28 +25,32 @@ type Handler struct {
 
 // NewHandler creates a new handler instance
 func NewHandler(cfg *config.Config) *Handler {
-	taskHandler := NewTaskHandler(cfg)
-	projectHandler := NewProjectHandler()
+	// Create services for SSE
+	taskService := services.NewTaskServiceWithDefaults(cfg)
+	projectService := services.NewProjectServiceWithDefaults()
 	
-	// Create services for WebSocket
-	taskService := services.NewTaskService(cfg)
-	projectService := services.NewProjectService()
+	sseHandler := NewSSEHandler(taskService, projectService)
 	
-	webSocketHandler := NewWebSocketHandler(taskService, projectService)
+	// Create handlers with dependency injection
+	projectHandler := NewProjectHandlerWithDefaults()
+	taskHandler := NewTaskHandlerWithDefaults(cfg)
+	// Pass SSE service to task handler for event broadcasting
+	taskHandler.SetSSEService(sseHandler.GetSSEService())
+	
 	return &Handler{
-		WebSocket:      webSocketHandler,
+		SSE:            sseHandler,
 		Auth:           NewAuthHandler(cfg),
-		User:           NewUserHandler(cfg),
+		User:           NewUserHandlerWithDefaults(cfg),
 		Project:        projectHandler,
 		Task:           taskHandler,
-		Dashboard:      NewDashboardHandler(),
-		Calendar:       NewCalendarHandler(cfg),
-		Notification:   NewNotificationHandler(webSocketHandler),
-		Vacation:       NewVacationHandler(),
-		Employee:       NewEmployeeHandler(),
-		InfoPortal:     NewInfoPortalHandler(),
-		ProjectDetails: NewProjectDetailsHandler(),
-		ActivityLog:    NewActivityLogHandler(),
-		GoogleAccount:  NewGoogleAccountHandler(),
+		Dashboard:      NewDashboardHandlerWithDefaults(),
+		Calendar:       NewCalendarHandlerWithDefaults(cfg),
+		Notification:   NewNotificationHandlerWithDefaults(sseHandler),
+		Vacation:       NewVacationHandlerWithDefaults(),
+		Employee:       NewEmployeeHandlerWithDefaults(),
+		InfoPortal:     NewInfoPortalHandlerWithDefaults(),
+		ProjectDetails: NewProjectDetailsHandlerWithDefaults(),
+		ActivityLog:    NewActivityLogHandlerWithDefaults(),
+		GoogleAccount:  NewGoogleAccountHandlerWithDefaults(),
 	}
 }

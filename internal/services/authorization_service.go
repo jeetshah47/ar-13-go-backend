@@ -11,18 +11,31 @@ import (
 
 // AuthorizationService handles authorization logic
 type AuthorizationService struct {
-	projectRepo *repos.ProjectRepo
-	taskRepo    *repos.TaskRepo
-	userRepo    *repos.UserRepo
+	projectRepo repos.ProjectRepository
+	taskRepo    repos.TaskRepository
+	userRepo    repos.UserRepository
 }
 
-// NewAuthorizationService creates a new authorization service
-func NewAuthorizationService() *AuthorizationService {
+// NewAuthorizationService creates a new authorization service with dependency injection
+func NewAuthorizationService(
+	projectRepo repos.ProjectRepository,
+	taskRepo repos.TaskRepository,
+	userRepo repos.UserRepository,
+) *AuthorizationService {
 	return &AuthorizationService{
-		projectRepo: repos.NewProjectRepo(),
-		taskRepo:    repos.NewTaskRepo(),
-		userRepo:    repos.NewUserRepo(),
+		projectRepo: projectRepo,
+		taskRepo:    taskRepo,
+		userRepo:    userRepo,
 	}
+}
+
+// NewAuthorizationServiceWithDefaults creates a new authorization service with default dependencies
+func NewAuthorizationServiceWithDefaults() *AuthorizationService {
+	return NewAuthorizationService(
+		repos.NewProjectRepo(),
+		repos.NewTaskRepo(),
+		repos.NewUserRepo(),
+	)
 }
 
 // IsAdmin checks if a user is an admin

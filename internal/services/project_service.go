@@ -13,18 +13,31 @@ import (
 
 // ProjectService handles project business logic
 type ProjectService struct {
-	projectRepo *repos.ProjectRepo
-	taskRepo    *repos.TaskRepo
-	cacheSvc    *CacheService
+	projectRepo repos.ProjectRepository
+	taskRepo    repos.TaskRepository
+	cacheSvc    CacheServiceInterface
 }
 
-// NewProjectService creates a new project service
-func NewProjectService() *ProjectService {
+// NewProjectService creates a new project service with dependency injection
+func NewProjectService(
+	projectRepo repos.ProjectRepository,
+	taskRepo repos.TaskRepository,
+	cacheSvc CacheServiceInterface,
+) *ProjectService {
 	return &ProjectService{
-		projectRepo: repos.NewProjectRepo(),
-		taskRepo:    repos.NewTaskRepo(),
-		cacheSvc:    NewCacheService(),
+		projectRepo: projectRepo,
+		taskRepo:    taskRepo,
+		cacheSvc:    cacheSvc,
 	}
+}
+
+// NewProjectServiceWithDefaults creates a new project service with default dependencies
+func NewProjectServiceWithDefaults() *ProjectService {
+	return NewProjectService(
+		repos.NewProjectRepo(),
+		repos.NewTaskRepo(),
+		NewCacheService(),
+	)
 }
 
 // GetAll gets all projects

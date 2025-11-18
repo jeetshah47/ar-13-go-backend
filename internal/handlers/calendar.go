@@ -13,11 +13,18 @@ type CalendarHandler struct {
 	calendarService *services.CalendarEventService
 }
 
-// NewCalendarHandler creates a new calendar handler
-func NewCalendarHandler(cfg *config.Config) *CalendarHandler {
+// NewCalendarHandler creates a new calendar handler with dependency injection
+func NewCalendarHandler(calendarService *services.CalendarEventService) *CalendarHandler {
 	return &CalendarHandler{
-		calendarService: services.NewCalendarEventService(cfg),
+		calendarService: calendarService,
 	}
+}
+
+// NewCalendarHandlerWithDefaults creates a new calendar handler with default dependencies
+func NewCalendarHandlerWithDefaults(cfg *config.Config) *CalendarHandler {
+	return NewCalendarHandler(
+		services.NewCalendarEventServiceWithDefaults(cfg),
+	)
 }
 
 // GetByMonth gets calendar events by month

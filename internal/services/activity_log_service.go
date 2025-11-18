@@ -10,18 +10,31 @@ import (
 
 // ActivityLogService handles activity log business logic
 type ActivityLogService struct {
-	activityLogRepo *repos.ActivityLogRepo
-	userRepo        *repos.UserRepo
-	cacheSvc        *CacheService
+	activityLogRepo repos.ActivityLogRepository
+	userRepo        repos.UserRepository
+	cacheSvc        CacheServiceInterface
 }
 
-// NewActivityLogService creates a new activity log service
-func NewActivityLogService() *ActivityLogService {
+// NewActivityLogService creates a new activity log service with dependency injection
+func NewActivityLogService(
+	activityLogRepo repos.ActivityLogRepository,
+	userRepo repos.UserRepository,
+	cacheSvc CacheServiceInterface,
+) *ActivityLogService {
 	return &ActivityLogService{
-		activityLogRepo: repos.NewActivityLogRepo(),
-		userRepo:        repos.NewUserRepo(),
-		cacheSvc:        NewCacheService(),
+		activityLogRepo: activityLogRepo,
+		userRepo:        userRepo,
+		cacheSvc:        cacheSvc,
 	}
+}
+
+// NewActivityLogServiceWithDefaults creates a new activity log service with default dependencies
+func NewActivityLogServiceWithDefaults() *ActivityLogService {
+	return NewActivityLogService(
+		repos.NewActivityLogRepo(),
+		repos.NewUserRepo(),
+		NewCacheService(),
+	)
 }
 
 // populateUserDetails populates CreatedByUser for activity logs

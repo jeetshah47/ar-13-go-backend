@@ -11,17 +11,22 @@ import (
 
 // PermissionService handles permission business logic with caching
 type PermissionService struct {
-	rolePermissionRepo *repos.RolePermissionRepo
+	rolePermissionRepo repos.RolePermissionRepository
 	cache              map[models.UserRole][]string
 	cacheMutex         sync.RWMutex
 }
 
-// NewPermissionService creates a new permission service
-func NewPermissionService() *PermissionService {
+// NewPermissionService creates a new permission service with dependency injection
+func NewPermissionService(rolePermissionRepo repos.RolePermissionRepository) *PermissionService {
 	return &PermissionService{
-		rolePermissionRepo: repos.NewRolePermissionRepo(),
+		rolePermissionRepo: rolePermissionRepo,
 		cache:              make(map[models.UserRole][]string),
 	}
+}
+
+// NewPermissionServiceWithDefaults creates a new permission service with default dependencies
+func NewPermissionServiceWithDefaults() *PermissionService {
+	return NewPermissionService(repos.NewRolePermissionRepo())
 }
 
 // GetPermissionsByRole returns the list of permissions for a given role

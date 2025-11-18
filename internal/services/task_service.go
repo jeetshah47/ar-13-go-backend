@@ -17,26 +17,44 @@ import (
 
 // TaskService handles task business logic
 type TaskService struct {
-	taskRepo       *repos.TaskRepo
-	userRepo       *repos.UserRepo
-	emailClient    *email.Client
-	cacheSvc       *CacheService
-	activityLogSvc *ActivityLogService
+	taskRepo       repos.TaskRepository
+	userRepo       repos.UserRepository
+	emailClient    EmailClientInterface
+	cacheSvc       CacheServiceInterface
+	activityLogSvc ActivityLogServiceInterface
 }
 
-// NewTaskService creates a new task service
-func NewTaskService(cfg *config.Config) *TaskService {
-	var emailClient *email.Client
+// NewTaskService creates a new task service with dependency injection
+func NewTaskService(
+	taskRepo repos.TaskRepository,
+	userRepo repos.UserRepository,
+	emailClient EmailClientInterface,
+	cacheSvc CacheServiceInterface,
+	activityLogSvc ActivityLogServiceInterface,
+) *TaskService {
+	return &TaskService{
+		taskRepo:       taskRepo,
+		userRepo:       userRepo,
+		emailClient:    emailClient,
+		cacheSvc:       cacheSvc,
+		activityLogSvc: activityLogSvc,
+	}
+}
+
+// NewTaskServiceWithDefaults creates a new task service with default implementations
+// This is a convenience constructor for backward compatibility
+func NewTaskServiceWithDefaults(cfg *config.Config) *TaskService {
+	var emailClient EmailClientInterface
 	if cfg != nil {
 		emailClient = email.NewClient(cfg)
 	}
-	return &TaskService{
-		taskRepo:       repos.NewTaskRepo(),
-		userRepo:       repos.NewUserRepo(),
-		emailClient:    emailClient,
-		cacheSvc:       NewCacheService(),
-		activityLogSvc: NewActivityLogService(),
-	}
+	return NewTaskService(
+		repos.NewTaskRepo(),
+		repos.NewUserRepo(),
+		emailClient,
+		NewCacheService(),
+		NewActivityLogServiceWithDefaults(),
+	)
 }
 
 // populateActivityLogUsers populates user details for activity logs
@@ -83,8 +101,7 @@ func (s *TaskService) populateActivityLogUsers(ctx context.Context, activityLogs
 	// Batch fetch missing users from MongoDB
 	if len(missingUserIDs) > 0 {
 		// Use batch get for efficiency
-		userRepo := repos.NewUserRepo()
-		items, err := userRepo.BatchGetItems(ctx, missingUserIDs)
+		items, err := s.userRepo.BatchGetItems(ctx, missingUserIDs)
 		if err != nil {
 			// Fallback to individual gets if batch fails
 			for _, userID := range missingUserIDs {
@@ -187,6 +204,19 @@ func (s *TaskService) GetAll(ctx context.Context, projectID string) ([]models.Ta
 	return tasks, nil
 }
 
+// GetAllWithUserDetails gets all tasks for a project with user details in assignTo field
+func (s *TaskService) GetAllWithUserDetails(ctx context.Context, projectID string) ([]models.TaskWithUserDetails, error) {
+	tasks, err := s.taskRepo.GetAllWithUserDetails(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	// Normalize statuses for all tasks
+	for i := range tasks {
+		s.normalizeTaskStatus(&tasks[i].Task)
+	}
+	return tasks, nil
+}
+
 // GetByID gets a task by ID with populated activity log user details
 // Optimized to use caching to reduce database reads
 func (s *TaskService) GetByID(ctx context.Context, projectID, taskID string) (*models.Task, error) {
@@ -219,6 +249,30 @@ func (s *TaskService) GetByID(ctx context.Context, projectID, taskID string) (*m
 	}
 
 	return &task, nil
+}
+
+// GetByIDWithUserDetails gets a task by ID with user details in assignTo field using aggregation
+func (s *TaskService) GetByIDWithUserDetails(ctx context.Context, projectID, taskID string) (*models.TaskWithUserDetails, error) {
+	task, err := s.taskRepo.GetByIDWithUserDetails(ctx, projectID, taskID)
+	if err != nil {
+		return nil, err
+	}
+	if task == nil {
+		return nil, nil
+	}
+
+	// Normalize task status
+	s.normalizeTaskStatus(&task.Task)
+
+	// Populate user details for activity logs
+	if len(task.ActivityLogs) > 0 {
+		populatedLogs, err := s.populateActivityLogUsers(ctx, task.ActivityLogs)
+		if err == nil {
+			task.ActivityLogs = populatedLogs
+		}
+	}
+
+	return task, nil
 }
 
 // Add creates a new task
@@ -303,6 +357,12 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 		existing = *fetchedTask
 		// Normalize existing status for comparison
 		s.normalizeTaskStatus(&existing)
+	}
+
+	// Validate that the projectId matches the existing task's projectId
+	// This prevents accidentally moving tasks between projects
+	if existing.ProjectID != task.ProjectID {
+		return errors.New("cannot change task projectId - task belongs to a different project")
 	}
 
 	// Track changes for activity log
@@ -576,7 +636,7 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 	if s.emailClient != nil {
 		// Capture updater ID before goroutine
 		updaterID := s.getUserIDFromContext(ctx)
-		
+
 		go func() {
 			// Get project details
 			projectRepo := repos.NewProjectRepo()
@@ -595,7 +655,7 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 				assignedUser, err := s.userRepo.GetByID(context.Background(), *existing.AssignTo)
 				if err == nil && assignedUser != nil {
 					message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
-					
+
 					notification := &models.Notification{
 						Title:             fmt.Sprintf("Task Status Updated: %s", existing.Subject),
 						Message:           message,
@@ -617,7 +677,7 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 				ownerUser, err := s.userRepo.GetByID(context.Background(), project.OwnerID)
 				if err == nil && ownerUser != nil {
 					message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
-					
+
 					title := fmt.Sprintf("Task Status Updated: %s", existing.Subject)
 					if err := s.emailClient.SendAlertEmail([]string{ownerUser.Email}, title, message, "info"); err != nil {
 						log.Printf("Failed to send task status update email to project owner: %v", err)
@@ -737,10 +797,10 @@ func (s *TaskService) AddTimeSpent(ctx context.Context, projectID, taskID string
 					// Convert minutes to hours
 					hours := float64(timeSpent.TimeSpent) / 60.0
 
-					message := fmt.Sprintf("Member %s has logged %.2f hours for task '%s' in project '%s' on %s.%s", 
-						memberUser.Name, 
+					message := fmt.Sprintf("Member %s has logged %.2f hours for task '%s' in project '%s' on %s.%s",
+						memberUser.Name,
 						hours,
-						task.Subject, 
+						task.Subject,
 						project.Title,
 						dateStr,
 						timeDescription)
@@ -994,4 +1054,10 @@ func (s *TaskService) ClaimTask(ctx context.Context, projectID, taskID, userID s
 func (s *TaskService) GetAssignableUsers(ctx context.Context) ([]models.User, error) {
 	userRepo := repos.NewUserRepo()
 	return userRepo.GetAll(ctx, nil)
+}
+
+// GetStatuses gets all task statuses from the database ordered by order field
+func (s *TaskService) GetStatuses(ctx context.Context) ([]map[string]interface{}, error) {
+	taskStatusRepo := repos.NewTaskStatusRepo()
+	return taskStatusRepo.GetAll(ctx)
 }

@@ -22,7 +22,7 @@ const (
 
 // TimeSpent represents time spent on a task
 type TimeSpent struct {
-	Date        string  `json:"date" firestore:"date" bson:"date"`           // ISO date string (YYYY-MM-DD)
+	Date        string  `json:"date" firestore:"date" bson:"date"`                // ISO date string (YYYY-MM-DD)
 	TimeSpent   int     `json:"timeSpent" firestore:"timeSpent" bson:"timeSpent"` // Time in minutes
 	UserID      string  `json:"userId" firestore:"userId" bson:"userId"`
 	Description *string `json:"description,omitempty" firestore:"description,omitempty" bson:"description,omitempty"`
@@ -80,8 +80,57 @@ type Task struct {
 	ActivityLogs    []ActivityLog    `json:"activityLogs" firestore:"activityLogs" bson:"activityLogs"`
 }
 
+// AssignToUser represents user details in assignTo field
+type AssignToUser struct {
+	ID   string `json:"id" bson:"id"`
+	Name string `json:"name" bson:"name"`
+}
+
 // TaskDetailResponse represents a task with assignee details
 type TaskDetailResponse struct {
 	Task
 	AssignDetail *User `json:"assignDetail,omitempty" firestore:"-"`
+}
+
+// TaskWithUserDetails represents a task with assignTo as an object containing user id and name
+type TaskWithUserDetails struct {
+	Task
+	AssignTo *AssignToUser `json:"assignTo,omitempty" bson:"assignTo,omitempty"`
+}
+
+// ToTaskWithUserDetails converts a Task to TaskWithUserDetails
+// If assignTo is a string (user ID), it will be set to nil (needs to be populated via aggregation)
+func (t *Task) ToTaskWithUserDetails() *TaskWithUserDetails {
+	return &TaskWithUserDetails{
+		Task:     *t,
+		AssignTo: nil, // Will be populated by aggregation
+	}
+}
+
+// ToTask converts TaskWithUserDetails back to Task
+func (twud *TaskWithUserDetails) ToTask() *Task {
+	task := twud.Task
+	// If AssignTo has user details, extract the ID
+	if twud.AssignTo != nil && twud.AssignTo.ID != "" {
+		task.AssignTo = &twud.AssignTo.ID
+	}
+	return &task
+}
+
+// ToTaskWithUserDetailsSlice converts a slice of Task to TaskWithUserDetails
+func ToTaskWithUserDetailsSlice(tasks []Task) []TaskWithUserDetails {
+	result := make([]TaskWithUserDetails, len(tasks))
+	for i := range tasks {
+		result[i] = *tasks[i].ToTaskWithUserDetails()
+	}
+	return result
+}
+
+// ToTaskSlice converts a slice of TaskWithUserDetails to Task
+func ToTaskSlice(tasks []TaskWithUserDetails) []Task {
+	result := make([]Task, len(tasks))
+	for i := range tasks {
+		result[i] = *tasks[i].ToTask()
+	}
+	return result
 }

@@ -9,14 +9,19 @@ import (
 
 // InfoPortalService handles info portal business logic
 type InfoPortalService struct {
-	infoPortalRepo *repos.InfoPortalRepo
+	infoPortalRepo repos.InfoPortalRepository
 }
 
-// NewInfoPortalService creates a new info portal service
-func NewInfoPortalService() *InfoPortalService {
+// NewInfoPortalService creates a new info portal service with dependency injection
+func NewInfoPortalService(infoPortalRepo repos.InfoPortalRepository) *InfoPortalService {
 	return &InfoPortalService{
-		infoPortalRepo: repos.NewInfoPortalRepo(),
+		infoPortalRepo: infoPortalRepo,
 	}
+}
+
+// NewInfoPortalServiceWithDefaults creates a new info portal service with default dependencies
+func NewInfoPortalServiceWithDefaults() *InfoPortalService {
+	return NewInfoPortalService(repos.NewInfoPortalRepo())
 }
 
 // Folder operations

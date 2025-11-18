@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/url"
 	"time"
 
@@ -17,12 +18,20 @@ type GoogleAccountHandler struct {
 	cfg                  *config.Config
 }
 
-// NewGoogleAccountHandler creates a new Google account handler
-func NewGoogleAccountHandler() *GoogleAccountHandler {
+// NewGoogleAccountHandler creates a new Google account handler with dependency injection
+func NewGoogleAccountHandler(googleAccountService *services.GoogleAccountService, cfg *config.Config) *GoogleAccountHandler {
 	return &GoogleAccountHandler{
-		googleAccountService: services.NewGoogleAccountService(),
-		cfg:                  config.AppConfig,
+		googleAccountService: googleAccountService,
+		cfg:                  cfg,
 	}
+}
+
+// NewGoogleAccountHandlerWithDefaults creates a new Google account handler with default dependencies
+func NewGoogleAccountHandlerWithDefaults() *GoogleAccountHandler {
+	return NewGoogleAccountHandler(
+		services.NewGoogleAccountServiceWithDefaults(),
+		config.AppConfig,
+	)
 }
 
 // LinkGoogleAccount links a Google account
@@ -126,7 +135,7 @@ func (h *GoogleAccountHandler) InitiateGoogleOAuth(c *gin.Context) {
 
 	authURL, err := h.googleAccountService.InitiateGoogleOAuth(userID, callbackURL)
 	if err != nil {
-		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Failed to generate OAuth URL"})
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to generate OAuth URL: %s", err.Error())})
 		return
 	}
 

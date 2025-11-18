@@ -12,11 +12,18 @@ type ProjectDetailsHandler struct {
 	projectDetailsService *services.ProjectDetailsService
 }
 
-// NewProjectDetailsHandler creates a new project details handler
-func NewProjectDetailsHandler() *ProjectDetailsHandler {
+// NewProjectDetailsHandler creates a new project details handler with dependency injection
+func NewProjectDetailsHandler(projectDetailsService *services.ProjectDetailsService) *ProjectDetailsHandler {
 	return &ProjectDetailsHandler{
-		projectDetailsService: services.NewProjectDetailsService(),
+		projectDetailsService: projectDetailsService,
 	}
+}
+
+// NewProjectDetailsHandlerWithDefaults creates a new project details handler with default dependencies
+func NewProjectDetailsHandlerWithDefaults() *ProjectDetailsHandler {
+	return NewProjectDetailsHandler(
+		services.NewProjectDetailsServiceWithDefaults(),
+	)
 }
 
 // Get gets project details

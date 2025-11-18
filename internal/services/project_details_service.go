@@ -10,14 +10,19 @@ import (
 
 // ProjectDetailsService handles project details business logic
 type ProjectDetailsService struct {
-	projectDetailsRepo *repos.ProjectDetailsRepo
+	projectDetailsRepo repos.ProjectDetailsRepository
 }
 
-// NewProjectDetailsService creates a new project details service
-func NewProjectDetailsService() *ProjectDetailsService {
+// NewProjectDetailsService creates a new project details service with dependency injection
+func NewProjectDetailsService(projectDetailsRepo repos.ProjectDetailsRepository) *ProjectDetailsService {
 	return &ProjectDetailsService{
-		projectDetailsRepo: repos.NewProjectDetailsRepo(),
+		projectDetailsRepo: projectDetailsRepo,
 	}
+}
+
+// NewProjectDetailsServiceWithDefaults creates a new project details service with default dependencies
+func NewProjectDetailsServiceWithDefaults() *ProjectDetailsService {
+	return NewProjectDetailsService(repos.NewProjectDetailsRepo())
 }
 
 // Get gets project details

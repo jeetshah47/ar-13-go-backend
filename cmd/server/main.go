@@ -111,8 +111,8 @@ func main() {
 }
 
 func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Config) {
-	// WebSocket endpoint
-	router.GET("/ws", handler.WebSocket.HandleConnection)
+	// SSE endpoint for real-time events
+	router.GET("/api/events", handler.SSE.HandleConnection)
 
 	api := router.Group("/api")
 
@@ -139,18 +139,19 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 		// User routes
 		users := protected.Group("/users")
 		{
-			users.GET("/all", middleware.RequireAdmin(), handler.User.GetAll)
+			users.GET("/all", handler.User.GetAll) // All authenticated users can view user list
 			users.POST("/invite", middleware.RequireAdmin(), handler.User.CreateInvitation)
 			users.PUT("/update", middleware.RequireAdmin(), handler.User.Update)
 			users.DELETE("/delete/:id", middleware.RequireAdmin(), handler.User.Delete)
 			users.GET("/profile/:id", handler.User.GetProfile)
+			users.GET("/permissions/:id", middleware.RequirePermission("users:read"), handler.User.GetUserPermissions)
 		}
 
 		// Project routes
 		projects := protected.Group("/project")
 		{
-			projects.GET("/all", middleware.RequirePermission("projects:read"), handler.Project.GetAll)
-			projects.GET("/all/statistics", middleware.RequirePermission("projects:read"), handler.Project.GetAllWithStatistics)
+			projects.GET("/all", handler.Project.GetAll)
+			projects.GET("/all/statistics", handler.Project.GetAllWithStatistics)
 			projects.GET("/:id", middleware.RequireProjectAccess(), handler.Project.GetOne)
 			projects.POST("/add", middleware.RequirePermission("projects:write"), handler.Project.Add)
 			projects.PUT("/update", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:write"), handler.Project.Update)
@@ -165,7 +166,7 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			tasks.GET("/detail/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.GetOneTaskDetail)
 			tasks.POST("/add", middleware.RequirePermission("tasks:write"), handler.Task.Add)
 			tasks.POST("/add-multiple", middleware.RequirePermission("tasks:write"), handler.Task.AddMultiple)
-			tasks.PUT("/update", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.Update)
+			tasks.PUT("/update/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.Update)
 			tasks.PUT("/update-deadline/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateDeadline)
 			tasks.PUT("/update-progress/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateProgress)
 			tasks.PUT("/update-description/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateDescription)

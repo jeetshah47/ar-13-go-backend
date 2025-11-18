@@ -30,7 +30,7 @@ func NewTaskRepo() *TaskRepo {
 
 // GetByID gets a task by ID
 func (r *TaskRepo) GetByID(ctx context.Context, projectID, taskID string) (*models.Task, error) {
-	// Query by id field - check both root level and nested "model.id" 
+	// Query by id field - check both root level and nested "model.id"
 	// (MongoDB may store embedded structs as nested objects)
 	filter := bson.M{
 		"$or": []bson.M{
@@ -69,15 +69,67 @@ func (r *TaskRepo) GetByID(ctx context.Context, projectID, taskID string) (*mode
 	return &task, nil
 }
 
+// GetByIDWithUserDetails gets a task by ID with user details in assignTo field
+func (r *TaskRepo) GetByIDWithUserDetails(ctx context.Context, projectID, taskID string) (*models.TaskWithUserDetails, error) {
+	// Fetch task normally
+	task, err := r.GetByID(ctx, projectID, taskID)
+	if err != nil {
+		return nil, err
+	}
+	if task == nil {
+		return nil, nil
+	}
+
+	// Create TaskWithUserDetails
+	taskWithDetails := models.TaskWithUserDetails{
+		Task: *task,
+	}
+
+	// Fetch user details if assignTo exists
+	if task.AssignTo != nil && *task.AssignTo != "" {
+		userRepo := NewUserRepo()
+		user, err := userRepo.GetByID(ctx, *task.AssignTo)
+		if err == nil && user != nil {
+			taskWithDetails.AssignTo = &models.AssignToUser{
+				ID:   user.ID,
+				Name: user.Name,
+			}
+		}
+	}
+
+	return &taskWithDetails, nil
+}
+
 // GetAll gets all tasks for a project
 func (r *TaskRepo) GetAll(ctx context.Context, projectID string) ([]models.Task, error) {
-	filter := bson.M{"projectId": projectID}
-	items, err := r.FindAll(ctx, filter, nil)
+	// Use the new method that returns TaskWithUserDetails
+	tasksWithDetails, err := r.GetAllWithUserDetails(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
+	// Convert to Task for backward compatibility
+	tasks := make([]models.Task, 0, len(tasksWithDetails))
+	for _, twud := range tasksWithDetails {
+		tasks = append(tasks, twud.Task)
+	}
+
+	return tasks, nil
+}
+
+// GetAllWithUserDetails gets all tasks for a project with user details in assignTo field
+func (r *TaskRepo) GetAllWithUserDetails(ctx context.Context, projectID string) ([]models.TaskWithUserDetails, error) {
+	// Fetch tasks normally (without aggregation)
+	filter := bson.M{"projectId": projectID}
+	items, err := r.FindAll(ctx, filter, nil, bson.M{"created": -1})
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to Task structs
 	tasks := make([]models.Task, 0, len(items))
+	userIDs := make(map[string]bool) // Collect unique user IDs for batch lookup
+
 	for _, item := range items {
 		var task models.Task
 		bsonBytes, _ := bson.Marshal(item)
@@ -85,9 +137,49 @@ func (r *TaskRepo) GetAll(ctx context.Context, projectID string) ([]models.Task,
 			continue
 		}
 		tasks = append(tasks, task)
+
+		// Collect assignTo user IDs
+		if task.AssignTo != nil && *task.AssignTo != "" {
+			userIDs[*task.AssignTo] = true
+		}
 	}
 
-	return tasks, nil
+	// Batch fetch user details
+	userRepo := NewUserRepo()
+	userIDSlice := make([]string, 0, len(userIDs))
+	for id := range userIDs {
+		userIDSlice = append(userIDSlice, id)
+	}
+
+	usersMap := make(map[string]*models.User)
+	if len(userIDSlice) > 0 {
+		users, err := userRepo.BatchGetItems(ctx, userIDSlice)
+		if err == nil {
+			usersMap = users
+		}
+	}
+
+	// Convert to TaskWithUserDetails with populated assignTo
+	result := make([]models.TaskWithUserDetails, 0, len(tasks))
+	for _, task := range tasks {
+		taskWithDetails := models.TaskWithUserDetails{
+			Task: task,
+		}
+
+		// Populate assignTo if user exists
+		if task.AssignTo != nil && *task.AssignTo != "" {
+			if user, ok := usersMap[*task.AssignTo]; ok && user != nil {
+				taskWithDetails.AssignTo = &models.AssignToUser{
+					ID:   user.ID,
+					Name: user.Name,
+				}
+			}
+		}
+
+		result = append(result, taskWithDetails)
+	}
+
+	return result, nil
 }
 
 // GetAllByProjectIDs gets all tasks for multiple projects (batch operation)
@@ -151,12 +243,12 @@ func (r *TaskRepo) Update(ctx context.Context, task *models.Task) error {
 	task.Updated = &now
 
 	updates := bson.M{
-		"subject":         task.Subject,
-		"code":            task.Code,
-		"status":          task.Status,
-		"deadline":        task.Deadline,
-		"priority":        task.Priority,
-		"projectId":       task.ProjectID,
+		"subject":  task.Subject,
+		"code":     task.Code,
+		"status":   task.Status,
+		"deadline": task.Deadline,
+		"priority": task.Priority,
+		// Note: projectId is intentionally excluded to prevent accidental project changes
 		"timeSpent":       task.TimeSpent,
 		"fileAttachments": task.FileAttachments,
 		"activityLogs":    task.ActivityLogs,
@@ -328,4 +420,3 @@ func (r *TaskRepo) GetFileAttachments(ctx context.Context, projectID, taskID str
 	}
 	return task.FileAttachments, nil
 }
-

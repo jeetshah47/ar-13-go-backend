@@ -43,7 +43,7 @@ const (
 	TaskGetOneDetail         = "/detail/:projectId/:taskId"
 	TaskAdd                  = "/add"
 	TaskAddMultiple          = "/add-multiple"
-	TaskUpdate               = "/update"
+	TaskUpdate               = "/update/:projectId/:taskId"
 	TaskUpdateDeadline       = "/update-deadline/:projectId/:taskId"
 	TaskUpdateProgress       = "/update-progress/:projectId/:taskId"
 	TaskUpdateDescription    = "/update-description/:projectId/:taskId"

@@ -17,26 +17,43 @@ import (
 
 // CalendarEventService handles calendar event business logic
 type CalendarEventService struct {
-	calendarRepo     *repos.CalendarEventRepo
-	userRepo         *repos.UserRepo
-	emailClient      *email.Client
+	calendarRepo     repos.CalendarEventRepository
+	userRepo         repos.UserRepository
+	emailClient      EmailClientInterface
 	googleAccountSvc *GoogleAccountService
-	cacheSvc         *CacheService
+	cacheSvc         CacheServiceInterface
 }
 
-// NewCalendarEventService creates a new calendar event service
-func NewCalendarEventService(cfg *config.Config) *CalendarEventService {
-	var emailClient *email.Client
+// NewCalendarEventService creates a new calendar event service with dependency injection
+func NewCalendarEventService(
+	calendarRepo repos.CalendarEventRepository,
+	userRepo repos.UserRepository,
+	emailClient EmailClientInterface,
+	googleAccountSvc *GoogleAccountService,
+	cacheSvc CacheServiceInterface,
+) *CalendarEventService {
+	return &CalendarEventService{
+		calendarRepo:     calendarRepo,
+		userRepo:         userRepo,
+		emailClient:      emailClient,
+		googleAccountSvc: googleAccountSvc,
+		cacheSvc:         cacheSvc,
+	}
+}
+
+// NewCalendarEventServiceWithDefaults creates a new calendar event service with default dependencies
+func NewCalendarEventServiceWithDefaults(cfg *config.Config) *CalendarEventService {
+	var emailClient EmailClientInterface
 	if cfg != nil {
 		emailClient = email.NewClient(cfg)
 	}
-	return &CalendarEventService{
-		calendarRepo:     repos.NewCalendarEventRepo(),
-		userRepo:         repos.NewUserRepo(),
-		emailClient:      emailClient,
-		googleAccountSvc: NewGoogleAccountService(),
-		cacheSvc:         NewCacheService(),
-	}
+	return NewCalendarEventService(
+		repos.NewCalendarEventRepo(),
+		repos.NewUserRepo(),
+		emailClient,
+		NewGoogleAccountServiceWithDefaults(),
+		NewCacheService(),
+	)
 }
 
 // GetByMonth gets calendar events for a month
