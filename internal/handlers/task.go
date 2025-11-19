@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -8,6 +11,7 @@ import (
 	"github.com/ar-13-go-backend/internal/constants"
 	"github.com/ar-13-go-backend/internal/middleware"
 	"github.com/ar-13-go-backend/internal/models"
+	"github.com/ar-13-go-backend/internal/repos"
 	"github.com/ar-13-go-backend/internal/services"
 	"github.com/ar-13-go-backend/pkg/sse"
 	"github.com/gin-gonic/gin"
@@ -18,6 +22,7 @@ type TaskHandler struct {
 	taskService          *services.TaskService
 	authorizationService *services.AuthorizationService
 	sseService           *sse.SSEService
+	notificationService  *services.NotificationService
 }
 
 // NewTaskHandler creates a new task handler with dependency injection
@@ -43,6 +48,11 @@ func NewTaskHandlerWithDefaults(cfg *config.Config) *TaskHandler {
 // SetSSEService sets the SSE service for broadcasting events
 func (h *TaskHandler) SetSSEService(sseService *sse.SSEService) {
 	h.sseService = sseService
+}
+
+// SetNotificationService sets the notification service
+func (h *TaskHandler) SetNotificationService(notificationService *services.NotificationService) {
+	h.notificationService = notificationService
 }
 
 // GetAll gets all tasks for a project with user details in assignTo field
@@ -343,7 +353,7 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	// Get project before update (for broadcasting)
+	// Get project before update (for notifications and broadcasting)
 	projectService := services.NewProjectServiceWithDefaults()
 	project, err := projectService.GetByID(c.Request.Context(), projectID)
 	if err != nil {
@@ -355,35 +365,97 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	// Get task before update to know old status
+	existingTask, err := h.taskService.GetByID(c.Request.Context(), projectID, taskID)
+	if err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "Failed to get existing task: " + err.Error()})
+		return
+	}
+	if existingTask == nil {
+		c.JSON(constants.StatusNotFound, gin.H{"error": "Task not found"})
+		return
+	}
+	oldStatus := existingTask.Status
+
 	// Update task status
 	if err := h.taskService.UpdateStatus(c.Request.Context(), projectID, taskID, normalizedStatus, req.Remark); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Get updated task for SSE event with user details
+	// Get updated task for notification with user details
 	task, err := h.taskService.GetByIDWithUserDetails(c.Request.Context(), projectID, taskID)
 	if err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": "Failed to get updated task: " + err.Error()})
 		return
 	}
 
-	// Send SSE events if SSE service is available
-	if h.sseService != nil {
-		// Prepare response data
-		response := map[string]interface{}{
-			"projectId": projectID,
-			"taskId":    taskID,
-			"status":    normalizedStatus,
-			"updatedBy": userID,
-			"task":      task,
+	// Create notifications in database and send via SSE for all project members
+	if h.notificationService != nil && h.sseService != nil {
+		log.Printf("[SSE-NOTIFICATION] Preparing to create notifications for task status update - projectId: %s, taskId: %s, oldStatus: %s, newStatus: %s, updatedBy: %s", projectID, taskID, oldStatus, normalizedStatus, userID)
+
+		// Collect all project member IDs (owner + members)
+		userIDs := make(map[string]bool)
+		userIDs[project.OwnerID] = true
+		for _, memberID := range project.MembersIDs {
+			userIDs[memberID] = true
 		}
 
-		// Send success event to the user who made the update
-		h.sseService.SendToUser(userID, "task:update-status:success", response)
+		// Get updater name for notification message
+		userRepo := repos.NewUserRepo()
+		updater, _ := userRepo.GetByID(context.Background(), userID)
+		updaterName := "Someone"
+		if updater != nil {
+			updaterName = updater.Name
+		}
 
-		// Broadcast to all project members
-		h.sseService.BroadcastToProjectMembersWithProject(project, "task:status-updated", response)
+		// Create notification for each project member and send notifications-available event via SSE
+		for memberUserID := range userIDs {
+			// Skip if status didn't change (already handled in service)
+			if oldStatus == normalizedStatus {
+				continue
+			}
+
+			message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s' by %s.", task.Subject, project.Title, oldStatus, normalizedStatus, updaterName)
+
+			notification := &models.Notification{
+				Title:             fmt.Sprintf("Task Status Updated: %s", task.Subject),
+				Message:           message,
+				Type:              models.NotificationTypeTaskUpdated,
+				UserID:            memberUserID,
+				RelatedEntityID:   taskID,
+				RelatedEntityType: models.RelatedEntityTypeTask,
+				IsRead:            false,
+			}
+
+			// Store notification in database first
+			if err := h.notificationService.CreateNotification(c.Request.Context(), notification); err != nil {
+				log.Printf("[SSE-NOTIFICATION] ERROR: Failed to create task status update notification for user %s: %v", memberUserID, err)
+				continue
+			}
+			log.Printf("[SSE-NOTIFICATION] Created task status update notification in database - notificationId: %s, taskId: %s, userId: %s, oldStatus: %s, newStatus: %s", notification.ID, taskID, memberUserID, oldStatus, normalizedStatus)
+
+			// Send simple notifications-available event via SSE (client will fetch notifications via API)
+			sseData := map[string]interface{}{
+				"userId": memberUserID,
+			}
+
+			log.Printf("[SSE-NOTIFICATION] Sending notifications-available event via SSE to user: %s", memberUserID)
+			if err := h.sseService.SendToUser(memberUserID, "notifications-available", sseData); err != nil {
+				log.Printf("[SSE-NOTIFICATION] ERROR: Failed to send notifications-available event via SSE to user %s: %v", memberUserID, err)
+			} else {
+				log.Printf("[SSE-NOTIFICATION] SUCCESS: Sent notifications-available event via SSE - userId: %s, type: notifications-available", memberUserID)
+			}
+		}
+
+		log.Printf("[SSE-NOTIFICATION] Completed creating and sending notifications for task status update - projectId: %s, taskId: %s, totalMembers: %d", projectID, taskID, len(userIDs))
+	} else {
+		if h.notificationService == nil {
+			log.Printf("[SSE-NOTIFICATION] WARNING: Notification service not available, skipping notifications for task status update")
+		}
+		if h.sseService == nil {
+			log.Printf("[SSE-NOTIFICATION] WARNING: SSE service not available, skipping SSE events for task status update")
+		}
 	}
 
 	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskStatusUpdated, "task": task})

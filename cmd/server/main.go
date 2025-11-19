@@ -292,6 +292,28 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			googleAccount.GET("/calendar/events", handler.GoogleAccount.GetGoogleCalendarEvents)
 		}
 
+		// Drawing List routes (Master Data)
+		drawingList := protected.Group("/drawing-list")
+		{
+			// Category routes
+			drawingList.GET("/categories", middleware.RequirePermission("drawingList:read"), handler.DrawingList.GetAllCategories)
+			drawingList.GET("/categories/:id", middleware.RequirePermission("drawingList:read"), handler.DrawingList.GetCategoryByID)
+			drawingList.POST("/categories", middleware.RequirePermission("drawingList:write"), handler.DrawingList.AddCategory)
+			drawingList.PUT("/categories/:id", middleware.RequirePermission("drawingList:write"), handler.DrawingList.UpdateCategory)
+			drawingList.DELETE("/categories/:id", middleware.RequirePermission("drawingList:delete"), handler.DrawingList.DeleteCategory)
+
+			// Type routes
+			drawingList.GET("/types", middleware.RequirePermission("drawingList:read"), handler.DrawingList.GetAllTypes)
+			drawingList.GET("/types/:id", middleware.RequirePermission("drawingList:read"), handler.DrawingList.GetTypeByID)
+			drawingList.GET("/types/category/:categoryId", middleware.RequirePermission("drawingList:read"), handler.DrawingList.GetTypesByCategoryID)
+			drawingList.POST("/types", middleware.RequirePermission("drawingList:write"), handler.DrawingList.AddType)
+			drawingList.PUT("/types/:id", middleware.RequirePermission("drawingList:write"), handler.DrawingList.UpdateType)
+			drawingList.DELETE("/types/:id", middleware.RequirePermission("drawingList:delete"), handler.DrawingList.DeleteType)
+
+			// Combined route
+			drawingList.GET("/categories-with-types", middleware.RequirePermission("drawingList:read"), handler.DrawingList.GetCategoriesWithTypes)
+		}
+
 	}
 
 	// Google OAuth callback (public - called by Google, not by authenticated user)

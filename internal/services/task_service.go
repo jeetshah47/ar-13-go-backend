@@ -503,21 +503,24 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 
 			// Store notification in database
 			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
-				log.Printf("Failed to create task update notification: %v", err)
+				log.Printf("[SSE-NOTIFICATION] ERROR: Failed to create task update notification: %v", err)
+			} else {
+				log.Printf("[SSE-NOTIFICATION] Created task update notification in database - notificationId: %s, taskId: %s, userId: %s", notification.ID, task.ID, *task.AssignTo)
 			}
 
-			// Send notification via SSE
+			// Send simple notifications-available event via SSE (client will fetch notifications via API)
 			if s.sseService != nil {
+				log.Printf("[SSE-NOTIFICATION] Preparing to send notifications-available event via SSE - taskId: %s, userId: %s", task.ID, *task.AssignTo)
 				sseData := map[string]interface{}{
-					"notification": notification,
-					"taskId":       task.ID,
-					"projectId":    task.ProjectID,
-					"projectTitle": projectTitle,
-					"updaterName":  updaterName,
+					"userId": *task.AssignTo,
 				}
-				if err := s.sseService.SendToUser(*task.AssignTo, "notification", sseData); err != nil {
-					log.Printf("Failed to send task update notification via SSE: %v", err)
+				if err := s.sseService.SendToUser(*task.AssignTo, "notifications-available", sseData); err != nil {
+					log.Printf("[SSE-NOTIFICATION] ERROR: Failed to send notifications-available event via SSE to user %s: %v", *task.AssignTo, err)
+				} else {
+					log.Printf("[SSE-NOTIFICATION] SUCCESS: Sent notifications-available event via SSE - taskId: %s, userId: %s, type: notifications-available", task.ID, *task.AssignTo)
 				}
+			} else {
+				log.Printf("[SSE-NOTIFICATION] WARNING: SSE service not available, skipping notifications-available event - taskId: %s, userId: %s", task.ID, *task.AssignTo)
 			}
 		}()
 	}
@@ -659,95 +662,8 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 		"newStatus": status,
 	})
 
-	// Send notifications for status update via SSE and store in database (non-blocking)
-	if s.notificationSvc != nil {
-		// Capture updater ID before goroutine
-		updaterID := s.getUserIDFromContext(ctx)
-
-		go func() {
-			// Get project details
-			projectRepo := repos.NewProjectRepo()
-			project, err := projectRepo.GetByID(context.Background(), projectID)
-			if err != nil {
-				log.Printf("Failed to get project for status update notification: %v", err)
-			}
-
-			projectTitle := "the project"
-			if project != nil {
-				projectTitle = project.Title
-			}
-
-			// Notify assigned member if task is assigned
-			if existing.AssignTo != nil && *existing.AssignTo != "" {
-				message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
-
-				notification := &models.Notification{
-					Title:             fmt.Sprintf("Task Status Updated: %s", existing.Subject),
-					Message:           message,
-					Type:              models.NotificationTypeTaskUpdated,
-					UserID:            *existing.AssignTo,
-					RelatedEntityID:   taskID,
-					RelatedEntityType: models.RelatedEntityTypeTask,
-					IsRead:            false,
-				}
-
-				// Store notification in database
-				if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
-					log.Printf("Failed to create task status update notification for assigned member: %v", err)
-				}
-
-				// Send notification via SSE
-				if s.sseService != nil {
-					sseData := map[string]interface{}{
-						"notification": notification,
-						"taskId":       taskID,
-						"projectId":    projectID,
-						"projectTitle": projectTitle,
-						"oldStatus":    existing.Status,
-						"newStatus":    status,
-					}
-					if err := s.sseService.SendToUser(*existing.AssignTo, "notification", sseData); err != nil {
-						log.Printf("Failed to send task status update notification via SSE to assigned member: %v", err)
-					}
-				}
-			}
-
-			// Notify project owner (skip if owner is the one who made the change)
-			if project != nil && project.OwnerID != "" && updaterID != project.OwnerID {
-				message := fmt.Sprintf("The status of task '%s' in project '%s' has been updated from '%s' to '%s'.", existing.Subject, projectTitle, existing.Status, status)
-
-				notification := &models.Notification{
-					Title:             fmt.Sprintf("Task Status Updated: %s", existing.Subject),
-					Message:           message,
-					Type:              models.NotificationTypeTaskUpdated,
-					UserID:            project.OwnerID,
-					RelatedEntityID:   taskID,
-					RelatedEntityType: models.RelatedEntityTypeTask,
-					IsRead:            false,
-				}
-
-				// Store notification in database
-				if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
-					log.Printf("Failed to create task status update notification for project owner: %v", err)
-				}
-
-				// Send notification via SSE
-				if s.sseService != nil {
-					sseData := map[string]interface{}{
-						"notification": notification,
-						"taskId":       taskID,
-						"projectId":    projectID,
-						"projectTitle": projectTitle,
-						"oldStatus":    existing.Status,
-						"newStatus":    status,
-					}
-					if err := s.sseService.SendToUser(project.OwnerID, "notification", sseData); err != nil {
-						log.Printf("Failed to send task status update notification via SSE to project owner: %v", err)
-					}
-				}
-			}
-		}()
-	}
+	// Note: Notifications for task status updates are now handled in the handler
+	// to ensure all project members receive notifications and avoid duplicates
 
 	// Invalidate caches that depend on task status
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
@@ -877,24 +793,24 @@ func (s *TaskService) AddTimeSpent(ctx context.Context, projectID, taskID string
 
 				// Store notification in database
 				if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
-					log.Printf("Failed to create time log notification: %v", err)
+					log.Printf("[SSE-NOTIFICATION] ERROR: Failed to create time log notification: %v", err)
+				} else {
+					log.Printf("[SSE-NOTIFICATION] Created time log notification in database - notificationId: %s, taskId: %s, userId: %s, hours: %.2f, date: %s", notification.ID, taskID, project.OwnerID, hours, dateStr)
 				}
 
-				// Send notification via SSE
+				// Send simple notifications-available event via SSE (client will fetch notifications via API)
 				if s.sseService != nil {
+					log.Printf("[SSE-NOTIFICATION] Preparing to send notifications-available event via SSE - taskId: %s, userId: %s", taskID, project.OwnerID)
 					sseData := map[string]interface{}{
-						"notification":    notification,
-						"taskId":          taskID,
-						"projectId":       projectID,
-						"projectTitle":    project.Title,
-						"memberName":      memberUser.Name,
-						"hours":           hours,
-						"date":            dateStr,
-						"timeDescription": timeDescription,
+						"userId": project.OwnerID,
 					}
-					if err := s.sseService.SendToUser(project.OwnerID, "notification", sseData); err != nil {
-						log.Printf("Failed to send time log notification via SSE: %v", err)
+					if err := s.sseService.SendToUser(project.OwnerID, "notifications-available", sseData); err != nil {
+						log.Printf("[SSE-NOTIFICATION] ERROR: Failed to send notifications-available event via SSE to project owner %s: %v", project.OwnerID, err)
+					} else {
+						log.Printf("[SSE-NOTIFICATION] SUCCESS: Sent notifications-available event via SSE - taskId: %s, userId: %s, type: notifications-available", taskID, project.OwnerID)
 					}
+				} else {
+					log.Printf("[SSE-NOTIFICATION] WARNING: SSE service not available, skipping notifications-available event - taskId: %s, userId: %s", taskID, project.OwnerID)
 				}
 			}
 		}()
@@ -1118,20 +1034,24 @@ func (s *TaskService) AssignTask(ctx context.Context, projectID, taskID, userID 
 
 			// Store notification in database
 			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
-				log.Printf("Failed to create task assignment notification: %v", err)
+				log.Printf("[SSE-NOTIFICATION] ERROR: Failed to create task assignment notification: %v", err)
+			} else {
+				log.Printf("[SSE-NOTIFICATION] Created task assignment notification in database - notificationId: %s, taskId: %s, userId: %s", notification.ID, taskID, userID)
 			}
 
-			// Send notification via SSE
+			// Send simple notifications-available event via SSE (client will fetch notifications via API)
 			if s.sseService != nil {
+				log.Printf("[SSE-NOTIFICATION] Preparing to send notifications-available event via SSE - taskId: %s, userId: %s", taskID, userID)
 				sseData := map[string]interface{}{
-					"notification": notification,
-					"taskId":       taskID,
-					"projectId":    projectID,
-					"projectTitle": projectTitle,
+					"userId": userID,
 				}
-				if err := s.sseService.SendToUser(userID, "notification", sseData); err != nil {
-					log.Printf("Failed to send task assignment notification via SSE: %v", err)
+				if err := s.sseService.SendToUser(userID, "notifications-available", sseData); err != nil {
+					log.Printf("[SSE-NOTIFICATION] ERROR: Failed to send notifications-available event via SSE to user %s: %v", userID, err)
+				} else {
+					log.Printf("[SSE-NOTIFICATION] SUCCESS: Sent notifications-available event via SSE - taskId: %s, userId: %s, type: notifications-available", taskID, userID)
 				}
+			} else {
+				log.Printf("[SSE-NOTIFICATION] WARNING: SSE service not available, skipping notifications-available event - taskId: %s, userId: %s", taskID, userID)
 			}
 		}()
 	}

@@ -21,6 +21,7 @@ type Handler struct {
 	ProjectDetails *ProjectDetailsHandler
 	ActivityLog    *ActivityLogHandler
 	GoogleAccount  *GoogleAccountHandler
+	DrawingList    *DrawingListHandler
 }
 
 // NewHandler creates a new handler instance
@@ -39,8 +40,9 @@ func NewHandler(cfg *config.Config) *Handler {
 	// Create handlers with dependency injection
 	projectHandler := NewProjectHandlerWithDefaults()
 	taskHandler := NewTaskHandlerWithDefaults(cfg)
-	// Pass SSE service to task handler for event broadcasting
+	// Pass SSE service and notification service to task handler for event broadcasting
 	taskHandler.SetSSEService(sseHandler.GetSSEService())
+	taskHandler.SetNotificationService(notificationService)
 
 	return &Handler{
 		SSE:            sseHandler,
@@ -57,5 +59,6 @@ func NewHandler(cfg *config.Config) *Handler {
 		ProjectDetails: NewProjectDetailsHandlerWithDefaults(),
 		ActivityLog:    NewActivityLogHandlerWithDefaults(),
 		GoogleAccount:  NewGoogleAccountHandlerWithDefaults(),
+		DrawingList:    NewDrawingListHandlerWithDefaults(),
 	}
 }
