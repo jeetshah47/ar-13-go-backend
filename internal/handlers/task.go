@@ -2,9 +2,12 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ar-13-go-backend/internal/config"
@@ -23,6 +26,8 @@ type TaskHandler struct {
 	authorizationService *services.AuthorizationService
 	sseService           *sse.SSEService
 	notificationService  *services.NotificationService
+	storageService       services.StorageServiceInterface
+	cfg                  *config.Config
 }
 
 // NewTaskHandler creates a new task handler with dependency injection
@@ -39,10 +44,12 @@ func NewTaskHandler(
 // NewTaskHandlerWithDefaults creates a new task handler with default implementations
 // This is a convenience constructor for backward compatibility
 func NewTaskHandlerWithDefaults(cfg *config.Config) *TaskHandler {
-	return NewTaskHandler(
+	handler := NewTaskHandler(
 		services.NewTaskServiceWithDefaults(cfg),
 		services.NewAuthorizationServiceWithDefaults(),
 	)
+	handler.cfg = cfg
+	return handler
 }
 
 // SetSSEService sets the SSE service for broadcasting events
@@ -53,6 +60,11 @@ func (h *TaskHandler) SetSSEService(sseService *sse.SSEService) {
 // SetNotificationService sets the notification service
 func (h *TaskHandler) SetNotificationService(notificationService *services.NotificationService) {
 	h.notificationService = notificationService
+}
+
+// SetStorageService sets the storage service
+func (h *TaskHandler) SetStorageService(storageService services.StorageServiceInterface) {
+	h.storageService = storageService
 }
 
 // GetAll gets all tasks for a project with user details in assignTo field
@@ -77,6 +89,43 @@ func (h *TaskHandler) GetAllTaskDetail(c *gin.Context) {
 	c.JSON(constants.StatusOK, gin.H{"tasks": tasks})
 }
 
+// convertFileAttachmentsToResponse converts FileAttachment slice to FileAttachmentResponse slice with token-based URLs
+// It generates signed tokens and URLs pointing to filebrowser service's access endpoint
+func (h *TaskHandler) convertFileAttachmentsToResponse(c *gin.Context, attachments []models.FileAttachment) []models.FileAttachmentResponse {
+	responses := make([]models.FileAttachmentResponse, 0, len(attachments))
+
+	for _, attachment := range attachments {
+		response := models.FileAttachmentResponse{
+			FileName:     attachment.FileName,
+			OriginalName: attachment.OriginalName,
+			FileSize:     attachment.FileSize,
+			MimeType:     attachment.MimeType,
+			UploadDate:   attachment.UploadDate,
+			UploadedBy:   attachment.UploadedBy,
+			FileURL:      attachment.FileURL, // Keep original relative path
+		}
+
+		// Generate direct URLs to filebrowser service if configured
+		// Frontend will use JWT tokens to authenticate
+		if h.storageService != nil && h.storageService.IsInitialized() && attachment.FileURL != "" {
+			if h.cfg != nil && h.cfg.FileBrowserServiceURL != "" {
+				// Build direct URL to filebrowser service
+				filebrowserURL := strings.TrimSuffix(h.cfg.FileBrowserServiceURL, "/")
+				previewURL := filebrowserURL + "/api/download?path=" + url.QueryEscape(attachment.FileURL)
+				response.PreviewURL = &previewURL
+
+				// Same for download URL
+				downloadURL := filebrowserURL + "/api/download?path=" + url.QueryEscape(attachment.FileURL)
+				response.DownloadURL = &downloadURL
+			}
+		}
+
+		responses = append(responses, response)
+	}
+
+	return responses
+}
+
 // GetOneTaskDetail gets one task detail with user details in assignTo field
 func (h *TaskHandler) GetOneTaskDetail(c *gin.Context) {
 	projectID := c.Param("projectId")
@@ -90,7 +139,32 @@ func (h *TaskHandler) GetOneTaskDetail(c *gin.Context) {
 		c.JSON(constants.StatusNotFound, gin.H{"error": constants.MsgTaskNotFound})
 		return
 	}
-	c.JSON(constants.StatusOK, gin.H{"task": task})
+
+	// Build response with converted file attachments that include pre-signed URLs
+	response := gin.H{
+		"task": task,
+	}
+
+	// Convert file attachments to include pre-signed URLs
+	if task.FileAttachments != nil && len(task.FileAttachments) > 0 {
+		fileAttachmentsResponse := h.convertFileAttachmentsToResponse(c, task.FileAttachments)
+		// Create a new task map with converted file attachments
+		taskMap := make(map[string]interface{})
+		// Convert task to map (we'll use JSON marshaling/unmarshaling for simplicity)
+		taskJSON, err := json.Marshal(task)
+		if err == nil {
+			if err := json.Unmarshal(taskJSON, &taskMap); err == nil {
+				taskMap["fileAttachments"] = fileAttachmentsResponse
+				response["task"] = taskMap
+			} else {
+				log.Printf("Warning: Failed to unmarshal task JSON: %v", err)
+			}
+		} else {
+			log.Printf("Warning: Failed to marshal task to JSON: %v", err)
+		}
+	}
+
+	c.JSON(constants.StatusOK, response)
 }
 
 // Add adds a new task
@@ -600,10 +674,79 @@ func (h *TaskHandler) AddFileAttachment(c *gin.Context) {
 		return
 	}
 
-	// TODO: Handle file upload (multipart form)
 	var attachment models.FileAttachment
-	if err := c.ShouldBindJSON(&attachment); err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+
+	// Option 1: Upload new file (multipart form)
+	if file, err := c.FormFile("file"); err == nil {
+		// Handle file upload
+		path := c.DefaultPostForm("path", "")
+		objectName := file.Filename
+		if path != "" {
+			objectName = path + "/" + file.Filename
+		}
+
+		src, err := file.Open()
+		if err != nil {
+			c.JSON(constants.StatusInternalServerError, gin.H{"error": "failed to open file"})
+			return
+		}
+		defer src.Close()
+
+		// Upload to MinIO if storage service is available and initialized
+		if h.storageService != nil && h.storageService.IsInitialized() {
+			contentType := file.Header.Get("Content-Type")
+			if contentType == "" {
+				contentType = "application/octet-stream"
+			}
+
+			err = h.storageService.UploadFile(
+				c.Request.Context(),
+				objectName,
+				src,
+				file.Size,
+				contentType,
+			)
+			if err != nil {
+				c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		attachment = models.FileAttachment{
+			FileName:     file.Filename,
+			OriginalName: file.Filename,
+			FileSize:     file.Size,
+			MimeType:     file.Header.Get("Content-Type"),
+			UploadDate:   time.Now(),
+			UploadedBy:   userID,
+			FileURL:      objectName, // Store the path, generate URL when needed
+		}
+	} else {
+		// Option 2: Link existing file from NAS (JSON body with path)
+		// Just save the path to database - no file validation needed
+		// The file is assumed to exist on NAS
+		if err := c.ShouldBindJSON(&attachment); err != nil {
+			c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Validate that FileURL is provided
+		if attachment.FileURL == "" {
+			c.JSON(constants.StatusBadRequest, gin.H{"error": "FileURL is required when linking a file"})
+			return
+		}
+
+		// Set upload info
+		attachment.UploadDate = time.Now()
+		attachment.UploadedBy = userID
+
+		// Use LinkFileAttachment to ensure only one linked file per task
+		if err := h.taskService.LinkFileAttachment(c.Request.Context(), projectID, taskID, attachment); err != nil {
+			c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(constants.StatusOK, gin.H{"message": constants.MsgFileAttachmentAdded})
 		return
 	}
 
@@ -658,7 +801,10 @@ func (h *TaskHandler) GetFileAttachments(c *gin.Context) {
 		c.JSON(constants.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(constants.StatusOK, gin.H{"fileAttachments": attachments})
+
+	// Convert to response format with pre-signed URLs
+	responseAttachments := h.convertFileAttachmentsToResponse(c, attachments)
+	c.JSON(constants.StatusOK, gin.H{"fileAttachments": responseAttachments})
 }
 
 // GetActivityLogs gets activity logs

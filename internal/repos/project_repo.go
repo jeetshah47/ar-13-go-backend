@@ -2,7 +2,10 @@ package repos
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/pkg/mongodb"
@@ -92,12 +95,44 @@ func (r *ProjectRepo) GetAll(ctx context.Context, limit *int) ([]models.Project,
 	return projects, nil
 }
 
+// generateProjectCode generates a project code in the format mmyy-title
+func generateProjectCode(title string) string {
+	now := time.Now()
+	month := fmt.Sprintf("%02d", int(now.Month()))
+	year := fmt.Sprintf("%02d", now.Year()%100)
+	
+	// Convert title to URL-friendly format: lowercase, replace spaces with hyphens, remove special chars
+	titleSlug := strings.ToLower(title)
+	titleSlug = strings.TrimSpace(titleSlug)
+	
+	// Replace spaces and special characters with hyphens
+	var builder strings.Builder
+	lastWasHyphen := false
+	for _, r := range titleSlug {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			builder.WriteRune(r)
+			lastWasHyphen = false
+		} else if (r == ' ' || r == '-' || r == '_') && !lastWasHyphen {
+			builder.WriteRune('-')
+			lastWasHyphen = true
+		}
+	}
+	titleSlug = strings.Trim(builder.String(), "-")
+	
+	return fmt.Sprintf("%s%s-%s", month, year, titleSlug)
+}
+
 // Add creates a new project
 func (r *ProjectRepo) Add(ctx context.Context, project *models.Project) error {
 	if project.ID == "" {
 		project.ID = uuid.New().String()
 	}
 	project.Created = time.Now()
+	
+	// Generate code if not provided
+	if project.Code == "" {
+		project.Code = generateProjectCode(project.Title)
+	}
 
 	return r.InsertOne(ctx, project)
 }
@@ -113,6 +148,7 @@ func (r *ProjectRepo) Update(ctx context.Context, project *models.Project) error
 		"ownerId":     project.OwnerID,
 		"membersIds":  project.MembersIDs,
 		"deadLine":    project.Deadline,
+		"code":        project.Code,
 		"updated":     project.Updated,
 	}
 
@@ -125,8 +161,21 @@ func (r *ProjectRepo) Update(ctx context.Context, project *models.Project) error
 	if project.LogoURL != nil {
 		updates["logoUrl"] = *project.LogoURL
 	}
+	if project.AgencyContact != nil {
+		updates["agencyContact"] = project.AgencyContact
+	}
 
 	return r.UpdateOne(ctx, project.ID, updates)
+}
+
+// UpdateAgencyContact updates only the agency contact for a project
+func (r *ProjectRepo) UpdateAgencyContact(ctx context.Context, projectID string, agencyContact *models.AgencyContact) error {
+	now := time.Now()
+	updates := bson.M{
+		"agencyContact": agencyContact,
+		"updated":       &now,
+	}
+	return r.UpdateOne(ctx, projectID, updates)
 }
 
 // Delete deletes a project

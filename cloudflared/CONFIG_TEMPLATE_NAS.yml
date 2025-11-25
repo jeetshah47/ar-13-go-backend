@@ -1,0 +1,20 @@
+# Cloudflare Tunnel Configuration for NAS
+# Copy this file to /Container/cloudflared/config.yml on your NAS
+# Replace YOUR_TUNNEL_ID_HERE with your actual tunnel ID (the UUID in your credentials filename)
+
+tunnel: YOUR_TUNNEL_ID_HERE
+# Use the actual filename of your credentials file (usually <tunnel-id>.json)
+credentials-file: /etc/cloudflared/YOUR_TUNNEL_ID_HERE.json
+origincert: /etc/cloudflared/cert.pem
+
+# Ingress rules - define how traffic is routed
+ingress:
+  # Route all traffic from your domain to your service
+  # Replace filebrowser.yourdomain.com with your actual hostname
+  # Replace http://filebrowser-service:8082 with your actual service URL
+  - hostname: filebrowser.yourdomain.com
+    service: http://filebrowser-service:8082
+  
+  # Catch-all rule (must be last)
+  - service: http_status:404
+

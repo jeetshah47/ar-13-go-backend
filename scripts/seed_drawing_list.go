@@ -26,33 +26,13 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/config"
+	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/pkg/mongodb"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-type DrawingCategoryDocument struct {
-	ID          string     `bson:"id" json:"id"`
-	Name        string     `bson:"name" json:"name"`
-	Description string     `bson:"description" json:"description"`
-	Order       int        `bson:"order" json:"order"`
-	IsActive    bool       `bson:"isActive" json:"isActive"`
-	Created     time.Time  `bson:"created" json:"created"`
-	Updated     *time.Time `bson:"updated,omitempty" json:"updated,omitempty"`
-}
-
-type DrawingTypeDocument struct {
-	ID          string     `bson:"id" json:"id"`
-	CategoryID  string     `bson:"categoryId" json:"categoryId"`
-	Name        string     `bson:"name" json:"name"`
-	Description string     `bson:"description" json:"description"`
-	Order       int        `bson:"order" json:"order"`
-	IsActive    bool       `bson:"isActive" json:"isActive"`
-	Created     time.Time  `bson:"created" json:"created"`
-	Updated     *time.Time `bson:"updated,omitempty" json:"updated,omitempty"`
-}
 
 func main() {
 	// Parse command-line flags
@@ -125,49 +105,62 @@ func main() {
 
 	// Define drawing categories
 	now := time.Now()
-	categories := []DrawingCategoryDocument{
+	categories := []models.DrawingCategory{
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil, // Updated is optional, set to nil initially
+			},
 			Name:        "Architectural Drawings",
 			Description: "Technical drawings of buildings and structures",
 			Order:       1,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil, // Updated is optional, set to nil initially
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			Name:        "Structural Drawings",
 			Description: "Drawings showing structural elements and systems",
 			Order:       2,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			Name:        "MEP Drawings",
 			Description: "Mechanical, Electrical, and Plumbing drawings",
 			Order:       3,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			Name:        "Site Plans",
 			Description: "Drawings showing site layout and landscape",
 			Order:       4,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 	}
 
-	// Create index on 'id' field for categories
+	// Create sparse unique index on 'id' field for categories
+	// Sparse index allows multiple documents with null/missing id values
+	// but enforces uniqueness when id is present
 	categoryIndexModel := mongo.IndexModel{
-		Keys:    bson.D{{Key: "id", Value: 1}},
-		Options: options.Index().SetUnique(true).SetName("id_unique"),
+		Keys: bson.D{{Key: "id", Value: 1}},
+		Options: options.Index().
+			SetUnique(true).
+			SetSparse(true).
+			SetName("id_unique"),
 	}
 	_, err = categoryCollection.Indexes().CreateOne(ctx, categoryIndexModel)
 	if err != nil {
@@ -181,12 +174,13 @@ func main() {
 
 	for _, category := range categories {
 		// Find existing category by name (for force update)
-		var existingCategory DrawingCategoryDocument
+		var existingCategory models.DrawingCategory
 		err := categoryCollection.FindOne(ctx, bson.M{"name": category.Name}).Decode(&existingCategory)
 		if err == nil && existingCategory.ID != "" {
 			// Update existing
 			category.ID = existingCategory.ID
 			updateTime := time.Now()
+			category.Updated = &updateTime
 			filter := bson.M{"id": category.ID}
 			update := bson.M{
 				"$set": bson.M{
@@ -194,7 +188,7 @@ func main() {
 					"description": category.Description,
 					"order":       category.Order,
 					"isActive":    category.IsActive,
-					"updated":     updateTime,
+					"updated":     category.Updated,
 				},
 			}
 			opts := options.Update()
@@ -223,137 +217,166 @@ func main() {
 	log.Println("")
 
 	// Define drawing types (mapped to categories)
-	types := []DrawingTypeDocument{
+	types := []models.DrawingType{
 		// Architectural Drawings
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["Architectural Drawings"],
 			Name:        "Floor Plans",
 			Description: "Horizontal cross-section views of buildings",
 			Order:       1,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["Architectural Drawings"],
 			Name:        "Elevations",
 			Description: "Exterior views of building facades",
 			Order:       2,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["Architectural Drawings"],
 			Name:        "Sections",
 			Description: "Vertical cross-section views",
 			Order:       3,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["Architectural Drawings"],
 			Name:        "Details",
 			Description: "Detailed drawings of specific building components",
 			Order:       4,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		// Structural Drawings
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["Structural Drawings"],
 			Name:        "Foundation Plans",
 			Description: "Drawings showing foundation layout and details",
 			Order:       1,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["Structural Drawings"],
 			Name:        "Framing Plans",
 			Description: "Drawings showing structural framing systems",
 			Order:       2,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["Structural Drawings"],
 			Name:        "Reinforcement Details",
 			Description: "Details of steel reinforcement in concrete",
 			Order:       3,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		// MEP Drawings
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["MEP Drawings"],
 			Name:        "Mechanical Plans",
 			Description: "HVAC and mechanical system drawings",
 			Order:       1,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["MEP Drawings"],
 			Name:        "Electrical Plans",
 			Description: "Electrical system and wiring diagrams",
 			Order:       2,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["MEP Drawings"],
 			Name:        "Plumbing Plans",
 			Description: "Plumbing system and fixture layouts",
 			Order:       3,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		// Site Plans
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["Site Plans"],
 			Name:        "Site Layout",
 			Description: "Overall site plan showing building placement",
 			Order:       1,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 		{
-			ID:          uuid.New().String(),
+			Model: models.Model{
+				ID:      uuid.New().String(),
+				Created: now,
+				Updated: nil,
+			},
 			CategoryID:  categoryMap["Site Plans"],
 			Name:        "Landscape Plans",
 			Description: "Landscaping and outdoor space design",
 			Order:       2,
 			IsActive:    true,
-			Created:     now,
-			Updated:     nil,
 		},
 	}
 
-	// Create index on 'id' field for types
+	// Create sparse unique index on 'id' field for types
+	// Sparse index allows multiple documents with null/missing id values
+	// but enforces uniqueness when id is present
 	typeIndexModel := mongo.IndexModel{
-		Keys:    bson.D{{Key: "id", Value: 1}},
-		Options: options.Index().SetUnique(true).SetName("id_unique"),
+		Keys: bson.D{{Key: "id", Value: 1}},
+		Options: options.Index().
+			SetUnique(true).
+			SetSparse(true).
+			SetName("id_unique"),
 	}
 	_, err = typeCollection.Indexes().CreateOne(ctx, typeIndexModel)
 	if err != nil {
@@ -376,12 +399,13 @@ func main() {
 
 	for _, drawingType := range types {
 		// Find existing type by name and categoryId (for force update)
-		var existingType DrawingTypeDocument
+		var existingType models.DrawingType
 		err := typeCollection.FindOne(ctx, bson.M{"name": drawingType.Name, "categoryId": drawingType.CategoryID}).Decode(&existingType)
 		if err == nil && existingType.ID != "" {
 			// Update existing
 			updateTime := time.Now()
 			drawingType.ID = existingType.ID
+			drawingType.Updated = &updateTime
 			filter := bson.M{"id": drawingType.ID}
 			update := bson.M{
 				"$set": bson.M{
@@ -390,7 +414,7 @@ func main() {
 					"description": drawingType.Description,
 					"order":       drawingType.Order,
 					"isActive":    drawingType.IsActive,
-					"updated":     updateTime,
+					"updated":     drawingType.Updated,
 				},
 			}
 			opts := options.Update()

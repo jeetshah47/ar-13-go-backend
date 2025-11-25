@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ar-13-go-backend/internal/config"
+	"github.com/ar-13-go-backend/internal/constants"
 	"github.com/ar-13-go-backend/internal/handlers"
 	"github.com/ar-13-go-backend/internal/middleware"
 	"github.com/ar-13-go-backend/pkg/cache"
@@ -155,6 +156,7 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			projects.GET("/:id", middleware.RequireProjectAccess(), handler.Project.GetOne)
 			projects.POST("/add", middleware.RequirePermission("projects:write"), handler.Project.Add)
 			projects.PUT("/update", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:write"), handler.Project.Update)
+			projects.PUT("/:id/agency-contact", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:write"), handler.Project.UpdateAgencyContact)
 			projects.DELETE("/delete/:id", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:delete"), handler.Project.Delete)
 		}
 
@@ -279,6 +281,9 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			activityLog.GET("/entity/:entityType/:entityId", middleware.RequirePermission("activityLogs:read"), handler.ActivityLog.GetByEntity)
 			activityLog.GET("/entity-type/:entityType", middleware.RequirePermission("activityLogs:read"), handler.ActivityLog.GetByEntityType)
 			activityLog.GET("/entity-types", handler.ActivityLog.GetEntityTypes)
+			// Activity Log Reply routes - using body payload
+			activityLog.POST("/replies/get", middleware.RequirePermission("activityLogs:read"), handler.ActivityLogReply.GetReplies)
+			activityLog.POST("/replies", middleware.RequirePermission("activityLogs:write"), handler.ActivityLogReply.CreateReply)
 		}
 
 		// Google Account routes
@@ -312,6 +317,15 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 
 			// Combined route
 			drawingList.GET("/categories-with-types", middleware.RequirePermission("drawingList:read"), handler.DrawingList.GetCategoriesWithTypes)
+		}
+
+		// Storage routes
+		storage := protected.Group(constants.StorageBase)
+		{
+			storage.GET(constants.StorageListFiles, handler.Storage.ListFiles)
+			storage.GET(constants.StorageGetFileURL, handler.Storage.GetFileURL)
+			storage.GET(constants.StorageDownload, handler.Storage.DownloadFile)
+			storage.POST(constants.StorageUpload, handler.Storage.UploadFile)
 		}
 
 	}

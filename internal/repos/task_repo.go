@@ -66,6 +66,25 @@ func (r *TaskRepo) GetByID(ctx context.Context, projectID, taskID string) (*mode
 		return nil, err
 	}
 
+	// Populate DrawingInfo if drawingID exists
+	if task.DrawingID != nil && *task.DrawingID != "" {
+		drawingTypeRepo := NewDrawingTypeRepo()
+		drawingType, err := drawingTypeRepo.GetTypeByID(ctx, *task.DrawingID)
+		if err == nil && drawingType != nil {
+			// Fetch category for this drawing type
+			categoryRepo := NewDrawingListRepo()
+			category, err := categoryRepo.GetCategoryByID(ctx, drawingType.CategoryID)
+			if err == nil && category != nil {
+				task.DrawingInfo = &models.DrawingInfo{
+					TypeID:       drawingType.ID,
+					TypeName:     drawingType.Name,
+					CategoryID:   category.ID,
+					CategoryName: category.Name,
+				}
+			}
+		}
+	}
+
 	return &task, nil
 }
 
@@ -97,6 +116,11 @@ func (r *TaskRepo) GetByIDWithUserDetails(ctx context.Context, projectID, taskID
 		}
 	}
 
+	// Copy DrawingInfo from Task (already populated by GetByID)
+	if task.DrawingInfo != nil {
+		taskWithDetails.DrawingInfo = task.DrawingInfo
+	}
+
 	return &taskWithDetails, nil
 }
 
@@ -108,10 +132,16 @@ func (r *TaskRepo) GetAll(ctx context.Context, projectID string) ([]models.Task,
 		return nil, err
 	}
 
-	// Convert to Task for backward compatibility
+	// Convert to Task for backward compatibility, preserving DrawingInfo
 	tasks := make([]models.Task, 0, len(tasksWithDetails))
 	for _, twud := range tasksWithDetails {
-		tasks = append(tasks, twud.Task)
+		task := twud.Task
+		// Copy DrawingInfo from TaskWithUserDetails to Task if it exists
+		// (TaskWithUserDetails.DrawingInfo takes precedence if set)
+		if twud.DrawingInfo != nil {
+			task.DrawingInfo = twud.DrawingInfo
+		}
+		tasks = append(tasks, task)
 	}
 
 	return tasks, nil
@@ -119,7 +149,7 @@ func (r *TaskRepo) GetAll(ctx context.Context, projectID string) ([]models.Task,
 
 // GetAllWithUserDetails gets all tasks for a project with user details in assignTo field
 func (r *TaskRepo) GetAllWithUserDetails(ctx context.Context, projectID string) ([]models.TaskWithUserDetails, error) {
-	// Fetch tasks normally (without aggregation)
+	// Fetch tasks normally
 	filter := bson.M{"projectId": projectID}
 	items, err := r.FindAll(ctx, filter, nil, bson.M{"created": -1})
 	if err != nil {
@@ -128,7 +158,8 @@ func (r *TaskRepo) GetAllWithUserDetails(ctx context.Context, projectID string) 
 
 	// Convert to Task structs
 	tasks := make([]models.Task, 0, len(items))
-	userIDs := make(map[string]bool) // Collect unique user IDs for batch lookup
+	userIDs := make(map[string]bool)    // Collect unique user IDs for batch lookup
+	drawingIDs := make(map[string]bool) // Collect unique drawing IDs for batch lookup
 
 	for _, item := range items {
 		var task models.Task
@@ -141,6 +172,11 @@ func (r *TaskRepo) GetAllWithUserDetails(ctx context.Context, projectID string) 
 		// Collect assignTo user IDs
 		if task.AssignTo != nil && *task.AssignTo != "" {
 			userIDs[*task.AssignTo] = true
+		}
+
+		// Collect drawing IDs (only if not null/empty)
+		if task.DrawingID != nil && *task.DrawingID != "" {
+			drawingIDs[*task.DrawingID] = true
 		}
 	}
 
@@ -159,7 +195,81 @@ func (r *TaskRepo) GetAllWithUserDetails(ctx context.Context, projectID string) 
 		}
 	}
 
-	// Convert to TaskWithUserDetails with populated assignTo
+	// Batch fetch drawing type details
+	drawingTypeRepo := NewDrawingTypeRepo()
+	drawingIDSlice := make([]string, 0, len(drawingIDs))
+	for id := range drawingIDs {
+		drawingIDSlice = append(drawingIDSlice, id)
+	}
+
+	drawingInfoMap := make(map[string]*models.DrawingInfo)
+	if len(drawingIDSlice) > 0 {
+		// Batch fetch all drawing types using $in filter
+		filter := bson.M{
+			"$or": []bson.M{
+				{"id": bson.M{"$in": drawingIDSlice}},
+				{"model.id": bson.M{"$in": drawingIDSlice}},
+			},
+		}
+		typeItems, err := drawingTypeRepo.FindAll(ctx, filter, nil, nil)
+		if err == nil {
+			// Convert to DrawingType structs
+			drawingTypes := make([]*models.DrawingType, 0, len(typeItems))
+			categoryIDs := make(map[string]bool)
+
+			for _, item := range typeItems {
+				var drawingType models.DrawingType
+				bsonBytes, _ := bson.Marshal(item)
+				if err := bson.Unmarshal(bsonBytes, &drawingType); err == nil {
+					drawingTypes = append(drawingTypes, &drawingType)
+					if drawingType.CategoryID != "" {
+						categoryIDs[drawingType.CategoryID] = true
+					}
+				}
+			}
+
+			// Batch fetch categories
+			categoryRepo := NewDrawingListRepo()
+			categoryIDSlice := make([]string, 0, len(categoryIDs))
+			for id := range categoryIDs {
+				categoryIDSlice = append(categoryIDSlice, id)
+			}
+
+			categoriesMap := make(map[string]*models.DrawingCategory)
+			if len(categoryIDSlice) > 0 {
+				categoryFilter := bson.M{
+					"$or": []bson.M{
+						{"id": bson.M{"$in": categoryIDSlice}},
+						{"model.id": bson.M{"$in": categoryIDSlice}},
+					},
+				}
+				categoryItems, err := categoryRepo.FindAll(ctx, categoryFilter, nil, nil)
+				if err == nil {
+					for _, item := range categoryItems {
+						var category models.DrawingCategory
+						bsonBytes, _ := bson.Marshal(item)
+						if err := bson.Unmarshal(bsonBytes, &category); err == nil {
+							categoriesMap[category.ID] = &category
+						}
+					}
+				}
+			}
+
+			// Build drawingInfoMap
+			for _, drawingType := range drawingTypes {
+				if category, ok := categoriesMap[drawingType.CategoryID]; ok && category != nil {
+					drawingInfoMap[drawingType.ID] = &models.DrawingInfo{
+						TypeID:       drawingType.ID,
+						TypeName:     drawingType.Name,
+						CategoryID:   category.ID,
+						CategoryName: category.Name,
+					}
+				}
+			}
+		}
+	}
+
+	// Convert to TaskWithUserDetails with populated assignTo and drawingInfo
 	result := make([]models.TaskWithUserDetails, 0, len(tasks))
 	for _, task := range tasks {
 		taskWithDetails := models.TaskWithUserDetails{
@@ -173,6 +283,15 @@ func (r *TaskRepo) GetAllWithUserDetails(ctx context.Context, projectID string) 
 					ID:   user.ID,
 					Name: user.Name,
 				}
+			}
+		}
+
+		// Populate drawingInfo if drawing ID exists and is not empty
+		if task.DrawingID != nil && *task.DrawingID != "" {
+			if drawingInfo, ok := drawingInfoMap[*task.DrawingID]; ok && drawingInfo != nil {
+				// Set on both embedded Task and outer struct for consistency
+				taskWithDetails.Task.DrawingInfo = drawingInfo
+				taskWithDetails.DrawingInfo = drawingInfo
 			}
 		}
 

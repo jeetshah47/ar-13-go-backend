@@ -38,3 +38,18 @@ tmp/
 .DS_Store
 Thumbs.db
 
+# Secrets and credentials
+credentials.json
+*.secret
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*credentials*.json
+*secret*.json
+*secret*.yml
+*secret*.yaml
+cloudflared/credentials.json
+cloudflared/config.yml
+

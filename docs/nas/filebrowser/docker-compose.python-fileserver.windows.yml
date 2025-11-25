@@ -1,0 +1,23 @@
+# Simple Python HTTP File Server for Windows
+# This provides a simple web interface to browse files in D:/Resumers/ folder
+
+services:
+  fileserver:
+    image: python:3-alpine
+    container_name: python-fileserver
+    restart: unless-stopped
+    ports:
+      # Web interface
+      - "8081:8000"
+    volumes:
+      # Mount Windows folder containing client files
+      # All files in D:/Resumers/ will be visible in the web browser
+      - "D:/Resumers/:/shared"
+    command: python -m http.server 8000 --directory /shared
+    networks:
+      - fileserver-network
+
+networks:
+  fileserver-network:
+    driver: bridge
+

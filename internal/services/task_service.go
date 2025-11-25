@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/ar-13-go-backend/internal/config"
@@ -959,6 +960,90 @@ func (s *TaskService) RemoveFileAttachment(ctx context.Context, projectID, taskI
 // GetFileAttachments gets file attachments
 func (s *TaskService) GetFileAttachments(ctx context.Context, projectID, taskID string) ([]models.FileAttachment, error) {
 	return s.taskRepo.GetFileAttachments(ctx, projectID, taskID)
+}
+
+// LinkFileAttachment links a file attachment, replacing any existing linked file
+// This ensures only one linked file exists per task
+func (s *TaskService) LinkFileAttachment(ctx context.Context, projectID, taskID string, attachment models.FileAttachment) error {
+	task, err := s.taskRepo.GetByID(ctx, projectID, taskID)
+	if err != nil {
+		return err
+	}
+	if task == nil {
+		return errors.New("task not found")
+	}
+
+	// Get existing file attachments
+	existingAttachments := task.FileAttachments
+
+	// Find and remove any existing linked file
+	// A linked file is identified by having a FileURL that looks like a NAS path
+	// Linked files typically have FileURL that:
+	// 1. Contains "/" (path separator)
+	// 2. Is significantly longer than just the filename (suggesting a full path)
+	// 3. The FileURL doesn't match the simple objectName pattern of uploaded files
+	linkedFileIndex := -1
+	for i, att := range existingAttachments {
+		// Heuristic: linked files typically have paths with "/" in them
+		// Uploaded files might just have the filename or a simple path like "path/filename"
+		// If FileURL contains "/" and is longer than just a filename + simple path, it's likely a linked file
+		// Also check if FileURL starts with "/" which is a strong indicator of a NAS absolute path
+		if att.FileURL != "" {
+			hasPathSeparator := strings.Contains(att.FileURL, "/")
+			isLongPath := len(att.FileURL) > len(att.FileName)+10 // More than just "path/filename"
+			startsWithSlash := strings.HasPrefix(att.FileURL, "/")
+			
+			// Strong indicator: starts with "/" (absolute NAS path)
+			// Or has "/" and is a long path (full NAS path structure)
+			if (startsWithSlash && hasPathSeparator) || (hasPathSeparator && isLongPath) {
+				linkedFileIndex = i
+				break
+			}
+		}
+	}
+
+	// If no linked file found by heuristic and there's exactly one file attachment,
+	// check if it might be a linked file (conservative approach for single-file tasks)
+	if linkedFileIndex == -1 && len(existingAttachments) == 1 {
+		att := existingAttachments[0]
+		// If the single file has a FileURL with "/", assume it might be a linked file
+		if att.FileURL != "" && strings.Contains(att.FileURL, "/") {
+			linkedFileIndex = 0
+		}
+	}
+
+	// Remove existing linked file if found
+	if linkedFileIndex >= 0 {
+		if err := s.taskRepo.RemoveFileAttachment(ctx, projectID, taskID, linkedFileIndex); err != nil {
+			return err
+		}
+		// Create activity log for file removal
+		removedAttachment := existingAttachments[linkedFileIndex]
+		desc := fmt.Sprintf("Linked file '%s' was replaced in task '%s'", removedAttachment.FileName, task.Subject)
+		s.createActivityLog(ctx, taskID, models.ActivityLogActionFileRemoved, &desc, nil, map[string]interface{}{
+			"fileName":     removedAttachment.FileName,
+			"originalName": removedAttachment.OriginalName,
+			"replaced":     true,
+		})
+	}
+
+	// Add the new linked file
+	if err := s.taskRepo.AddFileAttachment(ctx, projectID, taskID, attachment); err != nil {
+		return err
+	}
+
+	// Create activity log for file linking
+	desc := fmt.Sprintf("File '%s' was linked to task '%s'", attachment.FileName, task.Subject)
+	s.createActivityLog(ctx, taskID, models.ActivityLogActionFileUploaded, &desc, nil, map[string]interface{}{
+		"fileName":     attachment.FileName,
+		"originalName": attachment.OriginalName,
+		"fileSize":     attachment.FileSize,
+		"mimeType":     attachment.MimeType,
+		"uploadedBy":   attachment.UploadedBy,
+		"linked":       true,
+	})
+
+	return nil
 }
 
 // AssignTask assigns a task to a user

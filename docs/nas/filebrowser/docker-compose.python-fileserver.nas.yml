@@ -1,0 +1,23 @@
+# Simple Python HTTP File Server for NAS
+# This provides a simple web interface to browse files in "studio work" folder
+
+services:
+  fileserver:
+    image: python:3-alpine
+    container_name: python-fileserver
+    restart: unless-stopped
+    ports:
+      # Web interface (using 8081 to avoid conflict with NAS ports)
+      - "8081:8000"
+    volumes:
+      # Mount "studio work" folder containing client files
+      # All files in this folder will be visible in the web browser
+      - "/share/studio work/:/shared"
+    command: python -m http.server 8000 --directory /shared
+    networks:
+      - fileserver-network
+
+networks:
+  fileserver-network:
+    driver: bridge
+

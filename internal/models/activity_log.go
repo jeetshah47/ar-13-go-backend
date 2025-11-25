@@ -70,3 +70,18 @@ type ActivityLogResponse struct {
 	ActivityLogBase
 	CreatedByUser *User `json:"createdByUser,omitempty" firestore:"-"`
 }
+
+// ActivityLogReply represents a reply/comment to an activity log
+type ActivityLogReply struct {
+	Model
+	ActivityLogID string    `json:"activityLogId" firestore:"activityLogId" bson:"activityLogId"`
+	Message       string    `json:"message" firestore:"message" bson:"message"`
+	CreatedBy     string    `json:"createdBy" firestore:"createdBy" bson:"createdBy"`
+	CreatedAt     time.Time `json:"createdAt" firestore:"createdAt" bson:"createdAt"`
+}
+
+// ActivityLogReplyResponse represents an activity log reply with user information
+type ActivityLogReplyResponse struct {
+	ActivityLogReply
+	CreatedByUser *User `json:"createdByUser,omitempty" firestore:"-"`
+}

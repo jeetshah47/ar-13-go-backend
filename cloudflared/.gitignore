@@ -1,0 +1,5 @@
+# Ignore sensitive Cloudflare tunnel files
+credentials.json
+*.pem
+*.key
+

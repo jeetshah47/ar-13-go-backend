@@ -1,0 +1,56 @@
+# FileBrowser Docker Compose for NAS (QNAP/Container Station)
+# This configuration mounts "studio work" folder for browsing client files
+
+services:
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    restart: unless-stopped
+    # Run as root initially to create files, then we'll fix permissions
+    # After first successful start, you can uncomment user line below for security
+    # user: "1000:1000"
+    ports:
+      # FileBrowser Web UI (using 8081 on host, mapping to 3000 in container)
+      # Port 3000 is non-privileged and doesn't conflict with NAS ports
+      - "8081:3000"
+    volumes:
+      # Mount NAS shared folder containing client files
+      # "studio work" folder contains all client files
+      # All files in this folder will be visible in FileBrowser
+      - "/share/studio work/:/srv"
+      # FileBrowser configuration (stored in Container folder)
+      # Using named volume to avoid permission issues
+      # This stores config in Docker's volume directory, not in /share/Container/
+      - "filebrowser-config:/filebrowser-config"
+    environment:
+      # Database location (using custom config directory)
+      - FB_DATABASE=/filebrowser-config/database.db
+      # Root directory for FileBrowser
+      - FB_ROOT=/srv
+      # Port for FileBrowser to listen on (non-privileged port, doesn't require root or conflict with NAS)
+      - FB_PORT=3000
+      # Set default admin credentials (only used on first startup)
+      # If database already exists, these are ignored
+      - FB_DEFAULT_USER=admin
+      - FB_DEFAULT_PASS=admin
+      # Optional: Set timezone
+      - TZ=Asia/Kolkata
+    networks:
+      - filebrowser-network
+    # Enable interactive terminal access in Container Station
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  filebrowser-network:
+    driver: bridge
+
+volumes:
+  # Named volume for FileBrowser config (avoids permission issues)
+  filebrowser-config:

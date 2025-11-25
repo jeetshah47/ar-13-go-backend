@@ -98,6 +98,25 @@ func (s *ProjectService) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// UpdateAgencyContact updates the agency contact for a project
+func (s *ProjectService) UpdateAgencyContact(ctx context.Context, projectID string, agencyContact *models.AgencyContact) error {
+	// Check if project exists
+	existing, err := s.projectRepo.GetByID(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("project not found")
+	}
+
+	if err := s.projectRepo.UpdateAgencyContact(ctx, projectID, agencyContact); err != nil {
+		return err
+	}
+	// Invalidate project stats cache
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	return nil
+}
+
 // ProjectTaskStatistics represents task statistics for a project
 type ProjectTaskStatistics struct {
 	TotalTasks      int            `json:"totalTasks"`

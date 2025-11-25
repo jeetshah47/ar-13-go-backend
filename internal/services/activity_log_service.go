@@ -140,3 +140,8 @@ func (s *ActivityLogService) Add(ctx context.Context, log *models.ActivityLogBas
 	_ = s.cacheSvc.InvalidateActivityLogs(ctx, string(log.EntityType))
 	return nil
 }
+
+// GetByID gets an activity log by ID
+func (s *ActivityLogService) GetByID(ctx context.Context, activityLogID string) (*models.ActivityLogBase, error) {
+	return s.activityLogRepo.GetByID(ctx, activityLogID)
+}

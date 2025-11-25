@@ -39,6 +39,19 @@ type FileAttachment struct {
 	FileURL      string    `json:"fileUrl" firestore:"fileUrl" bson:"fileUrl"`
 }
 
+// FileAttachmentResponse represents a file attachment with pre-signed URL for API responses
+type FileAttachmentResponse struct {
+	FileName      string    `json:"fileName"`
+	OriginalName  string    `json:"originalName"`
+	FileSize      int64     `json:"fileSize"`
+	MimeType      string    `json:"mimeType"`
+	UploadDate    time.Time `json:"uploadDate"`
+	UploadedBy    string    `json:"uploadedBy"`
+	FileURL       string    `json:"fileUrl"`        // Original file path
+	PreviewURL    *string   `json:"previewUrl,omitempty"` // Pre-signed URL for images (1 hour expiry)
+	DownloadURL   *string   `json:"downloadUrl,omitempty"` // Pre-signed URL for downloads (1 hour expiry)
+}
+
 // LinkAttachment represents a link attachment
 type LinkAttachment struct {
 	URL          string    `json:"url" firestore:"url"`
@@ -74,6 +87,8 @@ type Task struct {
 	Progress        *int             `json:"progress,omitempty" firestore:"progress,omitempty" bson:"progress,omitempty"` // Completion percentage (0-100)
 	AssignTo        *string          `json:"assignTo,omitempty" firestore:"assignTo,omitempty" bson:"assignTo,omitempty"`
 	ProjectID       string           `json:"projectId" firestore:"projectId" bson:"projectId"`
+	DrawingID       *string          `json:"drawingId,omitempty" firestore:"drawingId,omitempty" bson:"drawingId,omitempty"` // Optional reference to drawing type ID
+	DrawingInfo     *DrawingInfo     `json:"drawingInfo,omitempty" firestore:"-" bson:"-"`                                   // Populated drawing information (not stored in DB)
 	TimeSpent       []TimeSpent      `json:"timeSpent" firestore:"timeSpent" bson:"timeSpent"`
 	Description     *string          `json:"description,omitempty" firestore:"description,omitempty" bson:"description,omitempty"`
 	FileAttachments []FileAttachment `json:"fileAttachments" firestore:"fileAttachments" bson:"fileAttachments"`
@@ -92,10 +107,19 @@ type TaskDetailResponse struct {
 	AssignDetail *User `json:"assignDetail,omitempty" firestore:"-"`
 }
 
+// DrawingInfo represents drawing category and type information
+type DrawingInfo struct {
+	TypeID       string `json:"typeId" bson:"typeId"`
+	TypeName     string `json:"typeName" bson:"typeName"`
+	CategoryID   string `json:"categoryId" bson:"categoryId"`
+	CategoryName string `json:"categoryName" bson:"categoryName"`
+}
+
 // TaskWithUserDetails represents a task with assignTo as an object containing user id and name
 type TaskWithUserDetails struct {
 	Task
-	AssignTo *AssignToUser `json:"assignTo,omitempty" bson:"assignTo,omitempty"`
+	AssignTo    *AssignToUser `json:"assignTo,omitempty" bson:"assignTo,omitempty"`
+	DrawingInfo *DrawingInfo  `json:"drawingInfo,omitempty" bson:"drawingInfo,omitempty"` // Populated drawing information
 }
 
 // ToTaskWithUserDetails converts a Task to TaskWithUserDetails

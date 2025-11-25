@@ -73,8 +73,14 @@ func (r *DrawingListRepo) GetAllCategories(ctx context.Context) ([]models.Drawin
 // AddCategory creates a new drawing category
 func (r *DrawingListRepo) AddCategory(ctx context.Context, category *models.DrawingCategory) error {
 	now := time.Now()
+	// Always ensure ID is set - critical for unique index
+	// If ID is empty, generate a new UUID
 	if category.ID == "" {
 		category.ID = uuid.New().String()
+	}
+	// Verify ID is set before insertion (safety check)
+	if category.ID == "" {
+		return errors.New("failed to generate category ID")
 	}
 	category.Created = now
 
@@ -176,7 +182,7 @@ func (r *DrawingTypeRepo) GetAllTypes(ctx context.Context) ([]models.DrawingType
 		{Key: "categoryId", Value: 1},
 		{Key: "order", Value: 1},
 	})
-	
+
 	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, err
@@ -280,4 +286,3 @@ func (r *DrawingListRepo) GetCategoriesWithTypes(ctx context.Context) ([]models.
 
 	return result, nil
 }
-

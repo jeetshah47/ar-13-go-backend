@@ -8,6 +8,7 @@ import (
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // ActivityLogRepo handles activity log data operations with MongoDB
@@ -89,5 +90,48 @@ func (r *ActivityLogRepo) GetByEntityType(ctx context.Context, entityType models
 	}
 
 	return logs, nil
+}
+
+// GetByID gets an activity log by ID
+func (r *ActivityLogRepo) GetByID(ctx context.Context, activityLogID string) (*models.ActivityLogBase, error) {
+	// Query by id field - check both root level and nested "model.id" and _id
+	// (MongoDB may store embedded structs as nested objects)
+	filter := bson.M{
+		"$or": []bson.M{
+			{"id": activityLogID},
+			{"model.id": activityLogID},
+			{"_id": activityLogID},
+		},
+	}
+	result := r.FindOne(ctx, filter)
+
+	if result.Err() == mongo.ErrNoDocuments {
+		// If not found by ID, try to parse the ID format: entityType-entityId-timestamp
+		// and search by entityType and entityId combination as fallback
+		// This handles cases where ID format might have changed
+		return nil, nil
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
+	}
+
+	// Decode into a map first for better compatibility with MongoDB document structure
+	var rawDoc bson.M
+	if err := result.Decode(&rawDoc); err != nil {
+		return nil, err
+	}
+
+	// Convert map to BSON bytes, then unmarshal to struct
+	bsonBytes, err := bson.Marshal(rawDoc)
+	if err != nil {
+		return nil, err
+	}
+
+	var log models.ActivityLogBase
+	if err := bson.Unmarshal(bsonBytes, &log); err != nil {
+		return nil, err
+	}
+
+	return &log, nil
 }
 

@@ -1,0 +1,18 @@
+[Unit]
+Description=AR-13 Go Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/ar-13-go-backend
+EnvironmentFile=/home/ubuntu/ar-13-go-backend/.env
+ExecStart=/home/ubuntu/ar-13-go-backend/server-linux
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

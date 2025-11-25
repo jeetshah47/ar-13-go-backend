@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -17,33 +19,95 @@ import (
 )
 
 var (
-	endpoint        = flag.String("endpoint", "", "MinIO/S3 endpoint (e.g., nas.example.com:9000)")
-	accessKeyID     = flag.String("access-key", "", "Access Key ID")
-	secretAccessKey = flag.String("secret-key", "", "Secret Access Key")
-	useSSL          = flag.Bool("use-ssl", false, "Use SSL/TLS connection")
-	insecureSSL     = flag.Bool("insecure-ssl", false, "Skip SSL certificate verification (for self-signed certs)")
-	bucketName      = flag.String("bucket", "test-bucket", "Bucket name")
+	endpoint        = flag.String("endpoint", "", "MinIO/S3 endpoint (e.g., nas.example.com:9000) - overrides MINIO_ENDPOINT")
+	accessKeyID     = flag.String("access-key", "", "Access Key ID - overrides MINIO_ACCESS_KEY")
+	secretAccessKey = flag.String("secret-key", "", "Secret Access Key - overrides MINIO_SECRET_KEY")
+	useSSL          = flag.Bool("use-ssl", false, "Use SSL/TLS connection - overrides MINIO_USE_SSL")
+	insecureSSL     = flag.Bool("insecure-ssl", false, "Skip SSL certificate verification - overrides MINIO_INSECURE_SSL")
+	bucketName      = flag.String("bucket", "", "Bucket name - overrides MINIO_BUCKET")
 	filePath        = flag.String("file", "", "Path to file to upload")
 	objectName      = flag.String("object", "", "Object name in bucket (defaults to filename)")
 	region          = flag.String("region", "us-east-1", "Region (optional, some S3-compatible services ignore this)")
 )
 
+// getEnv reads environment variable with fallback to default value
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvBool reads boolean environment variable
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.ParseBool(value); err == nil {
+			return parsed
+		}
+		// Also accept "true"/"false" strings (case insensitive)
+		return strings.ToLower(value) == "true" || value == "1"
+	}
+	return defaultValue
+}
+
 func main() {
 	flag.Parse()
 
-	// Validate required flags
-	if *endpoint == "" {
-		log.Fatal("Error: --endpoint is required (e.g., nas.example.com:9000)")
+	// Read from environment variables (flags override env vars)
+	endpointValue := getEnv("MINIO_ENDPOINT", "")
+	if *endpoint != "" {
+		endpointValue = *endpoint
 	}
-	if *accessKeyID == "" {
-		log.Fatal("Error: --access-key is required")
+
+	accessKeyValue := getEnv("MINIO_ACCESS_KEY", "")
+	if *accessKeyID != "" {
+		accessKeyValue = *accessKeyID
 	}
-	if *secretAccessKey == "" {
-		log.Fatal("Error: --secret-key is required")
+
+	secretKeyValue := getEnv("MINIO_SECRET_KEY", "")
+	if *secretAccessKey != "" {
+		secretKeyValue = *secretAccessKey
+	}
+
+	useSSLValue := getEnvBool("MINIO_USE_SSL", false)
+	insecureSSLValue := getEnvBool("MINIO_INSECURE_SSL", false)
+
+	// Check if flags were explicitly set by visiting all set flags
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "use-ssl" {
+			useSSLValue = *useSSL
+		}
+		if f.Name == "insecure-ssl" {
+			insecureSSLValue = *insecureSSL
+		}
+	})
+
+	bucketValue := getEnv("MINIO_BUCKET", "ar-13-uploads")
+	if *bucketName != "" {
+		bucketValue = *bucketName
+	}
+
+	// Validate required values
+	if endpointValue == "" {
+		log.Fatal("Error: MINIO_ENDPOINT environment variable or --endpoint flag is required (e.g., nas.example.com:9000)")
+	}
+	if accessKeyValue == "" {
+		log.Fatal("Error: MINIO_ACCESS_KEY environment variable or --access-key flag is required")
+	}
+	if secretKeyValue == "" {
+		log.Fatal("Error: MINIO_SECRET_KEY environment variable or --secret-key flag is required")
 	}
 	if *filePath == "" {
 		log.Fatal("Error: --file is required (path to file to upload)")
 	}
+
+	// Update the flag values for use in the rest of the code
+	*endpoint = endpointValue
+	*accessKeyID = accessKeyValue
+	*secretAccessKey = secretKeyValue
+	*useSSL = useSSLValue
+	*insecureSSL = insecureSSLValue
+	*bucketName = bucketValue
 
 	// Check if file exists
 	if _, err := os.Stat(*filePath); os.IsNotExist(err) {
@@ -58,9 +122,12 @@ func main() {
 	fmt.Println("=== MinIO/S3 Connection Test ===")
 	fmt.Printf("Endpoint: %s\n", *endpoint)
 	fmt.Printf("Use SSL: %v\n", *useSSL)
+	fmt.Printf("Insecure SSL: %v\n", *insecureSSL)
 	fmt.Printf("Bucket: %s\n", *bucketName)
 	fmt.Printf("File: %s\n", *filePath)
 	fmt.Printf("Object Name: %s\n", *objectName)
+	fmt.Println()
+	fmt.Println("Note: Values are read from environment variables (MINIO_*) or command-line flags")
 	fmt.Println()
 
 	// Initialize MinIO client
@@ -145,6 +212,14 @@ func testConnection(ctx context.Context, client *minio.Client) error {
 
 	buckets, err := client.ListBuckets(ctx)
 	if err != nil {
+		// Provide more helpful error messages
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "Access Denied") {
+			return fmt.Errorf("access denied - check if your access key has 'ListAllMyBuckets' permission. Error: %w", err)
+		}
+		if strings.Contains(errMsg, "time") && strings.Contains(errMsg, "too large") {
+			return fmt.Errorf("time sync error - sync your system clock. Error: %w", err)
+		}
 		return fmt.Errorf("failed to list buckets: %w", err)
 	}
 
@@ -264,4 +339,3 @@ func verifyUpload(ctx context.Context, client *minio.Client, bucketName, objectN
 
 	return nil
 }
-

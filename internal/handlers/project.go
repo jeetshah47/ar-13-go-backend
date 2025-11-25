@@ -158,3 +158,38 @@ func (h *ProjectHandler) GetAllWithStatistics(c *gin.Context) {
 		"totalProjects": len(projects),
 	})
 }
+
+// UpdateAgencyContact updates the agency contact for a project
+func (h *ProjectHandler) UpdateAgencyContact(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	projectID := c.Param("id")
+	if projectID == "" {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "project ID is required"})
+		return
+	}
+
+	// Check authorization: user must be project owner or member
+	if err := h.authorizationService.CanModifyProject(c.Request.Context(), projectID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	var agencyContact models.AgencyContact
+	if err := c.ShouldBindJSON(&agencyContact); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": constants.MsgInvalidRequest})
+		return
+	}
+
+	if err := h.projectService.UpdateAgencyContact(c.Request.Context(), projectID, &agencyContact); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": "Agency contact updated successfully"})
+}

@@ -39,7 +39,7 @@ type Client struct {
 // SSEService manages SSE connections
 type SSEService struct {
 	clients         map[*Client]bool
-	userConnections map[string]*Client // Map userID to client
+	userConnections map[string]map[*Client]bool // Map userID to multiple clients (for multiple tabs)
 	taskService     *services.TaskService
 	projectService  *services.ProjectService
 	register        chan *Client
@@ -51,7 +51,7 @@ type SSEService struct {
 func NewSSEService(taskService *services.TaskService, projectService *services.ProjectService) *SSEService {
 	return &SSEService{
 		clients:         make(map[*Client]bool),
-		userConnections: make(map[string]*Client),
+		userConnections: make(map[string]map[*Client]bool),
 		taskService:     taskService,
 		projectService:  projectService,
 		register:        make(chan *Client),
@@ -78,15 +78,8 @@ func (s *SSEService) HandleConnection(w http.ResponseWriter, r *http.Request, us
 		return fmt.Errorf("streaming not supported")
 	}
 
-	// Close existing connection if user is already connected
-	s.mu.Lock()
-	if existingClient, exists := s.userConnections[userID]; exists {
-		log.Printf("[SSE] WARNING: User %s already connected, closing existing connection", userID)
-		s.mu.Unlock()
-		existingClient.Close()
-		s.mu.Lock()
-	}
-	s.mu.Unlock()
+	// Allow multiple connections per user (multiple tabs)
+	// No need to close existing connections
 
 	// Create new client
 	client := &Client{
@@ -185,21 +178,37 @@ func (s *SSEService) Run() {
 		case client := <-s.register:
 			s.mu.Lock()
 			s.clients[client] = true
-			s.userConnections[client.userID] = client
+			// Add client to user's connection map
+			if s.userConnections[client.userID] == nil {
+				s.userConnections[client.userID] = make(map[*Client]bool)
+			}
+			s.userConnections[client.userID][client] = true
 			totalClients := len(s.clients)
+			userConnectionsCount := len(s.userConnections[client.userID])
 			s.mu.Unlock()
-			log.Printf("[SSE] Client registered - user: %s, total clients: %d", client.userID, totalClients)
+			log.Printf("[SSE] Client registered - user: %s, total clients: %d, user connections: %d", client.userID, totalClients, userConnectionsCount)
 
 		case client := <-s.unregister:
 			s.mu.Lock()
 			if _, ok := s.clients[client]; ok {
 				delete(s.clients, client)
-				delete(s.userConnections, client.userID)
+				// Remove client from user's connection map
+				if userClients, exists := s.userConnections[client.userID]; exists {
+					delete(userClients, client)
+					// If no more connections for this user, remove the map entry
+					if len(userClients) == 0 {
+						delete(s.userConnections, client.userID)
+					}
+				}
 				// Close channel safely using sync.Once
 				client.Close()
 				totalClients := len(s.clients)
+				remainingUserConnections := 0
+				if userClients, exists := s.userConnections[client.userID]; exists {
+					remainingUserConnections = len(userClients)
+				}
 				s.mu.Unlock()
-				log.Printf("[SSE] Client unregistered - user: %s, remaining clients: %d", client.userID, totalClients)
+				log.Printf("[SSE] Client unregistered - user: %s, remaining clients: %d, user connections: %d", client.userID, totalClients, remainingUserConnections)
 			} else {
 				s.mu.Unlock()
 				log.Printf("[SSE] WARNING: Attempted to unregister unknown client for user %s", client.userID)
@@ -208,15 +217,15 @@ func (s *SSEService) Run() {
 	}
 }
 
-// SendToUser sends an event to a specific user
+// SendToUser sends an event to a specific user (all their tabs/connections)
 func (s *SSEService) SendToUser(userID string, eventType string, data interface{}) error {
 	log.Printf("[SSE] Sending event to user %s - type: %s", userID, eventType)
 
 	s.mu.RLock()
-	client, exists := s.userConnections[userID]
+	userClients, exists := s.userConnections[userID]
 	s.mu.RUnlock()
 
-	if !exists {
+	if !exists || len(userClients) == 0 {
 		log.Printf("[SSE] WARNING: User %s not connected, event not sent (type: %s)", userID, eventType)
 		return nil // User not connected
 	}
@@ -226,19 +235,37 @@ func (s *SSEService) SendToUser(userID string, eventType string, data interface{
 		Data: data,
 	}
 
-	select {
-	case client.send <- event:
-		log.Printf("[SSE] Event queued for user %s - type: %s", userID, eventType)
-	default:
-		log.Printf("[SSE] ERROR: Send channel blocked for user %s, removing connection", userID)
-		// Close channel safely using sync.Once
-		client.Close()
-		s.mu.Lock()
-		delete(s.clients, client)
-		delete(s.userConnections, userID)
-		s.mu.Unlock()
+	// Send to all connections for this user (multiple tabs)
+	sentCount := 0
+	failedCount := 0
+	s.mu.RLock()
+	for client := range userClients {
+		select {
+		case client.send <- event:
+			sentCount++
+			log.Printf("[SSE] Event queued for user %s (connection) - type: %s", userID, eventType)
+		default:
+			failedCount++
+			log.Printf("[SSE] ERROR: Send channel blocked for user %s, removing connection", userID)
+			// Close channel safely using sync.Once
+			client.Close()
+			// Remove from clients map (will be cleaned up in unregister)
+			s.mu.RUnlock()
+			s.mu.Lock()
+			delete(s.clients, client)
+			if clients, exists := s.userConnections[userID]; exists {
+				delete(clients, client)
+				if len(clients) == 0 {
+					delete(s.userConnections, userID)
+				}
+			}
+			s.mu.Unlock()
+			s.mu.RLock()
+		}
 	}
+	s.mu.RUnlock()
 
+	log.Printf("[SSE] Sent event to user %s - type: %s, connections: %d, sent: %d, failed: %d", userID, eventType, len(userClients), sentCount, failedCount)
 	return nil
 }
 
@@ -273,27 +300,59 @@ func (s *SSEService) BroadcastToProjectMembersWithProject(project *models.Projec
 	log.Printf("[SSE] Project %s has %d total members (owner + %d members)",
 		projectID, len(userIDs), len(project.MembersIDs))
 
+	// Log all connected users for debugging
+	s.mu.RLock()
+	connectedUserIDs := make([]string, 0, len(s.userConnections))
+	connectionCounts := make(map[string]int)
+	for uid, clients := range s.userConnections {
+		connectedUserIDs = append(connectedUserIDs, uid)
+		connectionCounts[uid] = len(clients)
+	}
+	s.mu.RUnlock()
+	log.Printf("[SSE] Currently connected users: %v (connection counts: %v)", connectedUserIDs, connectionCounts)
+
 	event := Event{
 		Type: eventType,
 		Data: data,
 	}
 
-	// Send to all connected project members
+	// Send to all connected project members (all their tabs/connections)
 	s.mu.RLock()
 	targetCount := 0
 	sentCount := 0
 	failedCount := 0
 	for userID := range userIDs {
-		if client, exists := s.userConnections[userID]; exists {
+		if userClients, exists := s.userConnections[userID]; exists && len(userClients) > 0 {
 			targetCount++
-			select {
-			case client.send <- event:
-				sentCount++
-				log.Printf("[SSE] Broadcast sent to user %s (project: %s)", userID, projectID)
-			default:
-				failedCount++
-				log.Printf("[SSE] WARNING: Failed to send broadcast to user %s (channel blocked)", userID)
+			// Send to all connections for this user (multiple tabs)
+			userSentCount := 0
+			userFailedCount := 0
+			for client := range userClients {
+				select {
+				case client.send <- event:
+					userSentCount++
+					sentCount++
+					log.Printf("[SSE] Broadcast sent to user %s (connection) (project: %s)", userID, projectID)
+				default:
+					userFailedCount++
+					failedCount++
+					log.Printf("[SSE] WARNING: Failed to send broadcast to user %s (channel blocked)", userID)
+					// Close and remove blocked connection
+					client.Close()
+					s.mu.RUnlock()
+					s.mu.Lock()
+					delete(s.clients, client)
+					if clients, exists := s.userConnections[userID]; exists {
+						delete(clients, client)
+						if len(clients) == 0 {
+							delete(s.userConnections, userID)
+						}
+					}
+					s.mu.Unlock()
+					s.mu.RLock()
+				}
 			}
+			log.Printf("[SSE] User %s received broadcast on %d/%d connections", userID, userSentCount, userSentCount+userFailedCount)
 		} else {
 			log.Printf("[SSE] User %s (project member) not connected, skipping", userID)
 		}

@@ -166,3 +166,12 @@ const (
 	BackupBase = "/backup"
 	BackupAll  = "/all"
 )
+
+// Storage paths
+const (
+	StorageBase      = "/storage"
+	StorageListFiles = "/files"
+	StorageGetFileURL = "/file-url"
+	StorageDownload  = "/download"
+	StorageUpload   = "/upload"
+)

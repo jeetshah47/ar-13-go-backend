@@ -49,6 +49,7 @@ type ProjectRepository interface {
 	Add(ctx context.Context, project *models.Project) error
 	Update(ctx context.Context, project *models.Project) error
 	Delete(ctx context.Context, id string) error
+	UpdateAgencyContact(ctx context.Context, projectID string, agencyContact *models.AgencyContact) error
 }
 
 // ActivityLogRepository defines the interface for activity log operations
@@ -56,6 +57,13 @@ type ActivityLogRepository interface {
 	Add(ctx context.Context, log *models.ActivityLogBase) error
 	GetByEntity(ctx context.Context, entityType models.ActivityLogEntityType, entityID string) ([]models.ActivityLogBase, error)
 	GetByEntityType(ctx context.Context, entityType models.ActivityLogEntityType, limit *int) ([]models.ActivityLogBase, error)
+	GetByID(ctx context.Context, activityLogID string) (*models.ActivityLogBase, error)
+}
+
+// ActivityLogReplyRepository defines the interface for activity log reply operations
+type ActivityLogReplyRepository interface {
+	Add(ctx context.Context, reply *models.ActivityLogReply) error
+	GetByActivityLogID(ctx context.Context, activityLogID string) ([]models.ActivityLogReply, error)
 }
 
 // TaskStatusRepository defines the interface for task status operations

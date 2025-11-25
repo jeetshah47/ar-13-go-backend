@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -42,6 +43,23 @@ type Config struct {
 	RedisAddr     string
 	RedisPassword string
 	RedisDB       int
+
+	// MinIO/NAS Storage
+	MinIOEndpoint    string
+	MinIOAccessKey   string
+	MinIOSecretKey   string
+	MinIOBucket      string
+	MinIOUseSSL      bool
+	MinIOInsecureSSL bool
+
+	// FileBrowser Storage (alternative to MinIO)
+	// Note: FileBrowserEnabled and FileBrowserToken are for the old FileBrowser app
+	// FileBrowserServiceURL is for the new simple Go filebrowser service
+	FileBrowserEnabled          bool
+	FileBrowserURL              string
+	FileBrowserToken            string
+	FileBrowserServiceURL       string // URL for the new filebrowser service (e.g., http://localhost:8082)
+	FileBrowserServiceSecretKey string // Secret key for authenticating with the filebrowser service
 }
 
 var AppConfig *Config
@@ -87,6 +105,19 @@ func LoadConfig() (*Config, error) {
 		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 		RedisDB:       getEnvAsInt("REDIS_DB", 0),
+
+		MinIOEndpoint:    getEnv("MINIO_ENDPOINT", ""),
+		MinIOAccessKey:   getEnv("MINIO_ACCESS_KEY", ""),
+		MinIOSecretKey:   getEnv("MINIO_SECRET_KEY", ""),
+		MinIOBucket:      getEnv("MINIO_BUCKET", "ar-13-uploads"),
+		MinIOUseSSL:      getEnv("MINIO_USE_SSL", "false") == "true",
+		MinIOInsecureSSL: getEnv("MINIO_INSECURE_SSL", "false") == "true",
+
+		FileBrowserEnabled:          getEnv("FILEBROWSER_ENABLED", "false") == "true",
+		FileBrowserURL:              getEnv("FILEBROWSER_URL", "http://localhost:8080"),
+		FileBrowserToken:            getEnv("FILEBROWSER_TOKEN", ""),
+		FileBrowserServiceURL:       getEnv("FILEBROWSER_SERVICE_URL", "https://api.jsdeveloper.cloud"),
+		FileBrowserServiceSecretKey: strings.TrimSpace(getEnv("FILEBROWSER_SERVICE_SECRET_KEY", "")),
 	}
 
 	AppConfig = config

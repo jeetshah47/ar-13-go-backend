@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"io"
+	"time"
 
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/pkg/email"
@@ -40,6 +42,13 @@ type ActivityLogServiceInterface interface {
 	Add(ctx context.Context, log *models.ActivityLogBase) error
 	GetByEntity(ctx context.Context, entityType models.ActivityLogEntityType, entityID string) ([]models.ActivityLogResponse, error)
 	GetByEntityType(ctx context.Context, entityType models.ActivityLogEntityType, limit *int) ([]models.ActivityLogResponse, error)
+	GetByID(ctx context.Context, activityLogID string) (*models.ActivityLogBase, error)
+}
+
+// ActivityLogReplyServiceInterface defines the interface for activity log reply operations
+type ActivityLogReplyServiceInterface interface {
+	Add(ctx context.Context, reply *models.ActivityLogReply) error
+	GetByActivityLogID(ctx context.Context, activityLogID string) ([]models.ActivityLogReplyResponse, error)
 }
 
 // SSEServiceInterface defines the interface for SSE operations
@@ -49,13 +58,35 @@ type SSEServiceInterface interface {
 	BroadcastToProjectMembersWithProject(project *models.Project, eventType string, data interface{})
 }
 
+// StorageServiceInterface defines the interface for storage operations
+type StorageServiceInterface interface {
+	Initialize() error
+	IsInitialized() bool
+	ListObjects(ctx context.Context, prefix string) ([]StorageObject, error)
+	UploadFile(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) error
+	GetPresignedURL(ctx context.Context, objectName string, expiry time.Duration) (string, error)
+	DeleteObject(ctx context.Context, objectName string) error
+	ObjectExists(ctx context.Context, objectName string) (bool, error)
+}
+
+// StorageObject represents a file or folder in storage
+type StorageObject struct {
+	Name         string    `json:"name"`
+	Path         string    `json:"path"`
+	IsFolder     bool      `json:"isFolder"`
+	Size         int64     `json:"size"`
+	LastModified time.Time `json:"lastModified"`
+	ContentType  string    `json:"contentType,omitempty"`
+}
+
 // Note: SSEServiceInterface is implemented by pkg/sse.SSEService
 // We can't add a compile-time check here due to import cycle prevention
 // The interface methods match the SSEService implementation
 
 // Verify that concrete types implement interfaces at compile time
 var (
-	_ CacheServiceInterface       = (*CacheService)(nil)
-	_ EmailClientInterface        = (*email.Client)(nil)
-	_ ActivityLogServiceInterface = (*ActivityLogService)(nil)
+	_ CacheServiceInterface            = (*CacheService)(nil)
+	_ EmailClientInterface             = (*email.Client)(nil)
+	_ ActivityLogServiceInterface      = (*ActivityLogService)(nil)
+	_ ActivityLogReplyServiceInterface = (*ActivityLogReplyService)(nil)
 )
