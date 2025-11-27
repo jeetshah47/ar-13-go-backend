@@ -147,16 +147,15 @@ func (r *ProjectRepo) Update(ctx context.Context, project *models.Project) error
 		"description": project.Description,
 		"ownerId":     project.OwnerID,
 		"membersIds":  project.MembersIDs,
-		"deadLine":    project.Deadline,
-		"code":        project.Code,
+		"project_code": project.Code,
 		"updated":     project.Updated,
 	}
 
-	if project.StartDate != nil {
-		updates["startDate"] = *project.StartDate
+	if project.ProductionDuration != nil {
+		updates["productionDuration"] = *project.ProductionDuration
 	}
-	if project.EndDate != nil {
-		updates["endDate"] = *project.EndDate
+	if project.SiteDuration != nil {
+		updates["siteDuration"] = *project.SiteDuration
 	}
 	if project.LogoURL != nil {
 		updates["logoUrl"] = *project.LogoURL

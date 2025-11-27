@@ -154,6 +154,7 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			projects.GET("/all", handler.Project.GetAll)
 			projects.GET("/all/statistics", handler.Project.GetAllWithStatistics)
 			projects.GET("/:id", middleware.RequireProjectAccess(), handler.Project.GetOne)
+			projects.GET("/:id/statistics", middleware.RequireProjectAccess(), handler.Project.GetStatistics)
 			projects.POST("/add", middleware.RequirePermission("projects:write"), handler.Project.Add)
 			projects.PUT("/update", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:write"), handler.Project.Update)
 			projects.PUT("/:id/agency-contact", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:write"), handler.Project.UpdateAgencyContact)

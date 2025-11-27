@@ -127,12 +127,13 @@ type ProjectTaskStatistics struct {
 	TasksInReview   int            `json:"tasksInReview"`
 	PendingTasks    int            `json:"pendingTasks"`
 	CancelledTasks  int            `json:"cancelledTasks"`
-	ByStatus        map[string]int `json:"byStatus"`        // Status -> count
-	ByPriority      map[string]int `json:"byPriority"`      // Priority -> count
-	CompletionRate  float64        `json:"completionRate"`  // Percentage
-	TotalTimeSpent  int            `json:"totalTimeSpent"`  // Total time spent in minutes
-	AssignedUsers   int            `json:"assignedUsers"`   // Number of unique users assigned
-	TasksByAssignee map[string]int `json:"tasksByAssignee"` // UserID -> task count
+	ByStatus              map[string]int `json:"byStatus"`              // Status -> count
+	ByPriority            map[string]int `json:"byPriority"`            // Priority -> count
+	CompletionRate        float64        `json:"completionRate"`         // Percentage
+	TotalTimeSpent        int            `json:"totalTimeSpent"`         // Total time spent in minutes
+	AssignedUsers         int            `json:"assignedUsers"`          // Number of unique users assigned
+	TasksByAssignee       map[string]int `json:"tasksByAssignee"`        // UserID -> task count
+	CompletedTasksByAssignee map[string]int `json:"completedTasksByAssignee"` // UserID -> completed task count
 }
 
 // ProjectWithStatistics represents a project with its task statistics
@@ -213,16 +214,17 @@ func (s *ProjectService) GetAllWithStatistics(ctx context.Context, limit *int) (
 	return result, nil
 }
 
-// calculateProjectStatistics calculates task statistics for a project
-// This method still fetches tasks from DB (kept for backward compatibility)
-func (s *ProjectService) calculateProjectStatistics(ctx context.Context, projectID string) (ProjectTaskStatistics, error) {
+// GetStatistics calculates task statistics for a project
+// This method fetches tasks from DB and calculates statistics
+func (s *ProjectService) GetStatistics(ctx context.Context, projectID string) (ProjectTaskStatistics, error) {
 	// Get all tasks for the project
 	tasks, err := s.taskRepo.GetAll(ctx, projectID)
 	if err != nil {
 		return ProjectTaskStatistics{
-			ByStatus:        make(map[string]int),
-			ByPriority:      make(map[string]int),
-			TasksByAssignee: make(map[string]int),
+			ByStatus:              make(map[string]int),
+			ByPriority:            make(map[string]int),
+			TasksByAssignee:       make(map[string]int),
+			CompletedTasksByAssignee: make(map[string]int),
 		}, err
 	}
 
@@ -233,9 +235,10 @@ func (s *ProjectService) calculateProjectStatistics(ctx context.Context, project
 // This is the optimized version that doesn't require a DB call
 func (s *ProjectService) calculateProjectStatisticsFromTasks(tasks []models.Task) ProjectTaskStatistics {
 	stats := ProjectTaskStatistics{
-		ByStatus:        make(map[string]int),
-		ByPriority:      make(map[string]int),
-		TasksByAssignee: make(map[string]int),
+		ByStatus:              make(map[string]int),
+		ByPriority:            make(map[string]int),
+		TasksByAssignee:       make(map[string]int),
+		CompletedTasksByAssignee: make(map[string]int),
 	}
 
 	// Track unique assigned users
@@ -285,6 +288,11 @@ func (s *ProjectService) calculateProjectStatisticsFromTasks(tasks []models.Task
 				assignedUserSet[assignID] = true
 			}
 			stats.TasksByAssignee[assignID]++
+			
+			// Track completed tasks per assignee
+			if normalizedStatus == constants.GetTaskStatusString(constants.TaskStatusCompleted) {
+				stats.CompletedTasksByAssignee[assignID]++
+			}
 		}
 
 		// Calculate total time spent

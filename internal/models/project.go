@@ -1,7 +1,5 @@
 package models
 
-import "time"
-
 // AgencyContact represents agency contact information
 type AgencyContact struct {
 	ContactName       string `json:"contact_name" firestore:"contact_name" bson:"contact_name"`
@@ -11,14 +9,13 @@ type AgencyContact struct {
 // Project represents a project
 type Project struct {
 	Model
-	Title         string         `json:"title" firestore:"title" bson:"title"`
-	Description   string         `json:"description" firestore:"description" bson:"description"`
-	OwnerID       string         `json:"ownerId" firestore:"ownerId" bson:"ownerId"`
-	MembersIDs    []string       `json:"membersIds" firestore:"membersIds" bson:"membersIds"`
-	StartDate     *time.Time     `json:"startDate,omitempty" firestore:"startDate,omitempty" bson:"startDate,omitempty"`
-	EndDate       *time.Time     `json:"endDate,omitempty" firestore:"endDate,omitempty" bson:"endDate,omitempty"`
-	Deadline      time.Time      `json:"deadLine" firestore:"deadLine" bson:"deadLine"`
+	Title              string         `json:"title" firestore:"title" bson:"title"`
+	Description        string         `json:"description" firestore:"description" bson:"description"`
+	OwnerID            string         `json:"ownerId" firestore:"ownerId" bson:"ownerId"`
+	MembersIDs         []string       `json:"membersIds" firestore:"membersIds" bson:"membersIds"`
+	ProductionDuration *int           `json:"productionDuration,omitempty" firestore:"productionDuration,omitempty" bson:"productionDuration,omitempty"`
+	SiteDuration       *int           `json:"siteDuration,omitempty" firestore:"siteDuration,omitempty" bson:"siteDuration,omitempty"`
 	LogoURL       *string        `json:"logoUrl,omitempty" firestore:"logoUrl,omitempty" bson:"logoUrl,omitempty"`
-	Code          string         `json:"code" firestore:"code" bson:"code"`
+	Code          string         `json:"code" firestore:"code" bson:"project_code"`
 	AgencyContact *AgencyContact `json:"agencyContact,omitempty" firestore:"agencyContact,omitempty" bson:"agencyContact,omitempty"`
 }

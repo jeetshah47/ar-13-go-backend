@@ -159,6 +159,23 @@ func (h *ProjectHandler) GetAllWithStatistics(c *gin.Context) {
 	})
 }
 
+// GetStatistics gets task statistics for a single project
+func (h *ProjectHandler) GetStatistics(c *gin.Context) {
+	projectID := c.Param("id")
+	if projectID == "" {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "project ID is required"})
+		return
+	}
+
+	statistics, err := h.projectService.GetStatistics(c.Request.Context(), projectID)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"statistics": statistics})
+}
+
 // UpdateAgencyContact updates the agency contact for a project
 func (h *ProjectHandler) UpdateAgencyContact(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
