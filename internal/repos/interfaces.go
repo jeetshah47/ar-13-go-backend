@@ -46,10 +46,12 @@ type UserRepository interface {
 type ProjectRepository interface {
 	GetByID(ctx context.Context, id string) (*models.Project, error)
 	GetAll(ctx context.Context, limit *int) ([]models.Project, error)
+	GetByUserID(ctx context.Context, userID string) ([]models.Project, error)
 	Add(ctx context.Context, project *models.Project) error
 	Update(ctx context.Context, project *models.Project) error
 	Delete(ctx context.Context, id string) error
 	UpdateAgencyContact(ctx context.Context, projectID string, agencyContact *models.AgencyContact) error
+	Archive(ctx context.Context, projectID string, isArchived bool) error
 }
 
 // ActivityLogRepository defines the interface for activity log operations
@@ -162,6 +164,19 @@ type UserAccountLinkRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
+// TimeTrackingRepository defines the interface for time tracking session operations
+type TimeTrackingRepository interface {
+	Add(ctx context.Context, session *models.TimeTrackingSession) error
+	GetByID(ctx context.Context, sessionID string) (*models.TimeTrackingSession, error)
+	GetActiveByTaskAndUser(ctx context.Context, projectID, taskID, userID string) (*models.TimeTrackingSession, error)
+	GetAllActive(ctx context.Context) ([]models.TimeTrackingSession, error)
+	GetByTask(ctx context.Context, projectID, taskID string) ([]models.TimeTrackingSession, error)
+	Update(ctx context.Context, session *models.TimeTrackingSession) error
+	StopSession(ctx context.Context, sessionID string) error
+	UpdateActivity(ctx context.Context, sessionID string, lastActive time.Time) error
+	UpdateTotalMinutes(ctx context.Context, sessionID string, totalMinutes int) error
+}
+
 // Verify that concrete types implement interfaces at compile time
 var (
 	_ UserRepository             = (*UserRepo)(nil)
@@ -173,4 +188,5 @@ var (
 	_ InfoPortalRepository       = (*InfoPortalRepo)(nil)
 	_ ProjectDetailsRepository   = (*ProjectDetailsRepo)(nil)
 	_ UserAccountLinkRepository  = (*UserAccountLinkRepo)(nil)
+	_ TimeTrackingRepository     = (*TimeTrackingRepo)(nil)
 )

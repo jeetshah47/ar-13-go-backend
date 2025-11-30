@@ -1,0 +1,38 @@
+# Dockerfile for main server - expects pre-built binary
+FROM alpine:latest
+
+# Install ca-certificates for HTTPS support and curl for health check
+RUN apk --no-cache add ca-certificates curl
+
+# Create non-root user
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser
+
+# Create necessary directories
+RUN mkdir -p /app/upload && \
+    chown -R appuser:appuser /app
+
+# Set working directory
+WORKDIR /app
+
+# Copy pre-built binary from build directory
+# Expects binary to be built as: bin/server (or server in project root)
+COPY bin/server server
+RUN chmod +x server && \
+    chown appuser:appuser server
+
+# Change ownership to non-root user
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port (default 3000, can be overridden via PORT env var)
+EXPOSE 3000
+
+# Health check (defaults to port 3000)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
+
+# Run the server
+CMD ["./server"]

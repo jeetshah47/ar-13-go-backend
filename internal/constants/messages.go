@@ -38,6 +38,7 @@ const (
 	MsgTasksRetrieved         = "Tasks retrieved successfully"
 	MsgTaskAssigned           = "Task assigned successfully"
 	MsgTaskClaimed            = "Task claimed successfully"
+	MsgTaskTransferred        = "Task transferred successfully"
 	MsgTaskStatusUpdated      = "Task status updated successfully"
 	MsgTaskDeadlineUpdated    = "Task deadline updated successfully"
 	MsgTaskProgressUpdated    = "Task progress updated successfully"

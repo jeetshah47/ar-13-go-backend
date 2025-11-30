@@ -69,7 +69,7 @@ func (r *ProjectRepo) GetByID(ctx context.Context, id string) (*models.Project, 
 	return &project, nil
 }
 
-// GetAll gets all projects
+// GetAll gets all projects (excludes archived projects by default)
 func (r *ProjectRepo) GetAll(ctx context.Context, limit *int) ([]models.Project, error) {
 	var limitInt64 *int64
 	if limit != nil {
@@ -77,7 +77,15 @@ func (r *ProjectRepo) GetAll(ctx context.Context, limit *int) ([]models.Project,
 		limitInt64 = &l
 	}
 
-	items, err := r.FindAll(ctx, bson.M{}, limitInt64)
+	// Filter out archived projects
+	filter := bson.M{
+		"$or": []bson.M{
+			{"isArchived": bson.M{"$ne": true}},
+			{"isArchived": bson.M{"$exists": false}},
+		},
+	}
+
+	items, err := r.FindAll(ctx, filter, limitInt64)
 	if err != nil {
 		return nil, err
 	}
@@ -134,6 +142,10 @@ func (r *ProjectRepo) Add(ctx context.Context, project *models.Project) error {
 		project.Code = generateProjectCode(project.Title)
 	}
 
+	// Default isArchived to false for new projects
+	// (This ensures backward compatibility - existing projects without the field will be treated as not archived)
+	// The field is already initialized to false in the struct, but we make it explicit here
+
 	return r.InsertOne(ctx, project)
 }
 
@@ -149,6 +161,7 @@ func (r *ProjectRepo) Update(ctx context.Context, project *models.Project) error
 		"membersIds":  project.MembersIDs,
 		"project_code": project.Code,
 		"updated":     project.Updated,
+		"isArchived":  project.IsArchived,
 	}
 
 	if project.ProductionDuration != nil {
@@ -182,6 +195,51 @@ func (r *ProjectRepo) Delete(ctx context.Context, id string) error {
 	return r.DeleteByID(ctx, id)
 }
 
+// GetByUserID gets all projects where the user is either the owner or a member
+// Optimized with single query and efficient filtering
+// Excludes archived projects
+func (r *ProjectRepo) GetByUserID(ctx context.Context, userID string) ([]models.Project, error) {
+	// Query projects where user is owner OR in members list, and not archived
+	// MongoDB will use indexes on ownerId and membersIds if available
+	filter := bson.M{
+		"$and": []bson.M{
+			{
+				"$or": []bson.M{
+					{"ownerId": userID},
+					{"membersIds": userID},
+				},
+			},
+			{
+				"$or": []bson.M{
+					{"isArchived": bson.M{"$ne": true}},
+					{"isArchived": bson.M{"$exists": false}},
+				},
+			},
+		},
+	}
+
+	items, err := r.FindAll(ctx, filter, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pre-allocate slice with known capacity to avoid reallocations
+	projects := make([]models.Project, 0, len(items))
+	for _, item := range items {
+		var project models.Project
+		bsonBytes, err := bson.Marshal(item)
+		if err != nil {
+			continue
+		}
+		if err := bson.Unmarshal(bsonBytes, &project); err != nil {
+			continue
+		}
+		projects = append(projects, project)
+	}
+
+	return projects, nil
+}
+
 // Persists checks if a project exists by title
 func (r *ProjectRepo) Persists(ctx context.Context, title string) (bool, error) {
 	filter := bson.M{"title": title}
@@ -190,4 +248,14 @@ func (r *ProjectRepo) Persists(ctx context.Context, title string) (bool, error) 
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// Archive archives or unarchives a project
+func (r *ProjectRepo) Archive(ctx context.Context, projectID string, isArchived bool) error {
+	now := time.Now()
+	updates := bson.M{
+		"isArchived": isArchived,
+		"updated":    &now,
+	}
+	return r.UpdateOne(ctx, projectID, updates)
 }

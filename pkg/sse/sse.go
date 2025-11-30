@@ -396,3 +396,4 @@ func (c *Client) Close() {
 		log.Printf("[SSE] Client closed for user %s", c.userID)
 	})
 }
+

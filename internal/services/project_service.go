@@ -50,6 +50,20 @@ func (s *ProjectService) GetByID(ctx context.Context, id string) (*models.Projec
 	return s.projectRepo.GetByID(ctx, id)
 }
 
+// GetByUserID gets all projects where the user is either the owner or a member
+func (s *ProjectService) GetByUserID(ctx context.Context, userID string) ([]models.Project, error) {
+	return s.projectRepo.GetByUserID(ctx, userID)
+}
+
+// GetTasksByProjectIDs gets all tasks for multiple projects in a single batch query
+// This method is exposed to avoid N+1 queries when fetching tasks for multiple projects
+func (s *ProjectService) GetTasksByProjectIDs(ctx context.Context, projectIDs []string) (map[string][]models.Task, error) {
+	if s.taskRepo == nil {
+		return make(map[string][]models.Task), nil
+	}
+	return s.taskRepo.GetAllByProjectIDs(ctx, projectIDs)
+}
+
 // Add creates a new project
 func (s *ProjectService) Add(ctx context.Context, project *models.Project) error {
 	if err := s.projectRepo.Add(ctx, project); err != nil {
@@ -110,6 +124,25 @@ func (s *ProjectService) UpdateAgencyContact(ctx context.Context, projectID stri
 	}
 
 	if err := s.projectRepo.UpdateAgencyContact(ctx, projectID, agencyContact); err != nil {
+		return err
+	}
+	// Invalidate project stats cache
+	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+	return nil
+}
+
+// Archive archives or unarchives a project
+func (s *ProjectService) Archive(ctx context.Context, projectID string, isArchived bool) error {
+	// Check if project exists
+	existing, err := s.projectRepo.GetByID(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("project not found")
+	}
+
+	if err := s.projectRepo.Archive(ctx, projectID, isArchived); err != nil {
 		return err
 	}
 	// Invalidate project stats cache

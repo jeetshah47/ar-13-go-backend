@@ -51,8 +51,8 @@ type ActivityLogReplyServiceInterface interface {
 	GetByActivityLogID(ctx context.Context, activityLogID string) ([]models.ActivityLogReplyResponse, error)
 }
 
-// SSEServiceInterface defines the interface for SSE operations
-type SSEServiceInterface interface {
+// WebSocketServiceInterface defines the interface for WebSocket operations
+type WebSocketServiceInterface interface {
 	SendToUser(userID string, eventType string, data interface{}) error
 	BroadcastToProjectMembers(projectID string, eventType string, data interface{})
 	BroadcastToProjectMembersWithProject(project *models.Project, eventType string, data interface{})
@@ -79,9 +79,9 @@ type StorageObject struct {
 	ContentType  string    `json:"contentType,omitempty"`
 }
 
-// Note: SSEServiceInterface is implemented by pkg/sse.SSEService
+// Note: WebSocketServiceInterface is implemented by pkg/websocket.WebSocketService
 // We can't add a compile-time check here due to import cycle prevention
-// The interface methods match the SSEService implementation
+// The interface methods match the WebSocketService implementation
 
 // Verify that concrete types implement interfaces at compile time
 var (

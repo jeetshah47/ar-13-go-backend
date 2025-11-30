@@ -19,6 +19,7 @@ import (
 type UserService struct {
 	userRepo             repos.UserRepository
 	signupInvitationRepo repos.SignupInvitationRepository
+	projectService       *ProjectService
 	emailClient          EmailClientInterface
 	config               *config.Config
 }
@@ -27,12 +28,14 @@ type UserService struct {
 func NewUserService(
 	userRepo repos.UserRepository,
 	signupInvitationRepo repos.SignupInvitationRepository,
+	projectService *ProjectService,
 	emailClient EmailClientInterface,
 	cfg *config.Config,
 ) *UserService {
 	return &UserService{
 		userRepo:             userRepo,
 		signupInvitationRepo: signupInvitationRepo,
+		projectService:       projectService,
 		emailClient:          emailClient,
 		config:               cfg,
 	}
@@ -47,6 +50,7 @@ func NewUserServiceWithDefaults(cfg *config.Config) *UserService {
 	return NewUserService(
 		repos.NewUserRepo(),
 		repos.NewSignupInvitationRepo(),
+		NewProjectServiceWithDefaults(),
 		emailClient,
 		cfg,
 	)
@@ -132,8 +136,15 @@ func (s *UserService) Delete(ctx context.Context, id string) error {
 	return s.userRepo.Delete(ctx, id)
 }
 
-// GetProfile gets user profile with related data
-func (s *UserService) GetProfile(ctx context.Context, id string) (*models.User, error) {
+// GetProfileResponse represents the user profile response with projects
+type GetProfileResponse struct {
+	User     *models.User                `json:"user"`
+	Projects map[string]interface{}      `json:"projects,omitempty"`
+}
+
+// GetProfile gets user profile with related data including projects
+// Optimized to avoid N+1 queries by using batch operations
+func (s *UserService) GetProfile(ctx context.Context, id string) (*GetProfileResponse, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -142,8 +153,65 @@ func (s *UserService) GetProfile(ctx context.Context, id string) (*models.User, 
 		return nil, errors.New("user not found")
 	}
 
-	// TODO: Add projects and tasks data
-	return user, nil
+	response := &GetProfileResponse{
+		User:     user,
+		Projects: make(map[string]interface{}),
+	}
+
+	// Get projects where user is owner or member (single query - no N+1)
+	if s.projectService != nil {
+		projects, err := s.projectService.GetByUserID(ctx, id)
+		if err != nil {
+			// Log error but don't fail the request - projects are optional
+			log.Printf("Failed to fetch projects for user %s: %v", id, err)
+		} else if len(projects) > 0 {
+			// Batch fetch all tasks for all projects in a single query to avoid N+1
+			projectIDs := make([]string, 0, len(projects))
+			for _, project := range projects {
+				projectIDs = append(projectIDs, project.ID)
+			}
+
+			// Batch fetch tasks for all projects at once (single query - no N+1)
+			tasksByProject, err := s.projectService.GetTasksByProjectIDs(ctx, projectIDs)
+			if err != nil {
+				// Log error but continue - task counts are optional
+				log.Printf("Failed to fetch tasks for projects: %v", err)
+				tasksByProject = make(map[string][]models.Task)
+			}
+
+			// Convert projects to map format expected by frontend
+			// Calculate task counts efficiently from pre-fetched tasks (in-memory, no DB calls)
+			for _, project := range projects {
+				tasks := tasksByProject[project.ID]
+				allTasksCount := len(tasks)
+				activeTasksCount := 0
+				
+				// Count active tasks (not completed or rejected) - lightweight in-memory calculation
+				// Using direct string comparison for better performance
+				for _, task := range tasks {
+					status := strings.ToLower(strings.TrimSpace(task.Status))
+					// Check for active statuses (not completed/rejected) - efficient comparison
+					if status != "completed" && status != "rejected" {
+						activeTasksCount++
+					}
+				}
+
+				// Build project map efficiently
+				response.Projects[project.ID] = map[string]interface{}{
+					"id":               project.ID,
+					"code":             project.Code,
+					"name":             project.Title,
+					"title":            project.Title,
+					"created":          project.Created,
+					"allTasksCount":    allTasksCount,
+					"activeTasksCount": activeTasksCount,
+					"priority":         "", // Projects don't have priority, but frontend expects it
+				}
+			}
+		}
+	}
+
+	return response, nil
 }
 
 // generateSignupToken generates a secure signup token using JWT

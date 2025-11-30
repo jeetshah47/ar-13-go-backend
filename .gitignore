@@ -4,6 +4,12 @@
 *.dll
 *.so
 *.dylib
+bin/
+server
+server-linux
+server.exe
+worker
+main
 
 
 # Test binary, built with `go test -c`

@@ -18,13 +18,14 @@ import (
 
 // TaskService handles task business logic
 type TaskService struct {
-	taskRepo        repos.TaskRepository
-	userRepo        repos.UserRepository
-	emailClient     EmailClientInterface
-	cacheSvc        CacheServiceInterface
-	activityLogSvc  ActivityLogServiceInterface
-	sseService      SSEServiceInterface
-	notificationSvc *NotificationService
+	taskRepo           repos.TaskRepository
+	userRepo           repos.UserRepository
+	emailClient        EmailClientInterface
+	cacheSvc           CacheServiceInterface
+	activityLogSvc     ActivityLogServiceInterface
+	websocketService   WebSocketServiceInterface
+	notificationSvc    *NotificationService
+	timeTrackingSvc    *TimeTrackingService
 }
 
 // NewTaskService creates a new task service with dependency injection
@@ -34,7 +35,7 @@ func NewTaskService(
 	emailClient EmailClientInterface,
 	cacheSvc CacheServiceInterface,
 	activityLogSvc ActivityLogServiceInterface,
-	sseService SSEServiceInterface,
+	websocketService WebSocketServiceInterface,
 	notificationSvc *NotificationService,
 ) *TaskService {
 	return &TaskService{
@@ -43,14 +44,14 @@ func NewTaskService(
 		emailClient:     emailClient,
 		cacheSvc:        cacheSvc,
 		activityLogSvc:  activityLogSvc,
-		sseService:      sseService,
+		websocketService: websocketService,
 		notificationSvc: notificationSvc,
 	}
 }
 
 // NewTaskServiceWithDefaults creates a new task service with default implementations
 // This is a convenience constructor for backward compatibility
-// SSE and Notification services are optional and can be set later via SetSSEService and SetNotificationService
+// WebSocket and Notification services are optional and can be set later via SetWebSocketService and SetNotificationService
 func NewTaskServiceWithDefaults(cfg *config.Config) *TaskService {
 	var emailClient EmailClientInterface
 	if cfg != nil {
@@ -62,19 +63,24 @@ func NewTaskServiceWithDefaults(cfg *config.Config) *TaskService {
 		emailClient,
 		NewCacheService(),
 		NewActivityLogServiceWithDefaults(),
-		nil, // SSE service - can be set later
+		nil, // WebSocket service - can be set later
 		nil, // Notification service - can be set later
 	)
 }
 
-// SetSSEService sets the SSE service for sending real-time notifications
-func (s *TaskService) SetSSEService(sseService SSEServiceInterface) {
-	s.sseService = sseService
+// SetWebSocketService sets the WebSocket service for sending real-time notifications
+func (s *TaskService) SetWebSocketService(websocketService WebSocketServiceInterface) {
+	s.websocketService = websocketService
 }
 
 // SetNotificationService sets the notification service for storing notifications
 func (s *TaskService) SetNotificationService(notificationSvc *NotificationService) {
 	s.notificationSvc = notificationSvc
+}
+
+// SetTimeTrackingService sets the time tracking service
+func (s *TaskService) SetTimeTrackingService(timeTrackingSvc *TimeTrackingService) {
+	s.timeTrackingSvc = timeTrackingSvc
 }
 
 // populateActivityLogUsers populates user details for activity logs
@@ -436,7 +442,7 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 		s.createActivityLog(ctx, task.ID, models.ActivityLogActionUpdated, &desc, nil, fields)
 	}
 
-	// Send notification to assigned member when task is updated via SSE and store in database (non-blocking)
+	// Send notification to assigned member when task is updated via WebSocket and store in database (non-blocking)
 	if s.notificationSvc != nil && hasChanges && task.AssignTo != nil && *task.AssignTo != "" {
 		go func() {
 			// Get project details
@@ -504,24 +510,24 @@ func (s *TaskService) Update(ctx context.Context, task *models.Task) error {
 
 			// Store notification in database
 			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
-				log.Printf("[SSE-NOTIFICATION] ERROR: Failed to create task update notification: %v", err)
+				log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to create task update notification: %v", err)
 			} else {
-				log.Printf("[SSE-NOTIFICATION] Created task update notification in database - notificationId: %s, taskId: %s, userId: %s", notification.ID, task.ID, *task.AssignTo)
+				log.Printf("[WebSocket-NOTIFICATION] Created task update notification in database - notificationId: %s, taskId: %s, userId: %s", notification.ID, task.ID, *task.AssignTo)
 			}
 
-			// Send simple notifications-available event via SSE (client will fetch notifications via API)
-			if s.sseService != nil {
-				log.Printf("[SSE-NOTIFICATION] Preparing to send notifications-available event via SSE - taskId: %s, userId: %s", task.ID, *task.AssignTo)
-				sseData := map[string]interface{}{
+			// Send simple notifications-available event via WebSocket (client will fetch notifications via API)
+			if s.websocketService != nil {
+				log.Printf("[WebSocket-NOTIFICATION] Preparing to send notifications-available event via WebSocket - taskId: %s, userId: %s", task.ID, *task.AssignTo)
+				wsData := map[string]interface{}{
 					"userId": *task.AssignTo,
 				}
-				if err := s.sseService.SendToUser(*task.AssignTo, "notifications-available", sseData); err != nil {
-					log.Printf("[SSE-NOTIFICATION] ERROR: Failed to send notifications-available event via SSE to user %s: %v", *task.AssignTo, err)
+				if err := s.websocketService.SendToUser(*task.AssignTo, "notifications-available", wsData); err != nil {
+					log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to send notifications-available event via WebSocket to user %s: %v", *task.AssignTo, err)
 				} else {
-					log.Printf("[SSE-NOTIFICATION] SUCCESS: Sent notifications-available event via SSE - taskId: %s, userId: %s, type: notifications-available", task.ID, *task.AssignTo)
+					log.Printf("[WebSocket-NOTIFICATION] SUCCESS: Sent notifications-available event via WebSocket - taskId: %s, userId: %s, type: notifications-available", task.ID, *task.AssignTo)
 				}
 			} else {
-				log.Printf("[SSE-NOTIFICATION] WARNING: SSE service not available, skipping notifications-available event - taskId: %s, userId: %s", task.ID, *task.AssignTo)
+				log.Printf("[WebSocket-NOTIFICATION] WARNING: WebSocket service not available, skipping notifications-available event - taskId: %s, userId: %s", task.ID, *task.AssignTo)
 			}
 		}()
 	}
@@ -663,6 +669,10 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 		"newStatus": status,
 	})
 
+	// Handle time tracking based on status change
+	// Note: Time tracking start/stop is handled in the handler after UpdateStatus
+	// because we need the userID from the request context
+
 	// Note: Notifications for task status updates are now handled in the handler
 	// to ensure all project members receive notifications and avoid duplicates
 
@@ -739,7 +749,7 @@ func (s *TaskService) AddTimeSpent(ctx context.Context, projectID, taskID string
 	}
 	s.createActivityLog(ctx, taskID, models.ActivityLogActionTimeSpentAdded, &desc, nil, fields)
 
-	// Send notification to project owner when member adds time log via SSE and store in database (non-blocking)
+	// Send notification to project owner when member adds time log via WebSocket and store in database (non-blocking)
 	if s.notificationSvc != nil {
 		go func() {
 			// Get project details
@@ -794,24 +804,24 @@ func (s *TaskService) AddTimeSpent(ctx context.Context, projectID, taskID string
 
 				// Store notification in database
 				if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
-					log.Printf("[SSE-NOTIFICATION] ERROR: Failed to create time log notification: %v", err)
+					log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to create time log notification: %v", err)
 				} else {
-					log.Printf("[SSE-NOTIFICATION] Created time log notification in database - notificationId: %s, taskId: %s, userId: %s, hours: %.2f, date: %s", notification.ID, taskID, project.OwnerID, hours, dateStr)
+					log.Printf("[WebSocket-NOTIFICATION] Created time log notification in database - notificationId: %s, taskId: %s, userId: %s, hours: %.2f, date: %s", notification.ID, taskID, project.OwnerID, hours, dateStr)
 				}
 
-				// Send simple notifications-available event via SSE (client will fetch notifications via API)
-				if s.sseService != nil {
-					log.Printf("[SSE-NOTIFICATION] Preparing to send notifications-available event via SSE - taskId: %s, userId: %s", taskID, project.OwnerID)
-					sseData := map[string]interface{}{
+				// Send simple notifications-available event via WebSocket (client will fetch notifications via API)
+				if s.websocketService != nil {
+					log.Printf("[WebSocket-NOTIFICATION] Preparing to send notifications-available event via WebSocket - taskId: %s, userId: %s", taskID, project.OwnerID)
+					wsData := map[string]interface{}{
 						"userId": project.OwnerID,
 					}
-					if err := s.sseService.SendToUser(project.OwnerID, "notifications-available", sseData); err != nil {
-						log.Printf("[SSE-NOTIFICATION] ERROR: Failed to send notifications-available event via SSE to project owner %s: %v", project.OwnerID, err)
+					if err := s.websocketService.SendToUser(project.OwnerID, "notifications-available", wsData); err != nil {
+						log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to send notifications-available event via WebSocket to project owner %s: %v", project.OwnerID, err)
 					} else {
-						log.Printf("[SSE-NOTIFICATION] SUCCESS: Sent notifications-available event via SSE - taskId: %s, userId: %s, type: notifications-available", taskID, project.OwnerID)
+						log.Printf("[WebSocket-NOTIFICATION] SUCCESS: Sent notifications-available event via WebSocket - taskId: %s, userId: %s, type: notifications-available", taskID, project.OwnerID)
 					}
 				} else {
-					log.Printf("[SSE-NOTIFICATION] WARNING: SSE service not available, skipping notifications-available event - taskId: %s, userId: %s", taskID, project.OwnerID)
+					log.Printf("[WebSocket-NOTIFICATION] WARNING: WebSocket service not available, skipping notifications-available event - taskId: %s, userId: %s", taskID, project.OwnerID)
 				}
 			}
 		}()
@@ -1087,7 +1097,7 @@ func (s *TaskService) AssignTask(ctx context.Context, projectID, taskID, userID 
 		})
 	}
 
-	// Send notification to assigned user via SSE and store in database (non-blocking)
+	// Send notification to assigned user via WebSocket and store in database (non-blocking)
 	if s.notificationSvc != nil {
 		go func() {
 			// Get project details
@@ -1119,24 +1129,24 @@ func (s *TaskService) AssignTask(ctx context.Context, projectID, taskID, userID 
 
 			// Store notification in database
 			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
-				log.Printf("[SSE-NOTIFICATION] ERROR: Failed to create task assignment notification: %v", err)
+				log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to create task assignment notification: %v", err)
 			} else {
-				log.Printf("[SSE-NOTIFICATION] Created task assignment notification in database - notificationId: %s, taskId: %s, userId: %s", notification.ID, taskID, userID)
+				log.Printf("[WebSocket-NOTIFICATION] Created task assignment notification in database - notificationId: %s, taskId: %s, userId: %s", notification.ID, taskID, userID)
 			}
 
-			// Send simple notifications-available event via SSE (client will fetch notifications via API)
-			if s.sseService != nil {
-				log.Printf("[SSE-NOTIFICATION] Preparing to send notifications-available event via SSE - taskId: %s, userId: %s", taskID, userID)
-				sseData := map[string]interface{}{
+			// Send simple notifications-available event via WebSocket (client will fetch notifications via API)
+			if s.websocketService != nil {
+				log.Printf("[WebSocket-NOTIFICATION] Preparing to send notifications-available event via WebSocket - taskId: %s, userId: %s", taskID, userID)
+				wsData := map[string]interface{}{
 					"userId": userID,
 				}
-				if err := s.sseService.SendToUser(userID, "notifications-available", sseData); err != nil {
-					log.Printf("[SSE-NOTIFICATION] ERROR: Failed to send notifications-available event via SSE to user %s: %v", userID, err)
+				if err := s.websocketService.SendToUser(userID, "notifications-available", wsData); err != nil {
+					log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to send notifications-available event via WebSocket to user %s: %v", userID, err)
 				} else {
-					log.Printf("[SSE-NOTIFICATION] SUCCESS: Sent notifications-available event via SSE - taskId: %s, userId: %s, type: notifications-available", taskID, userID)
+					log.Printf("[WebSocket-NOTIFICATION] SUCCESS: Sent notifications-available event via WebSocket - taskId: %s, userId: %s, type: notifications-available", taskID, userID)
 				}
 			} else {
-				log.Printf("[SSE-NOTIFICATION] WARNING: SSE service not available, skipping notifications-available event - taskId: %s, userId: %s", taskID, userID)
+				log.Printf("[WebSocket-NOTIFICATION] WARNING: WebSocket service not available, skipping notifications-available event - taskId: %s, userId: %s", taskID, userID)
 			}
 		}()
 	}
@@ -1147,6 +1157,107 @@ func (s *TaskService) AssignTask(ctx context.Context, projectID, taskID, userID 
 // ClaimTask claims a task
 func (s *TaskService) ClaimTask(ctx context.Context, projectID, taskID, userID string) error {
 	return s.AssignTask(ctx, projectID, taskID, userID)
+}
+
+// TransferTask transfers a task to another user (admin only)
+// This is similar to AssignTask but explicitly for admin transfers
+func (s *TaskService) TransferTask(ctx context.Context, projectID, taskID, targetUserID, adminUserID string) error {
+	task, err := s.taskRepo.GetByID(ctx, projectID, taskID)
+	if err != nil {
+		return err
+	}
+	if task == nil {
+		return errors.New("task not found")
+	}
+
+	// Check if user is already assigned
+	if task.AssignTo != nil && *task.AssignTo == targetUserID {
+		return nil // Already assigned to target user
+	}
+
+	// Track old assignment for activity log
+	oldAssignTo := ""
+	if task.AssignTo != nil {
+		oldAssignTo = *task.AssignTo
+	}
+
+	// Transfer task to target user
+	task.AssignTo = &targetUserID
+	if err := s.taskRepo.Update(ctx, task); err != nil {
+		return err
+	}
+
+	// Create activity log for task transfer
+	if oldAssignTo == "" {
+		desc := fmt.Sprintf("Task '%s' was transferred to user by admin", task.Subject)
+		s.createActivityLog(ctx, taskID, models.ActivityLogActionAssigned, &desc, nil, map[string]interface{}{
+			"transferredTo": targetUserID,
+			"transferredBy": adminUserID,
+		})
+	} else if oldAssignTo != targetUserID {
+		desc := fmt.Sprintf("Task '%s' was transferred from user '%s' to user '%s' by admin", task.Subject, oldAssignTo, targetUserID)
+		s.createActivityLog(ctx, taskID, models.ActivityLogActionAssigned, &desc, nil, map[string]interface{}{
+			"oldAssignedTo": oldAssignTo,
+			"newAssignedTo": targetUserID,
+			"transferredBy":  adminUserID,
+		})
+	}
+
+	// Send notification to assigned user via WebSocket and store in database (non-blocking)
+	if s.notificationSvc != nil {
+		go func() {
+			// Get project details
+			projectRepo := repos.NewProjectRepo()
+			project, err := projectRepo.GetByID(context.Background(), projectID)
+			if err != nil {
+				log.Printf("Failed to get project for task transfer notification: %v", err)
+			}
+
+			projectTitle := "the project"
+			if project != nil {
+				projectTitle = project.Title
+			}
+
+			message := fmt.Sprintf("Task '%s' in project '%s' has been transferred to you by an admin.", task.Subject, projectTitle)
+			if task.Description != nil && *task.Description != "" {
+				message += fmt.Sprintf("\n\nDescription: %s", *task.Description)
+			}
+
+			notification := &models.Notification{
+				Title:             fmt.Sprintf("Task Transferred: %s", task.Subject),
+				Message:           message,
+				Type:              models.NotificationTypeTaskAssigned,
+				UserID:            targetUserID,
+				RelatedEntityID:   taskID,
+				RelatedEntityType: models.RelatedEntityTypeTask,
+				IsRead:            false,
+			}
+
+			// Store notification in database
+			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
+				log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to create task transfer notification: %v", err)
+			} else {
+				log.Printf("[WebSocket-NOTIFICATION] Created task transfer notification in database - notificationId: %s, taskId: %s, userId: %s", notification.ID, taskID, targetUserID)
+			}
+
+			// Send simple notifications-available event via WebSocket (client will fetch notifications via API)
+			if s.websocketService != nil {
+				log.Printf("[WebSocket-NOTIFICATION] Preparing to send notifications-available event via WebSocket - taskId: %s, userId: %s", taskID, targetUserID)
+				wsData := map[string]interface{}{
+					"userId": targetUserID,
+				}
+				if err := s.websocketService.SendToUser(targetUserID, "notifications-available", wsData); err != nil {
+					log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to send notifications-available event via WebSocket to user %s: %v", targetUserID, err)
+				} else {
+					log.Printf("[WebSocket-NOTIFICATION] SUCCESS: Sent notifications-available event via WebSocket - taskId: %s, userId: %s, type: notifications-available", taskID, targetUserID)
+				}
+			} else {
+				log.Printf("[WebSocket-NOTIFICATION] WARNING: WebSocket service not available, skipping notifications-available event - taskId: %s, userId: %s", taskID, targetUserID)
+			}
+		}()
+	}
+
+	return nil
 }
 
 // GetAssignableUsers gets users that can be assigned to tasks

@@ -16,7 +16,7 @@ import (
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/repos"
 	"github.com/ar-13-go-backend/internal/services"
-	"github.com/ar-13-go-backend/pkg/sse"
+	"github.com/ar-13-go-backend/pkg/websocket"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,9 +24,10 @@ import (
 type TaskHandler struct {
 	taskService          *services.TaskService
 	authorizationService *services.AuthorizationService
-	sseService           *sse.SSEService
+	websocketService    *websocket.WebSocketService
 	notificationService  *services.NotificationService
 	storageService       services.StorageServiceInterface
+	timeTrackingService *services.TimeTrackingService
 	cfg                  *config.Config
 }
 
@@ -52,9 +53,9 @@ func NewTaskHandlerWithDefaults(cfg *config.Config) *TaskHandler {
 	return handler
 }
 
-// SetSSEService sets the SSE service for broadcasting events
-func (h *TaskHandler) SetSSEService(sseService *sse.SSEService) {
-	h.sseService = sseService
+// SetWebSocketService sets the WebSocket service for broadcasting events
+func (h *TaskHandler) SetWebSocketService(websocketService *websocket.WebSocketService) {
+	h.websocketService = websocketService
 }
 
 // SetNotificationService sets the notification service
@@ -65,6 +66,11 @@ func (h *TaskHandler) SetNotificationService(notificationService *services.Notif
 // SetStorageService sets the storage service
 func (h *TaskHandler) SetStorageService(storageService services.StorageServiceInterface) {
 	h.storageService = storageService
+}
+
+// SetTimeTrackingService sets the time tracking service
+func (h *TaskHandler) SetTimeTrackingService(timeTrackingService *services.TimeTrackingService) {
+	h.timeTrackingService = timeTrackingService
 }
 
 // GetAll gets all tasks for a project with user details in assignTo field
@@ -451,6 +457,37 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 	}
 	oldStatus := existingTask.Status
 
+	// Handle time tracking based on status change
+	if h.timeTrackingService != nil {
+		// If changing TO in_progress, start tracking
+		if normalizedStatus == string(constants.TaskStatusInProgress) && oldStatus != string(constants.TaskStatusInProgress) {
+			// Use task assignee if available, otherwise use the user making the change
+			trackingUserID := userID
+			if existingTask.AssignTo != nil && *existingTask.AssignTo != "" {
+				trackingUserID = *existingTask.AssignTo
+			}
+			if err := h.timeTrackingService.StartTracking(c.Request.Context(), projectID, taskID, trackingUserID); err != nil {
+				log.Printf("Failed to start time tracking: %v", err)
+				// Don't fail the status update if time tracking fails
+			}
+		}
+		// If changing FROM in_progress, stop tracking
+		if oldStatus == string(constants.TaskStatusInProgress) && normalizedStatus != string(constants.TaskStatusInProgress) {
+			// Stop all active sessions for this task
+			// Get all active sessions and stop them
+			sessions, err := h.timeTrackingService.GetAllActiveSessions(c.Request.Context())
+			if err == nil {
+				for _, session := range sessions {
+					if session.ProjectID == projectID && session.TaskID == taskID {
+						if err := h.timeTrackingService.StopTracking(c.Request.Context(), projectID, taskID, session.UserID); err != nil {
+							log.Printf("Failed to stop time tracking for session %s: %v", session.ID, err)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Update task status
 	if err := h.taskService.UpdateStatus(c.Request.Context(), projectID, taskID, normalizedStatus, req.Remark); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
@@ -464,9 +501,9 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	// Create notifications in database and send via SSE for all project members
-	if h.notificationService != nil && h.sseService != nil {
-		log.Printf("[SSE-NOTIFICATION] Preparing to create notifications for task status update - projectId: %s, taskId: %s, oldStatus: %s, newStatus: %s, updatedBy: %s", projectID, taskID, oldStatus, normalizedStatus, userID)
+	// Create notifications in database and send via WebSocket for all project members
+	if h.notificationService != nil && h.websocketService != nil {
+		log.Printf("[WebSocket-NOTIFICATION] Preparing to create notifications for task status update - projectId: %s, taskId: %s, oldStatus: %s, newStatus: %s, updatedBy: %s", projectID, taskID, oldStatus, normalizedStatus, userID)
 
 		// Collect all project member IDs (owner + members)
 		userIDs := make(map[string]bool)
@@ -483,7 +520,7 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 			updaterName = updater.Name
 		}
 
-		// Create notification for each project member and send notifications-available event via SSE
+		// Create notification for each project member and send notifications-available event via WebSocket
 		for memberUserID := range userIDs {
 			// Skip if status didn't change (already handled in service)
 			if oldStatus == normalizedStatus {
@@ -504,31 +541,31 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 
 			// Store notification in database first
 			if err := h.notificationService.CreateNotification(c.Request.Context(), notification); err != nil {
-				log.Printf("[SSE-NOTIFICATION] ERROR: Failed to create task status update notification for user %s: %v", memberUserID, err)
+				log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to create task status update notification for user %s: %v", memberUserID, err)
 				continue
 			}
-			log.Printf("[SSE-NOTIFICATION] Created task status update notification in database - notificationId: %s, taskId: %s, userId: %s, oldStatus: %s, newStatus: %s", notification.ID, taskID, memberUserID, oldStatus, normalizedStatus)
+			log.Printf("[WebSocket-NOTIFICATION] Created task status update notification in database - notificationId: %s, taskId: %s, userId: %s, oldStatus: %s, newStatus: %s", notification.ID, taskID, memberUserID, oldStatus, normalizedStatus)
 
-			// Send simple notifications-available event via SSE (client will fetch notifications via API)
-			sseData := map[string]interface{}{
+			// Send simple notifications-available event via WebSocket (client will fetch notifications via API)
+			wsData := map[string]interface{}{
 				"userId": memberUserID,
 			}
 
-			log.Printf("[SSE-NOTIFICATION] Sending notifications-available event via SSE to user: %s", memberUserID)
-			if err := h.sseService.SendToUser(memberUserID, "notifications-available", sseData); err != nil {
-				log.Printf("[SSE-NOTIFICATION] ERROR: Failed to send notifications-available event via SSE to user %s: %v", memberUserID, err)
+			log.Printf("[WebSocket-NOTIFICATION] Sending notifications-available event via WebSocket to user: %s", memberUserID)
+			if err := h.websocketService.SendToUser(memberUserID, "notifications-available", wsData); err != nil {
+				log.Printf("[WebSocket-NOTIFICATION] ERROR: Failed to send notifications-available event via WebSocket to user %s: %v", memberUserID, err)
 			} else {
-				log.Printf("[SSE-NOTIFICATION] SUCCESS: Sent notifications-available event via SSE - userId: %s, type: notifications-available", memberUserID)
+				log.Printf("[WebSocket-NOTIFICATION] SUCCESS: Sent notifications-available event via WebSocket - userId: %s, type: notifications-available", memberUserID)
 			}
 		}
 
-		log.Printf("[SSE-NOTIFICATION] Completed creating and sending notifications for task status update - projectId: %s, taskId: %s, totalMembers: %d", projectID, taskID, len(userIDs))
+		log.Printf("[WebSocket-NOTIFICATION] Completed creating and sending notifications for task status update - projectId: %s, taskId: %s, totalMembers: %d", projectID, taskID, len(userIDs))
 	} else {
 		if h.notificationService == nil {
-			log.Printf("[SSE-NOTIFICATION] WARNING: Notification service not available, skipping notifications for task status update")
+			log.Printf("[WebSocket-NOTIFICATION] WARNING: Notification service not available, skipping notifications for task status update")
 		}
-		if h.sseService == nil {
-			log.Printf("[SSE-NOTIFICATION] WARNING: SSE service not available, skipping SSE events for task status update")
+		if h.websocketService == nil {
+			log.Printf("[WebSocket-NOTIFICATION] WARNING: WebSocket service not available, skipping WebSocket events for task status update")
 		}
 	}
 
@@ -654,6 +691,134 @@ func (h *TaskHandler) GetTimeSpent(c *gin.Context) {
 		return
 	}
 	c.JSON(constants.StatusOK, gin.H{"timeSpent": timeSpent})
+}
+
+// StartTimeTracking starts time tracking for a task
+func (h *TaskHandler) StartTimeTracking(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	projectID := c.Param("projectId")
+	taskID := c.Param("taskId")
+
+	if h.timeTrackingService == nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
+		return
+	}
+
+	// Check authorization
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.timeTrackingService.StartTracking(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": "Time tracking started"})
+}
+
+// StopTimeTracking stops time tracking for a task
+func (h *TaskHandler) StopTimeTracking(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	projectID := c.Param("projectId")
+	taskID := c.Param("taskId")
+
+	if h.timeTrackingService == nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
+		return
+	}
+
+	// Check authorization
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.timeTrackingService.StopTracking(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": "Time tracking stopped"})
+}
+
+// UpdateActivity updates user activity for time tracking
+func (h *TaskHandler) UpdateActivity(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	projectID := c.Param("projectId")
+	taskID := c.Param("taskId")
+
+	if h.timeTrackingService == nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
+		return
+	}
+
+	// Check authorization
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.timeTrackingService.UpdateActivity(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": "Activity updated"})
+}
+
+// GetTrackingStatus gets the current tracking status for a task
+func (h *TaskHandler) GetTrackingStatus(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	projectID := c.Param("projectId")
+	taskID := c.Param("taskId")
+
+	if h.timeTrackingService == nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
+		return
+	}
+
+	session, err := h.timeTrackingService.GetActiveSession(c.Request.Context(), projectID, taskID, userID)
+	if err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if session == nil {
+		c.JSON(constants.StatusOK, gin.H{"isTracking": false, "session": nil})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"isTracking": true,
+		"session": gin.H{
+			"id":           session.ID,
+			"startTime":    session.StartTime,
+			"lastActive":   session.LastActive,
+			"totalMinutes": session.TotalMinutes,
+		},
+	})
 }
 
 // AddFileAttachment adds file attachment
@@ -904,6 +1069,36 @@ func (h *TaskHandler) Claim(c *gin.Context) {
 	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskClaimed})
 }
 
+// Transfer transfers a task to another user (admin only)
+func (h *TaskHandler) Transfer(c *gin.Context) {
+	projectID := c.Param("projectId")
+	taskID := c.Param("taskId")
+
+	// Get user ID from context (set by auth middleware)
+	adminUserID := middleware.GetUserID(c)
+	if adminUserID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	// Parse request body to get target user ID
+	var requestBody struct {
+		UserId string `json:"userId" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "userId is required"})
+		return
+	}
+
+	// Transfer task using service
+	if err := h.taskService.TransferTask(c.Request.Context(), projectID, taskID, requestBody.UserId, adminUserID); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": constants.MsgTaskTransferred})
+}
+
 // GetAssignableUsers gets assignable users
 func (h *TaskHandler) GetAssignableUsers(c *gin.Context) {
 	users, err := h.taskService.GetAssignableUsers(c.Request.Context())
@@ -927,3 +1122,4 @@ func (h *TaskHandler) GetStatuses(c *gin.Context) {
 		"total":    len(statuses),
 	})
 }
+

@@ -59,6 +59,7 @@ const (
 	TaskDelete               = "/delete/:projectId/:taskId"
 	TaskAssign               = "/assign/:taskId/:userId"
 	TaskClaim                = "/claim/:projectId/:taskId"
+	TaskTransfer             = "/transfer/:projectId/:taskId"
 	TaskGetAssignableUsers   = "/assignable/:projectId"
 	TaskGetStatuses          = "/statuses"
 )

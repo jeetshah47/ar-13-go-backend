@@ -210,3 +210,49 @@ func (h *ProjectHandler) UpdateAgencyContact(c *gin.Context) {
 
 	c.JSON(constants.StatusOK, gin.H{"message": "Agency contact updated successfully"})
 }
+
+// Archive archives or unarchives a project (admin only)
+func (h *ProjectHandler) Archive(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	projectID := c.Param("id")
+	if projectID == "" {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "project ID is required"})
+		return
+	}
+
+	// Check authorization: only admins can archive projects
+	isAdmin, err := h.authorizationService.IsAdmin(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !isAdmin {
+		c.JSON(constants.StatusForbidden, gin.H{"error": "Only admins can archive projects"})
+		return
+	}
+
+	var req struct {
+		IsArchived bool `json:"isArchived" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": constants.MsgInvalidRequest})
+		return
+	}
+
+	if err := h.projectService.Archive(c.Request.Context(), projectID, req.IsArchived); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	action := "archived"
+	if !req.IsArchived {
+		action = "unarchived"
+	}
+	c.JSON(constants.StatusOK, gin.H{"message": "Project " + action + " successfully"})
+}

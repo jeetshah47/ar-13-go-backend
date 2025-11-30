@@ -60,6 +60,7 @@ func main() {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(middleware.CORS())
+	router.Use(middleware.MetricsMiddleware()) // Track metrics for all requests
 
 	// Serve static files
 	router.Static("/uploads", "./upload")
@@ -112,8 +113,28 @@ func main() {
 }
 
 func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Config) {
-	// SSE endpoint for real-time events
-	router.GET("/api/events", handler.SSE.HandleConnection)
+	// Health check endpoint (public, no auth required)
+	router.GET("/api/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "healthy",
+			"service": "ar-13-server",
+		})
+	})
+
+	// Metrics endpoints (admin only)
+	metricsHandler := handlers.NewMetricsHandler()
+	metrics := router.Group("/api/metrics")
+	metrics.Use(middleware.AuthenticateUser())
+	metrics.Use(middleware.RequireAdmin())
+	{
+		metrics.GET("/all", metricsHandler.GetAllMetrics)
+		metrics.GET("/by-service", metricsHandler.GetMetricsByService)
+		metrics.GET("/top", metricsHandler.GetTopServices)
+		metrics.POST("/reset", metricsHandler.ResetMetrics)
+	}
+
+	// WebSocket endpoint for real-time events
+	router.GET("/ws", handler.WebSocket.HandleConnection)
 
 	api := router.Group("/api")
 
@@ -158,6 +179,7 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			projects.POST("/add", middleware.RequirePermission("projects:write"), handler.Project.Add)
 			projects.PUT("/update", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:write"), handler.Project.Update)
 			projects.PUT("/:id/agency-contact", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:write"), handler.Project.UpdateAgencyContact)
+			projects.PUT("/:id/archive", middleware.RequireAdmin(), handler.Project.Archive)
 			projects.DELETE("/delete/:id", middleware.RequireProjectAccess(), middleware.RequirePermission("projects:delete"), handler.Project.Delete)
 		}
 
@@ -178,6 +200,10 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			tasks.PUT("/update-time-spent/:projectId/:taskId/:timeSpentIndex", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateTimeSpent)
 			tasks.DELETE("/remove-time-spent/:projectId/:taskId/:timeSpentIndex", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.RemoveTimeSpent)
 			tasks.GET("/time-spent/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.GetTimeSpent)
+			tasks.POST("/start-tracking/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.StartTimeTracking)
+			tasks.POST("/stop-tracking/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.StopTimeTracking)
+			tasks.POST("/update-activity/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateActivity)
+			tasks.GET("/tracking-status/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.GetTrackingStatus)
 			tasks.POST("/add-file-attachment/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.AddFileAttachment)
 			tasks.DELETE("/remove-file-attachment/:projectId/:taskId/:fileAttachmentIndex", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.RemoveFileAttachment)
 			tasks.GET("/file-attachments/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.GetFileAttachments)
@@ -185,6 +211,7 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			tasks.DELETE("/delete/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:delete"), handler.Task.Delete)
 			tasks.PUT("/assign/:taskId/:userId", middleware.RequirePermission("tasks:assign"), handler.Task.Assign)
 			tasks.PUT("/claim/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.Claim)
+			tasks.PUT("/transfer/:projectId/:taskId", middleware.RequireAdmin(), handler.Task.Transfer)
 			tasks.GET("/assignable/:projectId", middleware.RequirePermission("tasks:assign"), handler.Task.GetAssignableUsers)
 			tasks.GET("/statuses", middleware.RequirePermission("tasks:read"), handler.Task.GetStatuses)
 		}

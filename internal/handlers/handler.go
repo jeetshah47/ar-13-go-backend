@@ -4,12 +4,13 @@ import (
 	"log"
 
 	"github.com/ar-13-go-backend/internal/config"
+	"github.com/ar-13-go-backend/internal/repos"
 	"github.com/ar-13-go-backend/internal/services"
 )
 
 // Handler contains all route handlers
 type Handler struct {
-	SSE              *SSEHandler
+	WebSocket        *WebSocketHandler
 	Auth             *AuthHandler
 	User             *UserHandler
 	Project          *ProjectHandler
@@ -30,15 +31,15 @@ type Handler struct {
 
 // NewHandler creates a new handler instance
 func NewHandler(cfg *config.Config) *Handler {
-	// Create services for SSE
+	// Create services for WebSocket
 	taskService := services.NewTaskServiceWithDefaults(cfg)
 	projectService := services.NewProjectServiceWithDefaults()
 
-	sseHandler := NewSSEHandler(taskService, projectService)
+	websocketHandler := NewWebSocketHandler(taskService, projectService)
 
-	// Set SSE and Notification services on TaskService
+	// Set WebSocket and Notification services on TaskService
 	notificationService := services.NewNotificationServiceWithDefaults()
-	taskService.SetSSEService(sseHandler.GetSSEService())
+	taskService.SetWebSocketService(websocketHandler.GetWebSocketService())
 	taskService.SetNotificationService(notificationService)
 
 	// Initialize storage service (FileBrowser Service, FileBrowser, or MinIO)
@@ -87,31 +88,46 @@ func NewHandler(cfg *config.Config) *Handler {
 		}
 	}
 
+	// Initialize time tracking service
+	timeTrackingService := services.NewTimeTrackingService(
+		repos.NewTimeTrackingRepo(),
+		repos.NewTaskRepo(),
+	)
+	
+	// Set time tracking service on task service
+	taskService.SetTimeTrackingService(timeTrackingService)
+
 	// Create handlers with dependency injection
 	projectHandler := NewProjectHandlerWithDefaults()
 	taskHandler := NewTaskHandlerWithDefaults(cfg)
-	// Pass SSE service and notification service to task handler for event broadcasting
-	taskHandler.SetSSEService(sseHandler.GetSSEService())
+	// Pass WebSocket service and notification service to task handler for event broadcasting
+	taskHandler.SetWebSocketService(websocketHandler.GetWebSocketService())
 	taskHandler.SetNotificationService(notificationService)
 	taskHandler.SetStorageService(storageService)
+	taskHandler.SetTimeTrackingService(timeTrackingService)
 
 	storageHandler := NewStorageHandler(storageService, cfg)
 
+	activityLogReplyHandler := NewActivityLogReplyHandlerWithDefaults(websocketHandler.GetWebSocketService())
+	
+	// Register WebSocket message handlers for activity log replies
+	activityLogReplyHandler.RegisterWebSocketHandlers(websocketHandler.GetWebSocketService())
+
 	return &Handler{
-		SSE:              sseHandler,
+		WebSocket:        websocketHandler,
 		Auth:             NewAuthHandler(cfg),
 		User:             NewUserHandlerWithDefaults(cfg),
 		Project:          projectHandler,
 		Task:             taskHandler,
 		Dashboard:        NewDashboardHandlerWithDefaults(),
 		Calendar:         NewCalendarHandlerWithDefaults(cfg),
-		Notification:     NewNotificationHandlerWithDefaults(sseHandler),
+		Notification:     NewNotificationHandlerWithDefaults(websocketHandler),
 		Vacation:         NewVacationHandlerWithDefaults(),
 		Employee:         NewEmployeeHandlerWithDefaults(),
 		InfoPortal:       NewInfoPortalHandlerWithDefaults(),
 		ProjectDetails:   NewProjectDetailsHandlerWithDefaults(),
 		ActivityLog:      NewActivityLogHandlerWithDefaults(),
-		ActivityLogReply: NewActivityLogReplyHandlerWithDefaults(sseHandler.GetSSEService()),
+		ActivityLogReply: activityLogReplyHandler,
 		GoogleAccount:    NewGoogleAccountHandlerWithDefaults(),
 		DrawingList:      NewDrawingListHandlerWithDefaults(),
 		Storage:          storageHandler,

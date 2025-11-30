@@ -28,6 +28,21 @@ type TimeSpent struct {
 	Description *string `json:"description,omitempty" firestore:"description,omitempty" bson:"description,omitempty"`
 }
 
+// TimeTrackingSession represents an active time tracking session for a task
+type TimeTrackingSession struct {
+	ID          string     `json:"id" bson:"id"`
+	TaskID      string     `json:"taskId" bson:"taskId"`
+	ProjectID   string     `json:"projectId" bson:"projectId"`
+	UserID      string     `json:"userId" bson:"userId"`
+	StartTime   time.Time  `json:"startTime" bson:"startTime"`
+	LastActive  time.Time  `json:"lastActive" bson:"lastActive"`
+	EndTime     *time.Time `json:"endTime,omitempty" bson:"endTime,omitempty"`
+	TotalMinutes int       `json:"totalMinutes" bson:"totalMinutes"` // Accumulated active minutes
+	IsActive    bool       `json:"isActive" bson:"isActive"`
+	Created     time.Time  `json:"created" bson:"created"`
+	Updated     *time.Time `json:"updated,omitempty" bson:"updated,omitempty"`
+}
+
 // FileAttachment represents a file attachment
 type FileAttachment struct {
 	FileName     string    `json:"fileName" firestore:"fileName" bson:"fileName"`

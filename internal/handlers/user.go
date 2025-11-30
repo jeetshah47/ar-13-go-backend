@@ -94,11 +94,13 @@ func (h *UserHandler) Delete(c *gin.Context) {
 // GetProfile gets user profile with permissions
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	id := c.Param("id")
-	user, err := h.userService.GetProfile(c.Request.Context(), id)
+	profileResponse, err := h.userService.GetProfile(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(constants.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
+
+	user := profileResponse.User
 
 	// Get permissions for the user's role
 	permissions, err := h.permissionService.GetPermissionsByRole(c.Request.Context(), user.Role)
@@ -114,8 +116,21 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		leaveRequests = []models.LeaveRequest{}
 	}
 
+	// Build user object with projects included
+	userWithProjects := gin.H{
+		"id":          user.ID,
+		"name":        user.Name,
+		"email":       user.Email,
+		"phoneNumber": user.PhoneNumber,
+		"role":        user.Role,
+		"designation": user.Designation,
+		"createdAt":   user.CreatedAt,
+		"updatedAt":   user.UpdatedAt,
+		"projects":    profileResponse.Projects,
+	}
+
 	c.JSON(constants.StatusOK, gin.H{
-		"user":         user,
+		"user":         userWithProjects,
 		"role":          user.Role,
 		"permissions":   permissions,
 		"leaveRequests": leaveRequests,
