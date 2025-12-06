@@ -412,8 +412,9 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 	taskID := c.Param("taskId")
 
 	var req struct {
-		Status string  `json:"status" binding:"required"`
-		Remark *string `json:"remark,omitempty"`
+		Status      string  `json:"status" binding:"required"`
+		Remark      *string `json:"remark,omitempty"`
+		AdminBypass *bool   `json:"adminBypass,omitempty"` // Optional admin bypass flag
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
@@ -431,6 +432,19 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
 		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Check if user is admin
+	isAdmin, err := h.authorizationService.IsAdmin(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Failed to check admin status"})
+		return
+	}
+
+	// Determine admin bypass - only allow if user is admin and flag is set
+	adminBypass := false
+	if isAdmin && req.AdminBypass != nil && *req.AdminBypass {
+		adminBypass = true
 	}
 
 	// Get project before update (for notifications and broadcasting)
@@ -457,39 +471,8 @@ func (h *TaskHandler) UpdateStatus(c *gin.Context) {
 	}
 	oldStatus := existingTask.Status
 
-	// Handle time tracking based on status change
-	if h.timeTrackingService != nil {
-		// If changing TO in_progress, start tracking
-		if normalizedStatus == string(constants.TaskStatusInProgress) && oldStatus != string(constants.TaskStatusInProgress) {
-			// Use task assignee if available, otherwise use the user making the change
-			trackingUserID := userID
-			if existingTask.AssignTo != nil && *existingTask.AssignTo != "" {
-				trackingUserID = *existingTask.AssignTo
-			}
-			if err := h.timeTrackingService.StartTracking(c.Request.Context(), projectID, taskID, trackingUserID); err != nil {
-				log.Printf("Failed to start time tracking: %v", err)
-				// Don't fail the status update if time tracking fails
-			}
-		}
-		// If changing FROM in_progress, stop tracking
-		if oldStatus == string(constants.TaskStatusInProgress) && normalizedStatus != string(constants.TaskStatusInProgress) {
-			// Stop all active sessions for this task
-			// Get all active sessions and stop them
-			sessions, err := h.timeTrackingService.GetAllActiveSessions(c.Request.Context())
-			if err == nil {
-				for _, session := range sessions {
-					if session.ProjectID == projectID && session.TaskID == taskID {
-						if err := h.timeTrackingService.StopTracking(c.Request.Context(), projectID, taskID, session.UserID); err != nil {
-							log.Printf("Failed to stop time tracking for session %s: %v", session.ID, err)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Update task status
-	if err := h.taskService.UpdateStatus(c.Request.Context(), projectID, taskID, normalizedStatus, req.Remark); err != nil {
+	// Update task status (with admin bypass check)
+	if err := h.taskService.UpdateStatus(c.Request.Context(), projectID, taskID, normalizedStatus, req.Remark, adminBypass); err != nil {
 		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -783,6 +766,66 @@ func (h *TaskHandler) UpdateActivity(c *gin.Context) {
 	c.JSON(constants.StatusOK, gin.H{"message": "Activity updated"})
 }
 
+// PauseTimeTracking pauses time tracking for a task
+func (h *TaskHandler) PauseTimeTracking(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	projectID := c.Param("projectId")
+	taskID := c.Param("taskId")
+
+	if h.timeTrackingService == nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
+		return
+	}
+
+	// Check authorization
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.timeTrackingService.PauseTracking(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": "Time tracking paused"})
+}
+
+// ResumeTimeTracking resumes time tracking for a task
+func (h *TaskHandler) ResumeTimeTracking(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	projectID := c.Param("projectId")
+	taskID := c.Param("taskId")
+
+	if h.timeTrackingService == nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
+		return
+	}
+
+	// Check authorization
+	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.timeTrackingService.ResumeTracking(c.Request.Context(), projectID, taskID, userID); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": "Time tracking resumed"})
+}
+
 // GetTrackingStatus gets the current tracking status for a task
 func (h *TaskHandler) GetTrackingStatus(c *gin.Context) {
 	userID := middleware.GetUserID(c)
@@ -806,12 +849,13 @@ func (h *TaskHandler) GetTrackingStatus(c *gin.Context) {
 	}
 
 	if session == nil {
-		c.JSON(constants.StatusOK, gin.H{"isTracking": false, "session": nil})
+		c.JSON(constants.StatusOK, gin.H{"isTracking": false, "isPaused": false, "session": nil})
 		return
 	}
 
 	c.JSON(constants.StatusOK, gin.H{
 		"isTracking": true,
+		"isPaused":  session.IsPaused,
 		"session": gin.H{
 			"id":           session.ID,
 			"startTime":    session.StartTime,

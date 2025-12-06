@@ -27,6 +27,7 @@ type Handler struct {
 	GoogleAccount    *GoogleAccountHandler
 	DrawingList      *DrawingListHandler
 	Storage          *StorageHandler
+	NAS              *NASHandler
 }
 
 // NewHandler creates a new handler instance
@@ -47,8 +48,8 @@ func NewHandler(cfg *config.Config) *Handler {
 
 	// Priority: FileBrowser Service > FileBrowser > MinIO
 	if cfg.FileBrowserServiceURL != "" {
-		// Use new filebrowser service (with secret key authentication)
-		storageService = services.NewFileBrowserServiceStorage(cfg.FileBrowserServiceURL, cfg.FileBrowserServiceSecretKey)
+		// Use new filebrowser service (with JWT authentication)
+		storageService = services.NewFileBrowserServiceStorage(cfg.FileBrowserServiceURL)
 		if err := storageService.Initialize(); err != nil {
 			log.Printf("Warning: Failed to initialize filebrowser service: %v. Trying fallback...", err)
 			log.Printf("FileBrowser Service config - URL: %s", cfg.FileBrowserServiceURL)
@@ -93,7 +94,7 @@ func NewHandler(cfg *config.Config) *Handler {
 		repos.NewTimeTrackingRepo(),
 		repos.NewTaskRepo(),
 	)
-	
+
 	// Set time tracking service on task service
 	taskService.SetTimeTrackingService(timeTrackingService)
 
@@ -109,13 +110,16 @@ func NewHandler(cfg *config.Config) *Handler {
 	storageHandler := NewStorageHandler(storageService, cfg)
 
 	activityLogReplyHandler := NewActivityLogReplyHandlerWithDefaults(websocketHandler.GetWebSocketService())
-	
+
 	// Register WebSocket message handlers for activity log replies
 	activityLogReplyHandler.RegisterWebSocketHandlers(websocketHandler.GetWebSocketService())
 
+	authHandler := NewAuthHandler(cfg)
+	authHandler.SetTimeTrackingService(timeTrackingService)
+
 	return &Handler{
 		WebSocket:        websocketHandler,
-		Auth:             NewAuthHandler(cfg),
+		Auth:             authHandler,
 		User:             NewUserHandlerWithDefaults(cfg),
 		Project:          projectHandler,
 		Task:             taskHandler,
@@ -131,5 +135,6 @@ func NewHandler(cfg *config.Config) *Handler {
 		GoogleAccount:    NewGoogleAccountHandlerWithDefaults(),
 		DrawingList:      NewDrawingListHandlerWithDefaults(),
 		Storage:          storageHandler,
+		NAS:              NewNASHandler(cfg),
 	}
 }

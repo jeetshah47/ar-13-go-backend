@@ -13,16 +13,22 @@ import (
 
 // AuthHandler handles authentication routes
 type AuthHandler struct {
-	authService      *services.AuthService
+	authService       *services.AuthService
 	permissionService *services.PermissionService
+	timeTrackingSvc   *services.TimeTrackingService
 }
 
 // NewAuthHandler creates a new auth handler
 func NewAuthHandler(cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
-		authService:      services.NewAuthService(cfg),
+		authService:       services.NewAuthService(cfg),
 		permissionService: services.NewPermissionServiceWithDefaults(),
 	}
+}
+
+// SetTimeTrackingService sets the time tracking service
+func (h *AuthHandler) SetTimeTrackingService(timeTrackingSvc *services.TimeTrackingService) {
+	h.timeTrackingSvc = timeTrackingSvc
 }
 
 // Register handles user registration
@@ -69,7 +75,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
-	if err := h.authService.Logout(c.Request.Context(), token); err != nil {
+	if err := h.authService.Logout(c.Request.Context(), token, h.timeTrackingSvc); err != nil {
 		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Failed to logout"})
 		return
 	}

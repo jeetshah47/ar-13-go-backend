@@ -13,15 +13,13 @@ import (
 // FileBrowserServiceClient handles communication with the new filebrowser service (simple Go service)
 type FileBrowserServiceClient struct {
 	baseURL    string
-	secretKey  string
 	httpClient *http.Client
 }
 
 // NewFileBrowserServiceClient creates a new filebrowser service client
-func NewFileBrowserServiceClient(baseURL, secretKey string) *FileBrowserServiceClient {
+func NewFileBrowserServiceClient(baseURL string) *FileBrowserServiceClient {
 	return &FileBrowserServiceClient{
-		baseURL:   strings.TrimSuffix(baseURL, "/"),
-		secretKey: secretKey,
+		baseURL: strings.TrimSuffix(baseURL, "/"),
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -55,7 +53,8 @@ type FileBrowserFileInfoResponse struct {
 }
 
 // ListFiles lists files and folders at the given path
-func (c *FileBrowserServiceClient) ListFiles(path string) (*FileBrowserBrowseResponse, error) {
+// jwtToken: JWT token for authentication (from Authorization header of the original request)
+func (c *FileBrowserServiceClient) ListFiles(path string, jwtToken string) (*FileBrowserBrowseResponse, error) {
 	// Normalize path
 	if path == "" {
 		path = "/"
@@ -72,9 +71,14 @@ func (c *FileBrowserServiceClient) ListFiles(path string) (*FileBrowserBrowseRes
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Add secret key header if configured (trim whitespace)
-	if c.secretKey != "" {
-		req.Header.Set("X-API-Key", strings.TrimSpace(c.secretKey))
+	// Add JWT token in Authorization header
+	if jwtToken != "" {
+		// Trim any whitespace from token
+		cleanToken := strings.TrimSpace(jwtToken)
+		req.Header.Set("Authorization", "Bearer "+cleanToken)
+	} else {
+		// Log warning if token is empty (for debugging)
+		fmt.Printf("[FileBrowserClient] Warning: JWT token is empty for request to %s\n", apiURL)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -97,7 +101,8 @@ func (c *FileBrowserServiceClient) ListFiles(path string) (*FileBrowserBrowseRes
 }
 
 // GetFileInfo gets metadata for a specific file or folder
-func (c *FileBrowserServiceClient) GetFileInfo(path string) (*FileBrowserFileInfoResponse, error) {
+// jwtToken: JWT token for authentication (from Authorization header of the original request)
+func (c *FileBrowserServiceClient) GetFileInfo(path string, jwtToken string) (*FileBrowserFileInfoResponse, error) {
 	// Normalize path
 	if path == "" {
 		return nil, fmt.Errorf("path is required")
@@ -114,9 +119,14 @@ func (c *FileBrowserServiceClient) GetFileInfo(path string) (*FileBrowserFileInf
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Add secret key header if configured (trim whitespace)
-	if c.secretKey != "" {
-		req.Header.Set("X-API-Key", strings.TrimSpace(c.secretKey))
+	// Add JWT token in Authorization header
+	if jwtToken != "" {
+		// Trim any whitespace from token
+		cleanToken := strings.TrimSpace(jwtToken)
+		req.Header.Set("Authorization", "Bearer "+cleanToken)
+	} else {
+		// Log warning if token is empty (for debugging)
+		fmt.Printf("[FileBrowserClient] Warning: JWT token is empty for request to %s\n", apiURL)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -149,7 +159,7 @@ func (c *FileBrowserServiceClient) GetFileDownloadURL(filePath string) string {
 }
 
 // CheckHealth checks if the filebrowser service is healthy
-// Note: Health endpoint doesn't require authentication, so we don't send the secret key
+// Note: Health endpoint doesn't require authentication
 func (c *FileBrowserServiceClient) CheckHealth() error {
 	apiURL := fmt.Sprintf("%s/health", c.baseURL)
 	resp, err := c.httpClient.Get(apiURL)

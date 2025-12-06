@@ -10,54 +10,13 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
+    env_file:
+      - .env
     environment:
-      # Server Configuration
+      # Override PORT if needed (used in port mapping)
       - PORT=${PORT:-3000}
-      - NODE_ENV=${NODE_ENV:-production}
-      
-      # MongoDB Configuration
-      - MONGODB_URI=${MONGODB_URI:-mongodb://localhost:27017}
-      - MONGODB_DATABASE=${MONGODB_DATABASE:-ar13_backend}
-      
-      # JWT Configuration
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRATION_HOURS=${JWT_EXPIRATION_HOURS:-24}
-      - REFRESH_EXPIRATION_DAYS=${REFRESH_EXPIRATION_DAYS:-30}
-      
-      # Email Configuration
-      - EMAIL_HOST=${EMAIL_HOST:-}
-      - EMAIL_PORT=${EMAIL_PORT:-587}
-      - EMAIL_USER=${EMAIL_USER:-}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-}
-      - EMAIL_FROM=${EMAIL_FROM:-}
-      - EMAIL_FROM_NAME=${EMAIL_FROM_NAME:-}
-      
-      # Frontend Configuration
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-      
-      # Google OAuth Configuration
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
-      
-      # Redis Configuration
+      # Ensure Redis address uses service name in Docker network
       - REDIS_ADDR=${REDIS_ADDR:-redis:6379}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - REDIS_DB=${REDIS_DB:-0}
-      
-      # MinIO/NAS Storage Configuration
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-}
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-}
-      - MINIO_BUCKET=${MINIO_BUCKET:-ar-13-uploads}
-      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
-      - MINIO_INSECURE_SSL=${MINIO_INSECURE_SSL:-false}
-      
-      # FileBrowser Configuration
-      - FILEBROWSER_ENABLED=${FILEBROWSER_ENABLED:-false}
-      - FILEBROWSER_URL=${FILEBROWSER_URL:-http://localhost:8080}
-      - FILEBROWSER_TOKEN=${FILEBROWSER_TOKEN:-}
-      - FILEBROWSER_SERVICE_URL=${FILEBROWSER_SERVICE_URL:-}
-      - FILEBROWSER_SERVICE_SECRET_KEY=${FILEBROWSER_SERVICE_SECRET_KEY:-}
     volumes:
       - ./upload:/app/upload
     networks:
@@ -80,18 +39,11 @@ services:
       dockerfile: Dockerfile.worker
     container_name: ar-13-worker
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      # Server Configuration
-      - NODE_ENV=${NODE_ENV:-production}
-      
-      # MongoDB Configuration
-      - MONGODB_URI=${MONGODB_URI:-mongodb://localhost:27017}
-      - MONGODB_DATABASE=${MONGODB_DATABASE:-ar13_backend}
-      
-      # Redis Configuration (if worker needs it)
+      # Ensure Redis address uses service name in Docker network
       - REDIS_ADDR=${REDIS_ADDR:-redis:6379}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - REDIS_DB=${REDIS_DB:-0}
     networks:
       - ar-13-network
     mem_limit: 256m
@@ -124,25 +76,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-  # Cloudflare Tunnel (optional - uncomment if using Cloudflare)
-  # To enable: 1) Run setup-api-tunnel.sh, 2) Uncomment this section, 3) docker-compose up -d
-  # cloudflared:
-  #   image: cloudflare/cloudflared:latest
-  #   container_name: ar-13-cloudflared
-  #   restart: unless-stopped
-  #   command: tunnel --config /etc/cloudflared/config.yml run
-  #   volumes:
-  #     - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
-  #     - ./cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro
-  #   networks:
-  #     - ar-13-network
-  #   depends_on:
-  #     - server
-  #   mem_limit: 128m
-  #   mem_reservation: 50m
-  #   # Uncomment the line below if cloudflared needs to access host network
-  #   # network_mode: "host"
 
 networks:
   ar-13-network:

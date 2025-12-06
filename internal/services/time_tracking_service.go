@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ar-13-go-backend/internal/constants"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/repos"
 	"github.com/google/uuid"
@@ -33,7 +32,7 @@ func NewTimeTrackingService(
 
 // StartTracking starts a new time tracking session for a task
 func (s *TimeTrackingService) StartTracking(ctx context.Context, projectID, taskID, userID string) error {
-	// Check if task exists and is in progress
+	// Check if task exists
 	task, err := s.taskRepo.GetByID(ctx, projectID, taskID)
 	if err != nil {
 		return err
@@ -42,18 +41,17 @@ func (s *TimeTrackingService) StartTracking(ctx context.Context, projectID, task
 		return errors.New("task not found")
 	}
 
-	// Check if task status is in_progress
-	if task.Status != string(constants.TaskStatusInProgress) {
-		return errors.New("can only track time for tasks in progress")
-	}
-
 	// Check if there's already an active session for this task and user
 	existing, err := s.timeTrackingRepo.GetActiveByTaskAndUser(ctx, projectID, taskID, userID)
 	if err != nil {
 		return err
 	}
 	if existing != nil {
-		// Session already exists, return success
+		// If session is paused, resume it instead of creating new
+		if existing.IsPaused {
+			return s.ResumeTracking(ctx, projectID, taskID, userID)
+		}
+		// Session already exists and is active, return success
 		return nil
 	}
 
@@ -68,10 +66,72 @@ func (s *TimeTrackingService) StartTracking(ctx context.Context, projectID, task
 		LastActive:  now,
 		TotalMinutes: 0,
 		IsActive:    true,
+		IsPaused:    false,
 		Created:     now,
 	}
 
 	return s.timeTrackingRepo.Add(ctx, session)
+}
+
+// PauseTracking pauses an active time tracking session
+func (s *TimeTrackingService) PauseTracking(ctx context.Context, projectID, taskID, userID string) error {
+	// Get active session
+	session, err := s.timeTrackingRepo.GetActiveByTaskAndUser(ctx, projectID, taskID, userID)
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		return errors.New("no active tracking session found")
+	}
+	if session.IsPaused {
+		return errors.New("session is already paused")
+	}
+
+	// Aggregate time up to pause point
+	if err := s.aggregateSessionTime(ctx, session); err != nil {
+		return fmt.Errorf("failed to aggregate session time: %w", err)
+	}
+
+	// Pause the session
+	now := time.Now()
+	session.IsPaused = true
+	session.PausedAt = &now
+	session.LastActive = now
+	session.Updated = &now
+
+	return s.timeTrackingRepo.Update(ctx, session)
+}
+
+// ResumeTracking resumes a paused time tracking session
+func (s *TimeTrackingService) ResumeTracking(ctx context.Context, projectID, taskID, userID string) error {
+	// Get active session (including paused)
+	session, err := s.timeTrackingRepo.GetActiveByTaskAndUser(ctx, projectID, taskID, userID)
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		return errors.New("no active tracking session found")
+	}
+	if !session.IsPaused {
+		return errors.New("session is not paused")
+	}
+
+	// Calculate paused duration
+	now := time.Now()
+	var pausedDuration time.Duration
+	if session.PausedAt != nil {
+		pausedDuration = now.Sub(*session.PausedAt)
+	}
+
+	// Adjust StartTime to account for paused duration (so time calculation continues correctly)
+	// We shift StartTime forward by the paused duration
+	session.StartTime = session.StartTime.Add(pausedDuration)
+	session.IsPaused = false
+	session.PausedAt = nil
+	session.LastActive = now
+	session.Updated = &now
+
+	return s.timeTrackingRepo.Update(ctx, session)
 }
 
 // StopTracking stops an active time tracking session
@@ -85,9 +145,17 @@ func (s *TimeTrackingService) StopTracking(ctx context.Context, projectID, taskI
 		return errors.New("no active tracking session found")
 	}
 
-	// Finalize time before stopping
-	if err := s.aggregateSessionTime(ctx, session); err != nil {
-		return fmt.Errorf("failed to aggregate session time: %w", err)
+	// If paused, aggregate time up to pause point, otherwise aggregate current time
+	if session.IsPaused {
+		// Time was already aggregated when paused, just finalize
+		if session.PausedAt != nil {
+			session.LastActive = *session.PausedAt
+		}
+	} else {
+		// Finalize time before stopping
+		if err := s.aggregateSessionTime(ctx, session); err != nil {
+			return fmt.Errorf("failed to aggregate session time: %w", err)
+		}
 	}
 
 	// Stop the session
@@ -131,6 +199,11 @@ func (s *TimeTrackingService) AggregateTime(ctx context.Context, projectID, task
 
 	for _, session := range sessions {
 		if !session.IsActive {
+			continue
+		}
+
+		// Skip paused sessions - they don't accumulate time
+		if session.IsPaused {
 			continue
 		}
 
@@ -211,6 +284,11 @@ func (s *TimeTrackingService) AggregateTime(ctx context.Context, projectID, task
 
 // aggregateSessionTime aggregates time for a single session and updates TimeSpent
 func (s *TimeTrackingService) aggregateSessionTime(ctx context.Context, session *models.TimeTrackingSession) error {
+	// Don't aggregate time for paused sessions
+	if session.IsPaused {
+		return nil
+	}
+
 	now := time.Now()
 	timeSinceLastActive := now.Sub(session.LastActive)
 
@@ -272,5 +350,40 @@ func (s *TimeTrackingService) aggregateSessionTime(ctx context.Context, session 
 // GetAllActiveSessions gets all active time tracking sessions
 func (s *TimeTrackingService) GetAllActiveSessions(ctx context.Context) ([]models.TimeTrackingSession, error) {
 	return s.timeTrackingRepo.GetAllActive(ctx)
+}
+
+// StopAllUserSessions stops all active time tracking sessions for a user (called on logout)
+func (s *TimeTrackingService) StopAllUserSessions(ctx context.Context, userID string) error {
+	sessions, err := s.timeTrackingRepo.GetAllActiveByUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	for _, session := range sessions {
+		// Aggregate and stop each session
+		if !session.IsPaused {
+			// Only aggregate if not paused (paused sessions already have time aggregated)
+			if err := s.aggregateSessionTime(ctx, &session); err != nil {
+				// Log error but continue with other sessions
+				continue
+			}
+		} else if session.PausedAt != nil {
+			// For paused sessions, use paused time as last active
+			session.LastActive = *session.PausedAt
+		}
+
+		// Stop the session
+		now := time.Now()
+		session.IsActive = false
+		session.EndTime = &now
+		session.Updated = &now
+
+		if err := s.timeTrackingRepo.Update(ctx, &session); err != nil {
+			// Log error but continue with other sessions
+			continue
+		}
+	}
+
+	return nil
 }
 

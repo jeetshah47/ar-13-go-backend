@@ -632,8 +632,25 @@ func (s *TaskService) UpdateDescription(ctx context.Context, projectID, taskID, 
 	return nil
 }
 
+// HasTaskBeenStarted checks if a task has been started (has any time tracking session, active or inactive)
+func (s *TaskService) HasTaskBeenStarted(ctx context.Context, projectID, taskID string) (bool, error) {
+	if s.timeTrackingSvc == nil {
+		return false, nil
+	}
+
+	// Get all sessions for this task (including inactive ones)
+	timeTrackingRepo := repos.NewTimeTrackingRepo()
+	sessions, err := timeTrackingRepo.GetByTask(ctx, projectID, taskID)
+	if err != nil {
+		return false, err
+	}
+
+	// Check if any session exists for this task (active, paused, or inactive)
+	return len(sessions) > 0, nil
+}
+
 // UpdateStatus updates task status
-func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, status string, remark *string) error {
+func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, status string, remark *string, adminBypass bool) error {
 	// Normalize the incoming status (should already be normalized from handler, but ensure it)
 	normalizedStatus := constants.NormalizeTaskStatus(status)
 	if normalizedStatus == "" {
@@ -656,6 +673,17 @@ func (s *TaskService) UpdateStatus(ctx context.Context, projectID, taskID, statu
 	// Only update if status is actually changing
 	if existing.Status == status {
 		return nil // No change, no need to update or log
+	}
+
+	// Check if task has been started (unless admin bypass)
+	if !adminBypass {
+		hasStarted, err := s.HasTaskBeenStarted(ctx, projectID, taskID)
+		if err != nil {
+			return fmt.Errorf("failed to check if task has been started: %w", err)
+		}
+		if !hasStarted {
+			return errors.New("task must be started before status can be changed")
+		}
 	}
 
 	if err := s.taskRepo.UpdateStatus(ctx, projectID, taskID, status); err != nil {

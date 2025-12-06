@@ -57,9 +57,17 @@ type Config struct {
 	// FileBrowserServiceURL is for the new simple Go filebrowser service
 	FileBrowserEnabled          bool
 	FileBrowserURL              string
-	FileBrowserToken            string
-	FileBrowserServiceURL       string // URL for the new filebrowser service (e.g., http://localhost:8082)
-	FileBrowserServiceSecretKey string // Secret key for authenticating with the filebrowser service
+	FileBrowserToken      string
+	FileBrowserServiceURL string // URL for the new filebrowser service (e.g., http://localhost:8082)
+	// Note: FileBrowserServiceSecretKey removed - now using JWT authentication
+
+	// QNAP NAS Integration
+	QNAPNASIP           string // QNAP NAS IP address (e.g., 192.168.1.100)
+	QNAPAPIPort         int    // QNAP API port (default: 8080)
+	QNAPServiceUser     string // Service account username
+	QNAPServicePassword string // Service account password
+	QNAPShareName       string // Share name (e.g., "studio-work")
+	QNAPSessionTimeout  int    // Session timeout in minutes (default: 30)
 }
 
 var AppConfig *Config
@@ -86,7 +94,7 @@ func LoadConfig() (*Config, error) {
 		MongoDBURI:      getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDBDatabase: getEnv("MONGODB_DATABASE", "ar13_backend"),
 
-		JWTSecret:         getEnv("JWT_SECRET", ""),
+		JWTSecret:         strings.TrimSpace(getEnv("JWT_SECRET", "")),
 		JWTExpiration:     getEnvAsInt("JWT_EXPIRATION_HOURS", 24),
 		RefreshExpiration: getEnvAsInt("REFRESH_EXPIRATION_DAYS", 30),
 
@@ -113,11 +121,18 @@ func LoadConfig() (*Config, error) {
 		MinIOUseSSL:      getEnv("MINIO_USE_SSL", "false") == "true",
 		MinIOInsecureSSL: getEnv("MINIO_INSECURE_SSL", "false") == "true",
 
-		FileBrowserEnabled:          getEnv("FILEBROWSER_ENABLED", "false") == "true",
-		FileBrowserURL:              getEnv("FILEBROWSER_URL", "http://localhost:8080"),
-		FileBrowserToken:            getEnv("FILEBROWSER_TOKEN", ""),
-		FileBrowserServiceURL:       getEnv("FILEBROWSER_SERVICE_URL", "https://api.jsdeveloper.cloud"),
-		FileBrowserServiceSecretKey: strings.TrimSpace(getEnv("FILEBROWSER_SERVICE_SECRET_KEY", "")),
+		FileBrowserEnabled:    getEnv("FILEBROWSER_ENABLED", "false") == "true",
+		FileBrowserURL:        getEnv("FILEBROWSER_URL", "http://localhost:8080"),
+		FileBrowserToken:      getEnv("FILEBROWSER_TOKEN", ""),
+		FileBrowserServiceURL: getEnv("FILEBROWSER_SERVICE_URL", "https://api.jsdeveloper.cloud"),
+		// Note: FileBrowserServiceSecretKey removed - now using JWT authentication
+
+		QNAPNASIP:           getEnv("QNAP_NAS_IP", ""),
+		QNAPAPIPort:         getEnvAsInt("QNAP_API_PORT", 8080),
+		QNAPServiceUser:     getEnv("QNAP_SERVICE_USER", ""),
+		QNAPServicePassword: getEnv("QNAP_SERVICE_PASSWORD", ""),
+		QNAPShareName:       getEnv("QNAP_SHARE_NAME", "studio-work"),
+		QNAPSessionTimeout:  getEnvAsInt("QNAP_SESSION_TIMEOUT", 30),
 	}
 
 	AppConfig = config

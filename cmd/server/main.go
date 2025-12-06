@@ -356,6 +356,13 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			storage.POST(constants.StorageUpload, handler.Storage.UploadFile)
 		}
 
+		// NAS routes
+		nas := protected.Group("/nas")
+		{
+			nas.GET("/mount-credentials", handler.NAS.GetMountCredentials)
+			nas.GET("/file-path/:fileId", handler.NAS.GetFilePath)
+		}
+
 	}
 
 	// Google OAuth callback (public - called by Google, not by authenticated user)

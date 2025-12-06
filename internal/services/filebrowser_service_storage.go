@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ar-13-go-backend/internal/middleware"
 )
 
 // filebrowserServiceStorage implements StorageServiceInterface using the new filebrowser service
@@ -15,9 +17,9 @@ type filebrowserServiceStorage struct {
 }
 
 // NewFileBrowserServiceStorage creates a new storage service using the filebrowser service
-func NewFileBrowserServiceStorage(baseURL, secretKey string) StorageServiceInterface {
+func NewFileBrowserServiceStorage(baseURL string) StorageServiceInterface {
 	return &filebrowserServiceStorage{
-		client: NewFileBrowserServiceClient(baseURL, secretKey),
+		client: NewFileBrowserServiceClient(baseURL),
 	}
 }
 
@@ -57,7 +59,18 @@ func (s *filebrowserServiceStorage) ListObjects(ctx context.Context, prefix stri
 		prefix = "/"
 	}
 
-	result, err := s.client.ListFiles(prefix)
+	// Extract JWT token from context
+	jwtToken := middleware.GetJWTTokenFromContext(ctx)
+	if jwtToken == "" {
+		// Fallback: try to get from context value directly (in case middleware didn't set it)
+		if tokenVal := ctx.Value(middleware.JWTTokenKey); tokenVal != nil {
+			if tokenStr, ok := tokenVal.(string); ok {
+				jwtToken = tokenStr
+			}
+		}
+	}
+
+	result, err := s.client.ListFiles(prefix, jwtToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list objects: %w", err)
 	}
@@ -124,8 +137,19 @@ func (s *filebrowserServiceStorage) ObjectExists(ctx context.Context, objectName
 		objectName = "/" + objectName
 	}
 
+	// Extract JWT token from context
+	jwtToken := middleware.GetJWTTokenFromContext(ctx)
+	if jwtToken == "" {
+		// Fallback: try to get from context value directly (in case middleware didn't set it)
+		if tokenVal := ctx.Value(middleware.JWTTokenKey); tokenVal != nil {
+			if tokenStr, ok := tokenVal.(string); ok {
+				jwtToken = tokenStr
+			}
+		}
+	}
+
 	// Get file info to check if it exists
-	_, err := s.client.GetFileInfo(objectName)
+	_, err := s.client.GetFileInfo(objectName, jwtToken)
 	if err != nil {
 		// Check if it's a "not found" error (404 status or error message contains not_found/not found)
 		errStr := strings.ToLower(err.Error())
@@ -138,8 +162,9 @@ func (s *filebrowserServiceStorage) ObjectExists(ctx context.Context, objectName
 		// For authentication errors (401), return the error so it can be handled properly
 		if strings.Contains(errStr, "401") || 
 		   strings.Contains(errStr, "unauthorized") ||
-		   strings.Contains(errStr, "invalid secret key") ||
-		   strings.Contains(errStr, "secret key required") {
+		   strings.Contains(errStr, "invalid token") ||
+		   strings.Contains(errStr, "token required") ||
+		   strings.Contains(errStr, "authorization header required") {
 			return false, fmt.Errorf("authentication failed with filebrowser service: %w", err)
 		}
 		return false, err

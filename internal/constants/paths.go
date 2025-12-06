@@ -62,6 +62,12 @@ const (
 	TaskTransfer             = "/transfer/:projectId/:taskId"
 	TaskGetAssignableUsers   = "/assignable/:projectId"
 	TaskGetStatuses          = "/statuses"
+	TaskStartTracking        = "/start-tracking/:projectId/:taskId"
+	TaskStopTracking         = "/stop-tracking/:projectId/:taskId"
+	TaskPauseTracking        = "/pause-tracking/:projectId/:taskId"
+	TaskResumeTracking       = "/resume-tracking/:projectId/:taskId"
+	TaskUpdateActivity       = "/update-activity/:projectId/:taskId"
+	TaskGetTrackingStatus    = "/tracking-status/:projectId/:taskId"
 )
 
 // Dashboard paths

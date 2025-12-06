@@ -62,7 +62,7 @@ func (r *TimeTrackingRepo) GetByID(ctx context.Context, sessionID string) (*mode
 	return &session, nil
 }
 
-// GetActiveByTaskAndUser gets the active session for a task and user
+// GetActiveByTaskAndUser gets the active session for a task and user (including paused sessions)
 func (r *TimeTrackingRepo) GetActiveByTaskAndUser(ctx context.Context, projectID, taskID, userID string) (*models.TimeTrackingSession, error) {
 	filter := bson.M{
 		"projectId": projectID,
@@ -85,6 +85,33 @@ func (r *TimeTrackingRepo) GetActiveByTaskAndUser(ctx context.Context, projectID
 	}
 
 	return &session, nil
+}
+
+// GetAllActiveByUser gets all active sessions for a user (including paused sessions)
+func (r *TimeTrackingRepo) GetAllActiveByUser(ctx context.Context, userID string) ([]models.TimeTrackingSession, error) {
+	filter := bson.M{
+		"userId":   userID,
+		"isActive": true,
+	}
+	results, err := r.FindAll(ctx, filter, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []models.TimeTrackingSession
+	for _, result := range results {
+		bsonBytes, err := bson.Marshal(result)
+		if err != nil {
+			continue
+		}
+		var session models.TimeTrackingSession
+		if err := bson.Unmarshal(bsonBytes, &session); err != nil {
+			continue
+		}
+		sessions = append(sessions, session)
+	}
+
+	return sessions, nil
 }
 
 // GetAllActive gets all active time tracking sessions
@@ -155,10 +182,14 @@ func (r *TimeTrackingRepo) Update(ctx context.Context, session *models.TimeTrack
 		"lastActive":   session.LastActive,
 		"totalMinutes": session.TotalMinutes,
 		"isActive":     session.IsActive,
+		"isPaused":     session.IsPaused,
 		"updated":      session.Updated,
 	}
 	if session.EndTime != nil {
 		update["endTime"] = session.EndTime
+	}
+	if session.PausedAt != nil {
+		update["pausedAt"] = session.PausedAt
 	}
 	return r.UpdateOne(ctx, session.ID, update)
 }

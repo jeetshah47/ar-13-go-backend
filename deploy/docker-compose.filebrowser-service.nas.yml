@@ -20,6 +20,8 @@ services:
       - DATA_ROOT=/data
       # Port for the service to listen on
       - PORT=8082
+      # JWT secret for token authentication (must match JWT_SECRET in main backend)
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-here}
       # Optional: Set timezone
       - TZ=Asia/Kolkata
     networks:

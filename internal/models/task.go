@@ -39,6 +39,8 @@ type TimeTrackingSession struct {
 	EndTime     *time.Time `json:"endTime,omitempty" bson:"endTime,omitempty"`
 	TotalMinutes int       `json:"totalMinutes" bson:"totalMinutes"` // Accumulated active minutes
 	IsActive    bool       `json:"isActive" bson:"isActive"`
+	IsPaused    bool       `json:"isPaused" bson:"isPaused"` // Whether the session is paused
+	PausedAt    *time.Time `json:"pausedAt,omitempty" bson:"pausedAt,omitempty"` // When the session was paused
 	Created     time.Time  `json:"created" bson:"created"`
 	Updated     *time.Time `json:"updated,omitempty" bson:"updated,omitempty"`
 }

@@ -105,7 +105,7 @@ The service can be configured using environment variables:
 
 - `PORT`: Server port (default: `8082`)
 - `DATA_ROOT`: Root directory to serve files from (default: `/data`)
-- `SECRET_KEY`: Secret key for API authentication (optional, if not set, all requests are allowed)
+- `JWT_SECRET`: JWT secret key for token authentication (required, must match JWT_SECRET in main backend)
 
 ## Building
 
@@ -170,26 +170,21 @@ docker build -t filebrowser-service:latest .
 
 ### Local Run
 
-**With Secret Key:**
+**With JWT Secret:**
 ```bash
 export DATA_ROOT=/path/to/data
 export PORT=8082
-export SECRET_KEY=your-secret-key-here
+export JWT_SECRET=your-jwt-secret-here
 ./filebrowser-service
 ```
 
-**Without Secret Key (Development):**
-```bash
-export DATA_ROOT=/path/to/data
-export PORT=8082
-./filebrowser-service
-```
+**Note:** JWT_SECRET is required and must match the JWT_SECRET in the main backend.
 
 **Windows:**
 ```powershell
 $env:DATA_ROOT = "D:/Resumers/"
 $env:PORT = "8082"
-$env:SECRET_KEY = "your-secret-key-here"
+$env:JWT_SECRET = "your-jwt-secret-here"
 .\filebrowser-service.exe
 ```
 
@@ -200,6 +195,7 @@ docker run -d \
   -p 8082:8082 \
   -v /path/to/data:/data \
   -e DATA_ROOT=/data \
+  -e JWT_SECRET=your-jwt-secret-here \
   filebrowser-service:latest
 ```
 
@@ -209,27 +205,27 @@ See `docker-compose.filebrowser-service.nas.yml` for NAS deployment or `docker-c
 
 ## Security
 
-- **Secret Key Authentication**: API endpoints require `X-API-Key` header with the secret key (if `SECRET_KEY` is set)
+- **JWT Token Authentication**: API endpoints require `Authorization: Bearer <token>` header with a valid JWT token
 - **Path Traversal Protection**: All paths are validated to ensure they stay within the `DATA_ROOT` directory
 - **Non-root User**: Container runs as non-root user (UID 1000, GID 1000)
 - **CORS**: Configurable CORS headers for frontend integration
 
 ### Authentication
 
-When `SECRET_KEY` environment variable is set, all `/api/*` endpoints require the `X-API-Key` header:
+All `/api/*` endpoints require JWT token authentication via the `Authorization` header:
 
 ```bash
-curl -H "X-API-Key: your-secret-key" http://localhost:8082/api/browse?path=/
+curl -H "Authorization: Bearer <your-jwt-token>" http://localhost:8082/api/browse?path=/
 ```
 
-If `SECRET_KEY` is not set, all requests are allowed (useful for development).
+The JWT token must be signed with the same `JWT_SECRET` used by the main backend. The token is typically obtained by authenticating with the main backend's `/api/auth/login` endpoint.
 
 ## Integration
 
 This service is designed to be integrated with the main backend application. The backend can:
 
 1. Proxy requests to this service
-2. Add authentication/authorization middleware
+2. JWT authentication is already implemented - ensure JWT_SECRET matches the main backend
 3. Cache responses for better performance
 4. Add rate limiting
 

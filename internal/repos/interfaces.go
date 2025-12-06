@@ -170,6 +170,7 @@ type TimeTrackingRepository interface {
 	GetByID(ctx context.Context, sessionID string) (*models.TimeTrackingSession, error)
 	GetActiveByTaskAndUser(ctx context.Context, projectID, taskID, userID string) (*models.TimeTrackingSession, error)
 	GetAllActive(ctx context.Context) ([]models.TimeTrackingSession, error)
+	GetAllActiveByUser(ctx context.Context, userID string) ([]models.TimeTrackingSession, error)
 	GetByTask(ctx context.Context, projectID, taskID string) ([]models.TimeTrackingSession, error)
 	Update(ctx context.Context, session *models.TimeTrackingSession) error
 	StopSession(ctx context.Context, sessionID string) error

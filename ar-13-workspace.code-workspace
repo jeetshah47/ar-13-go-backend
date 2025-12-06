@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../ar-13-ui"
+		},
+		{
+			"path": "../ar-13-desktop-app"
 		}
 	]
 }

@@ -14,6 +14,7 @@ type UserKey string
 
 const UserIDKey UserKey = "userId"
 const UserEmailKey UserKey = "userEmail"
+const JWTTokenKey UserKey = "jwtToken"
 
 // AuthenticateUser middleware validates JWT token
 func AuthenticateUser() gin.HandlerFunc {
@@ -54,6 +55,7 @@ func AuthenticateUser() gin.HandlerFunc {
 
 		ctx := context.WithValue(c.Request.Context(), UserIDKey, userID)
 		ctx = context.WithValue(ctx, UserEmailKey, email)
+		ctx = context.WithValue(ctx, JWTTokenKey, token) // Store JWT token for forwarding to filebrowser service
 		c.Request = c.Request.WithContext(ctx)
 
 		c.Set("userId", userID)
@@ -95,6 +97,30 @@ func GetUserRole(c *gin.Context) string {
 		if r, ok := role.(string); ok {
 			return r
 		}
+	}
+	return ""
+}
+
+// GetJWTToken extracts JWT token from Authorization header
+func GetJWTToken(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return ""
+	}
+
+	// Extract token from "Bearer <token>"
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return ""
+	}
+
+	return parts[1]
+}
+
+// GetJWTTokenFromContext extracts JWT token from context
+func GetJWTTokenFromContext(ctx context.Context) string {
+	if token, ok := ctx.Value(JWTTokenKey).(string); ok {
+		return token
 	}
 	return ""
 }

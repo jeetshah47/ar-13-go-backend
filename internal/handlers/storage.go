@@ -141,9 +141,10 @@ func (h *StorageHandler) DownloadFile(c *gin.Context) {
 			return
 		}
 
-		// Add authentication header if filebrowser service secret key is configured (trim whitespace)
-		if h.cfg.FileBrowserServiceSecretKey != "" {
-			req.Header.Set("X-API-Key", strings.TrimSpace(h.cfg.FileBrowserServiceSecretKey))
+		// Add JWT token from context to Authorization header
+		jwtToken := middleware.GetJWTTokenFromContext(c.Request.Context())
+		if jwtToken != "" {
+			req.Header.Set("Authorization", "Bearer "+jwtToken)
 		}
 
 		// Make the request to filebrowser service
