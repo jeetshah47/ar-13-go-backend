@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../ar-13-desktop-app"
+		},
+		{
+			"path": "../ar-13-nas-filebrowser"
 		}
 	]
 }

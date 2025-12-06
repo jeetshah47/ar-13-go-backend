@@ -1,7 +1,0 @@
-tunnel: 1dbd5fde-6e0a-499d-8ac5-f0fab073ae26
-credentials-file: /share/Container/cloudflared/1dbd5fde-6e0a-499d-8ac5-f0fab073ae26.json
-
-ingress:
-  - hostname: api.jsdeveloper.cloud
-    service: http://localhost:8082
-  - service: http_status:404

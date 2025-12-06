@@ -83,7 +83,7 @@ First, set up the tunnel on your local computer (Windows/Mac/Linux):
 ### Option B: Manual Container Creation
 
 1. **Create filebrowser-service container**:
-   - Image: Build from `services/filebrowser/Dockerfile`
+   - Image: Build from `../ar-13-nas-filebrowser/Dockerfile`
    - Container name: `filebrowser-service`
    - Network: Create new network `filebrowser-network`
    - Volume: Mount `/share/studio work/` to `/data`

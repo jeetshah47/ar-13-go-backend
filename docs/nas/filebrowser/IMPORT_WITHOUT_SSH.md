@@ -32,25 +32,25 @@ Container Station can build Docker images from source code. This avoids the impo
 
 #### Step 1: Prepare Files for Upload
 
-You need to upload the entire `services/filebrowser/` folder to your NAS:
+You need to upload the entire `ar-13-nas-filebrowser/` folder to your NAS:
 
 **Files to upload:**
-- `services/filebrowser/main.go`
-- `services/filebrowser/go.mod`
-- `services/filebrowser/go.sum`
-- `services/filebrowser/Dockerfile`
-- `services/filebrowser/.dockerignore`
-- `services/filebrowser/handlers/` (entire folder)
-- `services/filebrowser/models/` (entire folder)
-- `services/filebrowser/middleware/` (entire folder)
-- `services/filebrowser/utils/` (entire folder)
+- `ar-13-nas-filebrowser/main.go`
+- `ar-13-nas-filebrowser/go.mod`
+- `ar-13-nas-filebrowser/go.sum`
+- `ar-13-nas-filebrowser/Dockerfile`
+- `ar-13-nas-filebrowser/.dockerignore`
+- `ar-13-nas-filebrowser/handlers/` (entire folder)
+- `ar-13-nas-filebrowser/models/` (entire folder)
+- `ar-13-nas-filebrowser/middleware/` (entire folder)
+- `ar-13-nas-filebrowser/utils/` (entire folder)
 - `docker-compose.filebrowser-service.nas.yml`
 
 #### Step 2: Upload to NAS
 
 1. Open **File Station** on your NAS
 2. Create a folder: `/share/Public/filebrowser-build/`
-3. Upload the entire `services/filebrowser/` folder structure to `/share/Public/filebrowser-build/`
+3. Upload the entire `ar-13-nas-filebrowser/` folder structure to `/share/Public/filebrowser-build/`
 4. Upload `docker-compose.filebrowser-service.nas.yml` to `/share/Public/filebrowser-build/`
 
 #### Step 3: Build Using Container Station
@@ -59,7 +59,7 @@ You need to upload the entire `services/filebrowser/` folder to your NAS:
 2. Go to **Images** tab
 3. Click **Build** button (or **Create** → **Build Image**)
 4. Configure build:
-   - **Build Context:** `/share/Public/filebrowser-build/services/filebrowser/`
+   - **Build Context:** `/share/Public/filebrowser-build/ar-13-nas-filebrowser/`
    - **Dockerfile:** `Dockerfile` (should auto-detect)
    - **Image Name:** `ar-13-go-backend-filebrowser-service:latest`
    - **Tag:** `latest`
@@ -79,7 +79,7 @@ You need to upload the entire `services/filebrowser/` folder to your NAS:
    services:
      filebrowser-service:
        # build:
-       #   context: ./services/filebrowser
+       #   context: ../ar-13-nas-filebrowser
        #   dockerfile: Dockerfile
        image: ar-13-go-backend-filebrowser-service:latest
        container_name: filebrowser-service
@@ -131,7 +131,7 @@ Some QNAP models allow installing Docker images via App Center or other package 
 - ✅ Most reliable method
 
 **Steps Summary:**
-1. Upload `services/filebrowser/` folder to NAS
+1. Upload `ar-13-nas-filebrowser/` folder to NAS
 2. Build image in Container Station using Dockerfile
 3. Deploy using docker-compose (remove build section)
 

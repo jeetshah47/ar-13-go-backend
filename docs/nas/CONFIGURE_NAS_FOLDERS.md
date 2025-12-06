@@ -36,7 +36,7 @@ mkdir -p /share/minio-storage/certs
 
 ### Step 2: Update docker-compose File
 
-Edit `docker-compose.minio.nas.yml` and change the volume paths:
+Edit `docker/docker-compose.minio.nas.yml` and change the volume paths:
 
 ```yaml
 version: '3.8'
@@ -94,10 +94,10 @@ chown -R 1000:1000 /share/minio-storage  # MinIO runs as UID 1000
 
 ```bash
 # Stop container
-docker-compose -f docker-compose.minio.nas.yml down
+docker-compose -f docker/docker-compose.minio.nas.yml down
 
 # Start with new paths
-docker-compose -f docker-compose.minio.nas.yml up -d
+docker-compose -f docker/docker-compose.minio.nas.yml up -d
 ```
 
 ## Option 2: Use Multiple Storage Locations
@@ -249,7 +249,7 @@ If you want to move existing data:
 
 1. **Stop MinIO:**
    ```bash
-   docker-compose -f docker-compose.minio.nas.yml down
+   docker-compose -f docker/docker-compose.minio.nas.yml down
    ```
 
 2. **Copy data:**
@@ -262,14 +262,14 @@ If you want to move existing data:
 
 4. **Start MinIO:**
    ```bash
-   docker-compose -f docker-compose.minio.nas.yml up -d
+   docker-compose -f docker/docker-compose.minio.nas.yml up -d
    ```
 
 5. **Verify data is accessible**
 
 ## Summary
 
-- Change volume paths in `docker-compose.minio.nas.yml`
+- Change volume paths in `docker/docker-compose.minio.nas.yml`
 - Use any folder under `/share/` (shared folders)
 - Set correct permissions (755 for folders, 1000:1000 ownership)
 - Restart container after changes

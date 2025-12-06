@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Main API Server
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    container_name: ar-13-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      # Override PORT if needed (used in port mapping)
+      - PORT=${PORT:-3000}
+      # Ensure Redis address uses service name in Docker network
+      - REDIS_ADDR=${REDIS_ADDR:-redis:6379}
+    volumes:
+      - ./upload:/app/upload
+    networks:
+      - ar-13-network
+    mem_limit: 512m
+    mem_reservation: 200m
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Background Worker Service
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    container_name: ar-13-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Ensure Redis address uses service name in Docker network
+      - REDIS_ADDR=${REDIS_ADDR:-redis:6379}
+    networks:
+      - ar-13-network
+    mem_limit: 256m
+    mem_reservation: 100m
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ps aux | grep -v grep | grep worker"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Redis (optional - comment out if using external Redis)
+  redis:
+    image: redis:7-alpine
+    container_name: ar-13-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis-data:/data
+    networks:
+      - ar-13-network
+    mem_limit: 200m
+    mem_reservation: 50m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  ar-13-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
+

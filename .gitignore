@@ -10,8 +10,16 @@ server-linux
 server.exe
 worker
 main
-
-
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+.env.development.local
+.env.production.local
+.env.test.local
+upload/
 # Test binary, built with `go test -c`
 *.test
 
@@ -58,4 +66,6 @@ credentials.json
 *secret*.yaml
 cloudflared/credentials.json
 cloudflared/config.yml
+.cloudflared/
+**/.cloudflared/
 

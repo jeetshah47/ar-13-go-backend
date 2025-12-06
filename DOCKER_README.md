@@ -56,8 +56,8 @@ After binaries are built, create Docker images:
 docker-compose build
 
 # Or build individually
-docker build -f Dockerfile.server -t ar-13-server .
-docker build -f Dockerfile.worker -t ar-13-worker .
+docker build -f docker/Dockerfile.server -t ar-13-server .
+docker build -f docker/Dockerfile.worker -t ar-13-worker .
 ```
 
 ## Prerequisites
@@ -96,26 +96,26 @@ REDIS_ADDR=redis:6379
 
 ```bash
 # Build Docker images (requires binaries in bin/ directory)
-docker-compose build
+docker-compose -f docker/docker-compose.yml build
 
 # Start all services
-docker-compose up -d
+docker-compose -f docker/docker-compose.yml up -d
 
 # View logs
-docker-compose logs -f
+docker-compose -f docker/docker-compose.yml logs -f
 
 # View logs for specific service
-docker-compose logs -f server
-docker-compose logs -f worker
+docker-compose -f docker/docker-compose.yml logs -f server
+docker-compose -f docker/docker-compose.yml logs -f worker
 ```
 
 ### 4. Stop Services
 
 ```bash
-docker-compose down
+docker-compose -f docker/docker-compose.yml down
 
 # Remove volumes (cleans Redis data)
-docker-compose down -v
+docker-compose -f docker/docker-compose.yml down -v
 ```
 
 ## Building Individual Services
@@ -127,7 +127,7 @@ docker-compose down -v
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags '-w -s' -o bin/server ./cmd/server/main.go
 
 # 2. Build Docker image
-docker build -f Dockerfile.server -t ar-13-server .
+docker build -f docker/Dockerfile.server -t ar-13-server .
 ```
 
 ### Build Worker Only
@@ -137,7 +137,7 @@ docker build -f Dockerfile.server -t ar-13-server .
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags '-w -s' -o bin/worker ./cmd/worker/main.go
 
 # 2. Build Docker image
-docker build -f Dockerfile.worker -t ar-13-worker .
+docker build -f docker/Dockerfile.worker -t ar-13-worker .
 ```
 
 ## Running Individual Containers
@@ -164,13 +164,13 @@ docker run -d \
 
 ## Memory Limits
 
-The docker-compose.yml includes memory limits:
+The docker/docker-compose.yml includes memory limits:
 
 - **Server**: 512 MB limit, 200 MB reserved
 - **Worker**: 256 MB limit, 100 MB reserved
 - **Redis**: 200 MB limit, 50 MB reserved
 
-You can adjust these in `docker-compose.yml` based on your needs.
+You can adjust these in `docker/docker-compose.yml` based on your needs.
 
 ## Health Checks
 
@@ -182,7 +182,7 @@ Both services include health checks:
 View health status:
 
 ```bash
-docker-compose ps
+docker-compose -f docker/docker-compose.yml ps
 ```
 
 ## Volumes
@@ -219,27 +219,27 @@ See `.env.example` for all available environment variables.
 
 ```bash
 # All services
-docker-compose logs
+docker-compose -f docker/docker-compose.yml logs
 
 # Specific service
-docker-compose logs server
-docker-compose logs worker
+docker-compose -f docker/docker-compose.yml logs server
+docker-compose -f docker/docker-compose.yml logs worker
 
 # Follow logs
-docker-compose logs -f server
+docker-compose -f docker/docker-compose.yml logs -f server
 ```
 
 ### Check Container Status
 
 ```bash
-docker-compose ps
+docker-compose -f docker/docker-compose.yml ps
 ```
 
 ### Restart a Service
 
 ```bash
-docker-compose restart server
-docker-compose restart worker
+docker-compose -f docker/docker-compose.yml restart server
+docker-compose -f docker/docker-compose.yml restart worker
 ```
 
 ### Rebuild After Code Changes
@@ -251,11 +251,11 @@ docker-compose restart worker
 ./build-binaries.sh
 
 # 2. Rebuild and restart
-docker-compose up -d --build
+docker-compose -f docker/docker-compose.yml up -d --build
 
 # Or rebuild specific service
-docker-compose build server
-docker-compose up -d server
+docker-compose -f docker/docker-compose.yml build server
+docker-compose -f docker/docker-compose.yml up -d server
 ```
 
 ### Access Container Shell
@@ -302,7 +302,7 @@ ls -la bin/
 3. **Redis**:
    - Can use external Redis instance
    - Update `REDIS_ADDR` in environment
-   - Comment out Redis service in docker-compose.yml if using external
+   - Comment out Redis service in docker/docker-compose.yml if using external
 
 4. **Storage**:
    - Consider using persistent volumes for uploads
@@ -338,12 +338,13 @@ ar-13-go-backend/
 ├── bin/                    # Pre-built binaries (created by build script)
 │   ├── server             # Server binary
 │   └── worker             # Worker binary
-├── Dockerfile.server      # Server Dockerfile
-├── Dockerfile.worker      # Worker Dockerfile
-├── docker-compose.yml     # Docker Compose configuration
+├── docker/                 # Docker configuration files
+│   ├── Dockerfile.server  # Server Dockerfile
+│   ├── Dockerfile.worker  # Worker Dockerfile
+│   ├── docker-compose.yml # Docker Compose configuration
+│   └── .dockerignore      # Files to ignore in Docker build
 ├── build-binaries.sh      # Build script (Linux/macOS)
-├── build-binaries.ps1     # Build script (Windows)
-└── .dockerignore          # Files to ignore in Docker build
+└── build-binaries.ps1     # Build script (Windows)
 ```
 
 ## Notes

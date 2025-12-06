@@ -43,7 +43,7 @@ chown -R 1000:1000 "/share/studio work/.minio-certs"
 
 ## Step 3: Update docker-compose File
 
-The `docker-compose.minio.nas.yml` file has been updated to use:
+The `docker/docker-compose.minio.nas.yml` file has been updated to use:
 - `/share/studio work/minio-data`
 - `/share/studio work/minio-config`
 - `/share/studio work/minio-certs`
@@ -56,7 +56,7 @@ If you have existing MinIO data in `/share/Container/minio/`:
 
 1. **Stop MinIO:**
    ```bash
-   docker-compose -f docker-compose.minio.nas.yml down
+   docker-compose -f docker/docker-compose.minio.nas.yml down
    ```
 
 2. **Copy data:**
@@ -70,7 +70,7 @@ If you have existing MinIO data in `/share/Container/minio/`:
 
 3. **Start MinIO with new paths:**
    ```bash
-   docker-compose -f docker-compose.minio.nas.yml up -d
+   docker-compose -f docker/docker-compose.minio.nas.yml up -d
    ```
 
 **Note:** After migration, your MinIO buckets (like `ar-13-uploads`) will appear as folders in "studio work" that you can see via File Station and network shares.
@@ -91,8 +91,8 @@ If you have existing MinIO data in `/share/Container/minio/`:
 
 ```bash
 cd /share/Container/minio  # or wherever your docker-compose file is
-docker-compose -f docker-compose.minio.nas.yml down
-docker-compose -f docker-compose.minio.nas.yml up -d
+   docker-compose -f docker/docker-compose.minio.nas.yml down
+   docker-compose -f docker/docker-compose.minio.nas.yml up -d
 ```
 
 ## Step 6: Verify It Works

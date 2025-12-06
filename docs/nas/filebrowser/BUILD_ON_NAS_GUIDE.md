@@ -38,12 +38,12 @@ You need to upload the source code to your NAS. Here's what to upload:
 1. Open **File Station** on your QNAP NAS
 2. Navigate to `/share/Public/`
 3. Create folder `filebrowser-build`
-4. Upload the entire `services/filebrowser/` folder structure
+4. Upload the entire `ar-13-nas-filebrowser/` folder structure
 5. Upload `docker-compose.filebrowser-service.nas-built.yml`
 
 **Quick Upload Method:**
 - Use File Station's upload feature
-- Select the entire `services/filebrowser/` folder from your Windows machine
+- Select the entire `ar-13-nas-filebrowser/` folder from your Windows machine
 - Upload to `/share/Public/filebrowser-build/`
 
 ### Step 3: Build Image in Container Station
@@ -54,7 +54,7 @@ You need to upload the source code to your NAS. Here's what to upload:
 4. Fill in the build configuration:
    
    **Build Settings:**
-   - **Build Context:** `/share/Public/filebrowser-build/services/filebrowser/`
+   - **Build Context:** `/share/Public/filebrowser-build/ar-13-nas-filebrowser/`
    - **Dockerfile:** `Dockerfile` (should auto-detect)
    - **Image Name:** `ar-13-go-backend-filebrowser-service`
    - **Tag:** `latest`
@@ -137,7 +137,7 @@ networks:
 ### Build Fails
 
 **Error: "Cannot find Dockerfile"**
-- Verify Dockerfile is in `/share/Public/filebrowser-build/services/filebrowser/`
+- Verify Dockerfile is in `/share/Public/filebrowser-build/ar-13-nas-filebrowser/`
 - Check file permissions in File Station
 
 **Error: "go.mod requires go >= 1.24.0"**

@@ -135,14 +135,14 @@ Older MinIO versions might have different UI. Update to latest:
 
 1. **Stop MinIO:**
    ```bash
-   docker-compose -f docker-compose.minio.nas.yml down
+   docker-compose -f docker/docker-compose.minio.nas.yml down
    ```
 
 2. **Update docker-compose file** to use `minio/minio:latest`
 
 3. **Start again:**
    ```bash
-   docker-compose -f docker-compose.minio.nas.yml up -d
+   docker-compose -f docker/docker-compose.minio.nas.yml up -d
    ```
 
 ## Solution 6: Use Docker Container with MinIO Client

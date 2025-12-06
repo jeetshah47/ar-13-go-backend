@@ -77,8 +77,8 @@ networks:
    ```
 3. Restart with updated configuration:
    ```bash
-   docker-compose -f docker-compose.minio.nas.yml down
-   docker-compose -f docker-compose.minio.nas.yml up -d
+   docker-compose -f docker/docker-compose.minio.nas.yml down
+   docker-compose -f docker/docker-compose.minio.nas.yml up -d
    ```
 
 ### Step 4: Verify Terminal Access

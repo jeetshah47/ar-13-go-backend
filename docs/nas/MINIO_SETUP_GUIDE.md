@@ -66,7 +66,7 @@ mkdir -p /share/Container/minio/certs
 
 ## Step 3: Upload docker-compose File
 
-1. Copy `docs/nas/docker-compose.minio.nas.yml` to your NAS
+1. Copy `docker/docker-compose.minio.nas.yml` to your NAS
 2. Place it in: `/share/Container/minio/docker-compose.minio.nas.yml`
 
 ## Step 4: Configure MinIO Credentials
@@ -102,7 +102,7 @@ mkdir -p /share/Container/minio/certs
    ```
 3. Start MinIO:
    ```bash
-   docker-compose -f docker-compose.minio.nas.yml up -d
+   docker-compose -f docker/docker-compose.minio.nas.yml up -d
    ```
 4. Check if it's running:
    ```bash
@@ -399,13 +399,13 @@ If you need to reset everything:
 
 ```bash
 # Stop and remove container
-docker-compose -f docker-compose.minio.nas.yml down
+docker-compose -f docker/docker-compose.minio.nas.yml down
 
 # Remove data (WARNING: This deletes all files!)
 rm -rf /share/Container/minio/data/*
 
 # Start again
-docker-compose -f docker-compose.minio.nas.yml up -d
+docker-compose -f docker/docker-compose.minio.nas.yml up -d
 ```
 
 ## Additional Resources

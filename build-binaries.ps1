@@ -42,7 +42,7 @@ Write-Host "Server binary: $([math]::Round($serverSize, 2)) MB"
 Write-Host "Worker binary: $([math]::Round($workerSize, 2)) MB"
 Write-Host ""
 Write-Host "You can now build Docker images:" -ForegroundColor Cyan
-Write-Host "  docker build -f Dockerfile.server -t ar-13-server ."
-Write-Host "  docker build -f Dockerfile.worker -t ar-13-worker ."
-Write-Host "  Or use: docker-compose build"
+Write-Host "  docker build -f docker/Dockerfile.server -t ar-13-server ."
+Write-Host "  docker build -f docker/Dockerfile.worker -t ar-13-worker ."
+Write-Host "  Or use: docker-compose -f docker/docker-compose.yml build"
 
