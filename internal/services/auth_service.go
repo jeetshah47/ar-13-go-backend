@@ -36,9 +36,10 @@ func NewAuthService(cfg *config.Config) *AuthService {
 
 // LoginResponse represents login response with tokens
 type LoginResponse struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
-	ExpiresIn    int    `json:"expiresIn"` // in seconds
+	AccessToken        string `json:"accessToken"`
+	RefreshToken       string `json:"refreshToken"`
+	ExpiresIn          int    `json:"expiresIn"` // in seconds
+	ForceChangePassword bool  `json:"forceChangePassword,omitempty"` // True if user must change password
 }
 
 // Login logs in a user
@@ -98,9 +99,10 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*Logi
 	}()
 
 	return &LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresIn:    expirationHours * 3600, // convert hours to seconds
+		AccessToken:         accessToken,
+		RefreshToken:        refreshToken,
+		ExpiresIn:           expirationHours * 3600, // convert hours to seconds
+		ForceChangePassword: user.ForceChangePassword,
 	}, nil
 }
 
@@ -275,8 +277,9 @@ func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) 
 	}
 
 	return &LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresIn:    expirationHours * 3600,
+		AccessToken:         accessToken,
+		RefreshToken:        refreshToken,
+		ExpiresIn:           expirationHours * 3600,
+		ForceChangePassword: user.ForceChangePassword,
 	}, nil
 }

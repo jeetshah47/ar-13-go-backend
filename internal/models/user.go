@@ -12,15 +12,16 @@ const (
 
 // User represents a user in the system
 type User struct {
-	ID          string    `json:"id" firestore:"id" bson:"id"`
-	Name        string    `json:"name" firestore:"name" bson:"name"`
-	Email       string    `json:"email" firestore:"email" bson:"email"`
-	PhoneNumber string    `json:"phoneNumber" firestore:"phoneNumber" bson:"phoneNumber"`
-	Role        UserRole  `json:"role" firestore:"role" bson:"role"`
-	Password    string    `json:"-" firestore:"password" bson:"password"` // Hidden from JSON
-	Designation *string   `json:"designation,omitempty" firestore:"designation,omitempty" bson:"designation,omitempty"`
-	CreatedAt   time.Time `json:"createdAt" firestore:"createdAt" bson:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt" firestore:"updatedAt" bson:"updatedAt"`
+	ID                  string    `json:"id" firestore:"id" bson:"id"`
+	Name                string    `json:"name" firestore:"name" bson:"name"`
+	Email               string    `json:"email" firestore:"email" bson:"email"`
+	PhoneNumber         string    `json:"phoneNumber" firestore:"phoneNumber" bson:"phoneNumber"`
+	Role                UserRole  `json:"role" firestore:"role" bson:"role"`
+	Password            string    `json:"-" firestore:"password" bson:"password"` // Hidden from JSON
+	Designation         *string   `json:"designation,omitempty" firestore:"designation,omitempty" bson:"designation,omitempty"`
+	ForceChangePassword bool      `json:"forceChangePassword,omitempty" firestore:"forceChangePassword,omitempty" bson:"forceChangePassword,omitempty"`
+	CreatedAt           time.Time `json:"createdAt" firestore:"createdAt" bson:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt" firestore:"updatedAt" bson:"updatedAt"`
 }
 
 // LoginRequest represents a login request

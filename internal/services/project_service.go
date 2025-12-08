@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/ar-13-go-backend/internal/constants"
@@ -13,9 +15,11 @@ import (
 
 // ProjectService handles project business logic
 type ProjectService struct {
-	projectRepo repos.ProjectRepository
-	taskRepo    repos.TaskRepository
-	cacheSvc    CacheServiceInterface
+	projectRepo     repos.ProjectRepository
+	taskRepo        repos.TaskRepository
+	cacheSvc        CacheServiceInterface
+	notificationSvc *NotificationService
+	websocketService WebSocketServiceInterface
 }
 
 // NewProjectService creates a new project service with dependency injection
@@ -38,6 +42,16 @@ func NewProjectServiceWithDefaults() *ProjectService {
 		repos.NewTaskRepo(),
 		NewCacheService(),
 	)
+}
+
+// SetNotificationService sets the notification service for storing notifications
+func (s *ProjectService) SetNotificationService(notificationSvc *NotificationService) {
+	s.notificationSvc = notificationSvc
+}
+
+// SetWebSocketService sets the WebSocket service for sending real-time notifications
+func (s *ProjectService) SetWebSocketService(websocketService WebSocketServiceInterface) {
+	s.websocketService = websocketService
 }
 
 // GetAll gets all projects
@@ -71,6 +85,35 @@ func (s *ProjectService) Add(ctx context.Context, project *models.Project) error
 	}
 	// Invalidate project stats cache
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+
+	// Send notification to project owner (non-blocking)
+	if s.notificationSvc != nil {
+		go func() {
+			notification := &models.Notification{
+				Title:             fmt.Sprintf("Project Created: %s", project.Title),
+				Message:           fmt.Sprintf("Project '%s' has been created successfully.", project.Title),
+				Type:              models.NotificationTypeProjectCreated,
+				UserID:            project.OwnerID,
+				RelatedEntityID:   project.ID,
+				RelatedEntityType: models.RelatedEntityTypeProject,
+				IsRead:            false,
+			}
+
+			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
+				// Log error but don't fail the operation
+				_ = err
+			}
+
+			// Send WebSocket notification
+			if s.websocketService != nil {
+				wsData := map[string]interface{}{
+					"userId": project.OwnerID,
+				}
+				_ = s.websocketService.SendToUser(project.OwnerID, "notifications-available", wsData)
+			}
+		}()
+	}
+
 	return nil
 }
 
@@ -90,6 +133,52 @@ func (s *ProjectService) Update(ctx context.Context, project *models.Project) er
 	}
 	// Invalidate project stats cache
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
+
+	// Send notifications to project owner and members (non-blocking)
+	if s.notificationSvc != nil {
+		go func() {
+			// Notify project owner
+			ownerNotification := &models.Notification{
+				Title:             fmt.Sprintf("Project Updated: %s", project.Title),
+				Message:           fmt.Sprintf("Project '%s' has been updated.", project.Title),
+				Type:              models.NotificationTypeProjectUpdated,
+				UserID:            project.OwnerID,
+				RelatedEntityID:   project.ID,
+				RelatedEntityType: models.RelatedEntityTypeProject,
+				IsRead:            false,
+			}
+			if err := s.notificationSvc.CreateNotification(context.Background(), ownerNotification); err != nil {
+				log.Printf("Failed to create project update notification for owner: %v", err)
+			}
+			if s.websocketService != nil {
+				wsData := map[string]interface{}{"userId": project.OwnerID}
+				_ = s.websocketService.SendToUser(project.OwnerID, "notifications-available", wsData)
+			}
+
+			// Notify all project members
+			for _, memberID := range project.MembersIDs {
+				if memberID != project.OwnerID { // Don't notify owner twice
+					memberNotification := &models.Notification{
+						Title:             fmt.Sprintf("Project Updated: %s", project.Title),
+						Message:           fmt.Sprintf("Project '%s' has been updated.", project.Title),
+						Type:              models.NotificationTypeProjectUpdated,
+						UserID:            memberID,
+						RelatedEntityID:   project.ID,
+						RelatedEntityType: models.RelatedEntityTypeProject,
+						IsRead:            false,
+					}
+					if err := s.notificationSvc.CreateNotification(context.Background(), memberNotification); err != nil {
+						log.Printf("Failed to create project update notification for member %s: %v", memberID, err)
+					}
+					if s.websocketService != nil {
+						wsData := map[string]interface{}{"userId": memberID}
+						_ = s.websocketService.SendToUser(memberID, "notifications-available", wsData)
+					}
+				}
+			}
+		}()
+	}
+
 	return nil
 }
 

@@ -28,6 +28,7 @@ type Handler struct {
 	DrawingList      *DrawingListHandler
 	Storage          *StorageHandler
 	NAS              *NASHandler
+	AuditLog         *AuditLogHandler
 }
 
 // NewHandler creates a new handler instance
@@ -100,12 +101,26 @@ func NewHandler(cfg *config.Config) *Handler {
 
 	// Create handlers with dependency injection
 	projectHandler := NewProjectHandlerWithDefaults()
+	// Set notification and websocket services for project service
+	if projectService := projectHandler.GetProjectService(); projectService != nil {
+		projectService.SetNotificationService(notificationService)
+		projectService.SetWebSocketService(websocketHandler.GetWebSocketService())
+	}
+
 	taskHandler := NewTaskHandlerWithDefaults(cfg)
 	// Pass WebSocket service and notification service to task handler for event broadcasting
 	taskHandler.SetWebSocketService(websocketHandler.GetWebSocketService())
 	taskHandler.SetNotificationService(notificationService)
 	taskHandler.SetStorageService(storageService)
 	taskHandler.SetTimeTrackingService(timeTrackingService)
+
+	// Set notification and websocket services for calendar service
+	calendarHandler := NewCalendarHandlerWithDefaults(cfg)
+	calendarService := calendarHandler.GetCalendarService()
+	if calendarService != nil {
+		calendarService.SetNotificationService(notificationService)
+		calendarService.SetWebSocketService(websocketHandler.GetWebSocketService())
+	}
 
 	storageHandler := NewStorageHandler(storageService, cfg)
 
@@ -117,14 +132,21 @@ func NewHandler(cfg *config.Config) *Handler {
 	authHandler := NewAuthHandler(cfg)
 	authHandler.SetTimeTrackingService(timeTrackingService)
 
+	// Set notification and websocket services for user service
+	userHandler := NewUserHandlerWithDefaults(cfg)
+	if userService := userHandler.GetUserService(); userService != nil {
+		userService.SetNotificationService(notificationService)
+		userService.SetWebSocketService(websocketHandler.GetWebSocketService())
+	}
+
 	return &Handler{
 		WebSocket:        websocketHandler,
 		Auth:             authHandler,
-		User:             NewUserHandlerWithDefaults(cfg),
+		User:             userHandler,
 		Project:          projectHandler,
 		Task:             taskHandler,
 		Dashboard:        NewDashboardHandlerWithDefaults(),
-		Calendar:         NewCalendarHandlerWithDefaults(cfg),
+		Calendar:         calendarHandler,
 		Notification:     NewNotificationHandlerWithDefaults(websocketHandler),
 		Vacation:         NewVacationHandlerWithDefaults(),
 		Employee:         NewEmployeeHandlerWithDefaults(),
@@ -136,5 +158,6 @@ func NewHandler(cfg *config.Config) *Handler {
 		DrawingList:      NewDrawingListHandlerWithDefaults(),
 		Storage:          storageHandler,
 		NAS:              NewNASHandler(cfg),
+		AuditLog:         NewAuditLogHandlerWithDefaults(),
 	}
 }

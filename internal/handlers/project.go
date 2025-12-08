@@ -35,6 +35,11 @@ func NewProjectHandlerWithDefaults() *ProjectHandler {
 	)
 }
 
+// GetProjectService returns the project service (for setting notification service)
+func (h *ProjectHandler) GetProjectService() *services.ProjectService {
+	return h.projectService
+}
+
 // GetAll gets all projects
 func (h *ProjectHandler) GetAll(c *gin.Context) {
 	// This endpoint is accessible to all authenticated users

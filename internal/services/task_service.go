@@ -326,6 +326,60 @@ func (s *TaskService) Add(ctx context.Context, task *models.Task) error {
 		"projectId": task.ProjectID,
 	})
 
+	// Send notification to project owner and assigned user (if any) (non-blocking)
+	if s.notificationSvc != nil {
+		go func() {
+			// Get project details
+			projectRepo := repos.NewProjectRepo()
+			project, err := projectRepo.GetByID(context.Background(), task.ProjectID)
+			if err != nil {
+				log.Printf("Failed to get project for task creation notification: %v", err)
+				return
+			}
+			if project == nil {
+				return
+			}
+
+			// Notify project owner
+			ownerNotification := &models.Notification{
+				Title:             fmt.Sprintf("Task Created: %s", task.Subject),
+				Message:           fmt.Sprintf("A new task '%s' has been created in project '%s'.", task.Subject, project.Title),
+				Type:              models.NotificationTypeTaskCreated,
+				UserID:            project.OwnerID,
+				RelatedEntityID:   task.ID,
+				RelatedEntityType: models.RelatedEntityTypeTask,
+				IsRead:            false,
+			}
+			if err := s.notificationSvc.CreateNotification(context.Background(), ownerNotification); err != nil {
+				log.Printf("Failed to create task creation notification for owner: %v", err)
+			}
+			if s.websocketService != nil {
+				wsData := map[string]interface{}{"userId": project.OwnerID}
+				_ = s.websocketService.SendToUser(project.OwnerID, "notifications-available", wsData)
+			}
+
+			// Notify assigned user if different from owner
+			if task.AssignTo != nil && *task.AssignTo != "" && *task.AssignTo != project.OwnerID {
+				assigneeNotification := &models.Notification{
+					Title:             fmt.Sprintf("Task Created: %s", task.Subject),
+					Message:           fmt.Sprintf("A new task '%s' has been created in project '%s' and assigned to you.", task.Subject, project.Title),
+					Type:              models.NotificationTypeTaskCreated,
+					UserID:            *task.AssignTo,
+					RelatedEntityID:   task.ID,
+					RelatedEntityType: models.RelatedEntityTypeTask,
+					IsRead:            false,
+				}
+				if err := s.notificationSvc.CreateNotification(context.Background(), assigneeNotification); err != nil {
+					log.Printf("Failed to create task creation notification for assignee: %v", err)
+				}
+				if s.websocketService != nil {
+					wsData := map[string]interface{}{"userId": *task.AssignTo}
+					_ = s.websocketService.SendToUser(*task.AssignTo, "notifications-available", wsData)
+				}
+			}
+		}()
+	}
+
 	// Invalidate caches that depend on tasks
 	_ = s.cacheSvc.InvalidateProjectStats(ctx)
 	_ = s.cacheSvc.InvalidateDashboardStats(ctx)

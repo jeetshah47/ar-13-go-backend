@@ -27,6 +27,11 @@ func NewCalendarHandlerWithDefaults(cfg *config.Config) *CalendarHandler {
 	)
 }
 
+// GetCalendarService returns the calendar service (for setting notification service)
+func (h *CalendarHandler) GetCalendarService() *services.CalendarEventService {
+	return h.calendarService
+}
+
 // GetByMonth gets calendar events by month
 func (h *CalendarHandler) GetByMonth(c *gin.Context) {
 	monthStr := c.Param("month")

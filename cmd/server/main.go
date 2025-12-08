@@ -60,6 +60,7 @@ func main() {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(middleware.CORS())
+	router.Use(middleware.AuditLogMiddleware()) // Log all API requests to database
 	router.Use(middleware.MetricsMiddleware()) // Track metrics for all requests
 
 	// Serve static files
@@ -163,7 +164,9 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 		{
 			users.GET("/all", handler.User.GetAll) // All authenticated users can view user list
 			users.POST("/invite", middleware.RequireAdmin(), handler.User.CreateInvitation)
+			users.POST("/create", middleware.RequireAdmin(), handler.User.CreateUser) // Admin-only: create user with temp password
 			users.PUT("/update", middleware.RequireAdmin(), handler.User.Update)
+			users.PUT("/change-password", handler.User.ChangePassword) // Authenticated users can change password
 			users.DELETE("/delete/:id", middleware.RequireAdmin(), handler.User.Delete)
 			users.GET("/profile/:id", handler.User.GetProfile)
 			users.GET("/permissions/:id", middleware.RequirePermission("users:read"), handler.User.GetUserPermissions)
@@ -361,6 +364,17 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 		{
 			nas.GET("/mount-credentials", handler.NAS.GetMountCredentials)
 			nas.GET("/file-path/:fileId", handler.NAS.GetFilePath)
+		}
+
+		// Audit Log routes (admin only)
+		auditLogs := protected.Group("/audit-logs")
+		auditLogs.Use(middleware.RequireAdmin())
+		{
+			auditLogs.GET("/recent", handler.AuditLog.GetRecent)
+			auditLogs.GET("/user/:userId", handler.AuditLog.GetByUserID)
+			auditLogs.GET("/path", handler.AuditLog.GetByPath)
+			auditLogs.GET("/method", handler.AuditLog.GetByMethod)
+			auditLogs.GET("/status/:statusCode", handler.AuditLog.GetByStatusCode)
 		}
 
 	}

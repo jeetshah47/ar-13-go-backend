@@ -4,6 +4,7 @@ import (
 	"github.com/ar-13-go-backend/internal/config"
 	"github.com/ar-13-go-backend/internal/constants"
 	"github.com/ar-13-go-backend/internal/models"
+	"github.com/ar-13-go-backend/internal/middleware"
 	"github.com/ar-13-go-backend/internal/services"
 	"github.com/gin-gonic/gin"
 )
@@ -35,6 +36,11 @@ func NewUserHandlerWithDefaults(cfg *config.Config) *UserHandler {
 		services.NewPermissionServiceWithDefaults(),
 		services.NewVacationServiceWithDefaults(),
 	)
+}
+
+// GetUserService returns the user service (for setting notification service)
+func (h *UserHandler) GetUserService() *services.UserService {
+	return h.userService
 }
 
 // GetAll gets all users
@@ -118,15 +124,16 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 
 	// Build user object with projects included
 	userWithProjects := gin.H{
-		"id":          user.ID,
-		"name":        user.Name,
-		"email":       user.Email,
-		"phoneNumber": user.PhoneNumber,
-		"role":        user.Role,
-		"designation": user.Designation,
-		"createdAt":   user.CreatedAt,
-		"updatedAt":   user.UpdatedAt,
-		"projects":    profileResponse.Projects,
+		"id":                 user.ID,
+		"name":               user.Name,
+		"email":              user.Email,
+		"phoneNumber":        user.PhoneNumber,
+		"role":               user.Role,
+		"designation":        user.Designation,
+		"forceChangePassword": user.ForceChangePassword,
+		"createdAt":          user.CreatedAt,
+		"updatedAt":          user.UpdatedAt,
+		"projects":           profileResponse.Projects,
 	}
 
 	c.JSON(constants.StatusOK, gin.H{
@@ -162,4 +169,66 @@ func (h *UserHandler) GetUserPermissions(c *gin.Context) {
 		"role":        user.Role,
 		"permissions": permissions,
 	})
+}
+
+// CreateUser creates a new user by admin with temporary password
+func (h *UserHandler) CreateUser(c *gin.Context) {
+	var req services.CreateUserByAdminRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response, err := h.userService.CreateUserByAdmin(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Return user without password, but include temp password for admin
+	c.JSON(constants.StatusCreated, gin.H{
+		"user": gin.H{
+			"id":                 response.User.ID,
+			"name":               response.User.Name,
+			"email":              response.User.Email,
+			"phoneNumber":        response.User.PhoneNumber,
+			"role":               response.User.Role,
+			"designation":        response.User.Designation,
+			"forceChangePassword": response.User.ForceChangePassword,
+			"createdAt":          response.User.CreatedAt,
+			"updatedAt":          response.User.UpdatedAt,
+		},
+		"tempPassword": response.TempPassword,
+		"message":      "User created successfully",
+	})
+}
+
+// ChangePassword changes a user's password
+func (h *UserHandler) ChangePassword(c *gin.Context) {
+	var req services.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get user ID from context (set by AuthenticateUser middleware)
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Ensure user can only change their own password (unless admin)
+	role := middleware.GetUserRole(c)
+	if userID != req.UserID && role != string(models.UserRoleAdmin) {
+		c.JSON(constants.StatusForbidden, gin.H{"error": "You can only change your own password"})
+		return
+	}
+
+	if err := h.userService.ChangePassword(c.Request.Context(), req); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{"message": "Password changed successfully"})
 }

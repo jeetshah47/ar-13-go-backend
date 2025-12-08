@@ -22,6 +22,8 @@ type CalendarEventService struct {
 	emailClient      EmailClientInterface
 	googleAccountSvc *GoogleAccountService
 	cacheSvc         CacheServiceInterface
+	notificationSvc  *NotificationService
+	websocketService WebSocketServiceInterface
 }
 
 // NewCalendarEventService creates a new calendar event service with dependency injection
@@ -54,6 +56,16 @@ func NewCalendarEventServiceWithDefaults(cfg *config.Config) *CalendarEventServi
 		NewGoogleAccountServiceWithDefaults(),
 		NewCacheService(),
 	)
+}
+
+// SetNotificationService sets the notification service for storing notifications
+func (s *CalendarEventService) SetNotificationService(notificationSvc *NotificationService) {
+	s.notificationSvc = notificationSvc
+}
+
+// SetWebSocketService sets the WebSocket service for sending real-time notifications
+func (s *CalendarEventService) SetWebSocketService(websocketService WebSocketServiceInterface) {
+	s.websocketService = websocketService
 }
 
 // GetByMonth gets calendar events for a month
@@ -159,6 +171,28 @@ func (s *CalendarEventService) Add(ctx context.Context, event *models.CalendarEv
 		}()
 	}
 
+	// Send notification to event creator (non-blocking)
+	if s.notificationSvc != nil && event.CreatedBy != "" {
+		go func() {
+			notification := &models.Notification{
+				Title:             fmt.Sprintf("Calendar Event Created: %s", event.Title),
+				Message:           fmt.Sprintf("Calendar event '%s' has been created successfully.", event.Title),
+				Type:              models.NotificationTypeCalendarEventCreated,
+				UserID:            event.CreatedBy,
+				RelatedEntityID:   event.ID,
+				RelatedEntityType: models.RelatedEntityTypeCalendarEvent,
+				IsRead:            false,
+			}
+			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
+				log.Printf("Failed to create calendar event notification: %v", err)
+			}
+			if s.websocketService != nil {
+				wsData := map[string]interface{}{"userId": event.CreatedBy}
+				_ = s.websocketService.SendToUser(event.CreatedBy, "notifications-available", wsData)
+			}
+		}()
+	}
+
 	// Send email notification to event creator (non-blocking)
 	if s.emailClient != nil && event.CreatedBy != "" {
 		go func() {
@@ -246,6 +280,28 @@ func (s *CalendarEventService) Update(ctx context.Context, event *models.Calenda
 	// Invalidate cache for both old and new months
 	_ = s.cacheSvc.InvalidateCalendarMonth(ctx, existing.Start.Year(), int(existing.Start.Month()))
 	_ = s.cacheSvc.InvalidateCalendarMonth(ctx, event.Start.Year(), int(event.Start.Month()))
+
+	// Send notification to event creator (non-blocking)
+	if s.notificationSvc != nil && event.CreatedBy != "" {
+		go func() {
+			notification := &models.Notification{
+				Title:             fmt.Sprintf("Calendar Event Updated: %s", event.Title),
+				Message:           fmt.Sprintf("Calendar event '%s' has been updated.", event.Title),
+				Type:              models.NotificationTypeCalendarEventUpdated,
+				UserID:            event.CreatedBy,
+				RelatedEntityID:   event.ID,
+				RelatedEntityType: models.RelatedEntityTypeCalendarEvent,
+				IsRead:            false,
+			}
+			if err := s.notificationSvc.CreateNotification(context.Background(), notification); err != nil {
+				log.Printf("Failed to create calendar event update notification: %v", err)
+			}
+			if s.websocketService != nil {
+				wsData := map[string]interface{}{"userId": event.CreatedBy}
+				_ = s.websocketService.SendToUser(event.CreatedBy, "notifications-available", wsData)
+			}
+		}()
+	}
 
 	return nil
 }

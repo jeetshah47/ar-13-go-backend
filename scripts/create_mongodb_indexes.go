@@ -121,6 +121,11 @@ func main() {
 		log.Fatalf("Failed to create info-portal indexes: %v", err)
 	}
 
+	// Create indexes for audit_logs collection
+	if err := createAuditLogIndexes(ctx, db); err != nil {
+		log.Fatalf("Failed to create audit_logs indexes: %v", err)
+	}
+
 	log.Println("✅ All indexes created successfully!")
 }
 
@@ -423,6 +428,45 @@ func createInfoPortalIndexes(ctx context.Context, db *mongo.Database) error {
 		return err
 	}
 	log.Println("  ✅ Info portal indexes created (id only)")
+	return nil
+}
+
+func createAuditLogIndexes(ctx context.Context, db *mongo.Database) error {
+	collection := db.Collection("audit_logs")
+	// CRITICAL: id (primary key), userId (GetByUserID), path (GetByPath), method (GetByMethod), requestTime (sorting)
+	// Note: requestTime index is important for date range queries and sorting recent logs
+	indexes := []mongo.IndexModel{
+		{
+			Keys:    map[string]interface{}{"id": 1},
+			Options: options.Index().SetUnique(true).SetName("id_unique"),
+		},
+		{
+			Keys:    map[string]interface{}{"userId": 1},
+			Options: options.Index().SetName("userId_idx"),
+		},
+		{
+			Keys:    map[string]interface{}{"path": 1},
+			Options: options.Index().SetName("path_idx"),
+		},
+		{
+			Keys:    map[string]interface{}{"method": 1},
+			Options: options.Index().SetName("method_idx"),
+		},
+		{
+			Keys:    map[string]interface{}{"requestTime": -1},
+			Options: options.Index().SetName("requestTime_idx"),
+		},
+		{
+			Keys:    map[string]interface{}{"statusCode": 1},
+			Options: options.Index().SetName("statusCode_idx"),
+		},
+	}
+
+	_, err := collection.Indexes().CreateMany(ctx, indexes)
+	if err != nil {
+		return err
+	}
+	log.Println("  ✅ Audit logs indexes created (id, userId, path, method, requestTime, statusCode)")
 	return nil
 }
 
