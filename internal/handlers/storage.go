@@ -279,3 +279,165 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 		"size":       file.Size,
 	})
 }
+
+// RenameFile renames a file or folder in NAS storage
+// PUT /api/storage/rename?path=/folder/oldname
+// Body: { "newName": "newname" }
+func (h *StorageHandler) RenameFile(c *gin.Context) {
+	if !h.storageService.IsInitialized() {
+		c.JSON(constants.StatusServiceUnavailable, gin.H{
+			"error": "Storage service is not initialized. Please configure storage settings.",
+		})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	path := c.Query("path")
+	if path == "" {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "path parameter is required"})
+		return
+	}
+
+	var req struct {
+		NewName string `json:"newName" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "newName is required"})
+		return
+	}
+
+	err := h.storageService.RenameObject(c.Request.Context(), path, req.NewName)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"message": "File renamed successfully",
+		"path":    path,
+		"newName": req.NewName,
+	})
+}
+
+// DeleteFile deletes a file or folder from NAS storage
+// DELETE /api/storage/delete?path=/folder/filename
+func (h *StorageHandler) DeleteFile(c *gin.Context) {
+	if !h.storageService.IsInitialized() {
+		c.JSON(constants.StatusServiceUnavailable, gin.H{
+			"error": "Storage service is not initialized. Please configure storage settings.",
+		})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	path := c.Query("path")
+	if path == "" {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "path parameter is required"})
+		return
+	}
+
+	err := h.storageService.DeleteObject(c.Request.Context(), path)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"message": "File deleted successfully",
+		"path":    path,
+	})
+}
+
+// CreateFolder creates a new folder in NAS storage
+// POST /api/storage/create-folder?path=/parent/folder
+// Body: { "folderName": "NewFolder" }
+func (h *StorageHandler) CreateFolder(c *gin.Context) {
+	if !h.storageService.IsInitialized() {
+		c.JSON(constants.StatusServiceUnavailable, gin.H{
+			"error": "Storage service is not initialized. Please configure storage settings.",
+		})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	parentPath := c.DefaultQuery("path", "/")
+
+	var req struct {
+		FolderName string `json:"folderName" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "folderName is required"})
+		return
+	}
+
+	err := h.storageService.CreateFolder(c.Request.Context(), parentPath, req.FolderName)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"message":    "Folder created successfully",
+		"parentPath": parentPath,
+		"folderName": req.FolderName,
+	})
+}
+
+// MoveFile moves a file or folder to a new location in NAS storage
+// PUT /api/storage/move?sourcePath=/folder/oldname
+// Body: { "destinationPath": "/newfolder/newname" }
+func (h *StorageHandler) MoveFile(c *gin.Context) {
+	if !h.storageService.IsInitialized() {
+		c.JSON(constants.StatusServiceUnavailable, gin.H{
+			"error": "Storage service is not initialized. Please configure storage settings.",
+		})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
+		return
+	}
+
+	sourcePath := c.Query("sourcePath")
+	if sourcePath == "" {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "sourcePath parameter is required"})
+		return
+	}
+
+	var req struct {
+		DestinationPath string `json:"destinationPath" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(constants.StatusBadRequest, gin.H{"error": "destinationPath is required"})
+		return
+	}
+
+	err := h.storageService.MoveObject(c.Request.Context(), sourcePath, req.DestinationPath)
+	if err != nil {
+		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(constants.StatusOK, gin.H{
+		"message":         "File moved successfully",
+		"sourcePath":      sourcePath,
+		"destinationPath": req.DestinationPath,
+	})
+}

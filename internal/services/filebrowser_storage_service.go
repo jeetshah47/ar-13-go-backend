@@ -46,12 +46,12 @@ func (s *filebrowserStorageService) ListObjects(ctx context.Context, prefix stri
 	if prefix == "" {
 		prefix = "/"
 	}
-	
+
 	// Ensure prefix starts with /
 	if !filepath.IsAbs(prefix) && prefix[0] != '/' {
 		prefix = "/" + prefix
 	}
-	
+
 	// Ensure prefix ends with / for directories
 	if !filepath.IsAbs(prefix) || prefix[len(prefix)-1] != '/' {
 		prefix = prefix + "/"
@@ -150,6 +150,59 @@ func (s *filebrowserStorageService) ObjectExists(ctx context.Context, objectName
 	return s.client.FileExists(objectName)
 }
 
+// RenameObject renames a file or folder in FileBrowser storage
+func (s *filebrowserStorageService) RenameObject(ctx context.Context, oldPath string, newName string) error {
+	if s.client == nil {
+		return fmt.Errorf("storage service not initialized")
+	}
+
+	// Normalize old path
+	oldPath = filepath.Clean(oldPath)
+	if !filepath.IsAbs(oldPath) {
+		oldPath = "/" + oldPath
+	}
+
+	return s.client.RenameFile(oldPath, newName)
+}
+
+// CreateFolder creates a new folder in FileBrowser storage
+func (s *filebrowserStorageService) CreateFolder(ctx context.Context, parentPath string, folderName string) error {
+	if s.client == nil {
+		return fmt.Errorf("storage service not initialized")
+	}
+
+	// Normalize parent path
+	if parentPath == "" {
+		parentPath = "/"
+	}
+	parentPath = filepath.Clean(parentPath)
+	if !filepath.IsAbs(parentPath) {
+		parentPath = "/" + parentPath
+	}
+
+	return s.client.CreateFolder(parentPath, folderName)
+}
+
+// MoveObject moves a file or folder to a new location in FileBrowser storage
+func (s *filebrowserStorageService) MoveObject(ctx context.Context, sourcePath string, destinationPath string) error {
+	if s.client == nil {
+		return fmt.Errorf("storage service not initialized")
+	}
+
+	// Normalize paths
+	sourcePath = filepath.Clean(sourcePath)
+	if !filepath.IsAbs(sourcePath) {
+		sourcePath = "/" + sourcePath
+	}
+
+	destinationPath = filepath.Clean(destinationPath)
+	if !filepath.IsAbs(destinationPath) {
+		destinationPath = "/" + destinationPath
+	}
+
+	return s.client.MoveFile(sourcePath, destinationPath)
+}
+
 // getContentTypeFromExtension returns content type based on file extension
 func getContentTypeFromExtension(ext string) string {
 	switch ext {
@@ -177,4 +230,3 @@ func getContentTypeFromExtension(ext string) string {
 		return "application/octet-stream"
 	}
 }
-

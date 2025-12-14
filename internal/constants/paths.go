@@ -176,9 +176,13 @@ const (
 
 // Storage paths
 const (
-	StorageBase      = "/storage"
-	StorageListFiles = "/files"
+	StorageBase       = "/storage"
+	StorageListFiles  = "/files"
 	StorageGetFileURL = "/file-url"
-	StorageDownload  = "/download"
-	StorageUpload   = "/upload"
+	StorageDownload   = "/download"
+	StorageUpload     = "/upload"
+	StorageRename     = "/rename"
+	StorageDelete     = "/delete"
+	StorageCreateFolder = "/create-folder"
+	StorageMove       = "/move"
 )

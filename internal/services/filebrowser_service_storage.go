@@ -172,3 +172,24 @@ func (s *filebrowserServiceStorage) ObjectExists(ctx context.Context, objectName
 
 	return true, nil
 }
+
+// RenameObject renames a file or folder in filebrowser service storage
+// Note: The current filebrowser service doesn't support rename via API
+func (s *filebrowserServiceStorage) RenameObject(ctx context.Context, oldPath string, newName string) error {
+	// The current filebrowser service doesn't support rename
+	return fmt.Errorf("rename not supported by filebrowser service - use FileBrowser with token or add rename endpoint to filebrowser service")
+}
+
+// CreateFolder creates a new folder in filebrowser service storage
+// Note: The current filebrowser service doesn't support create folder via API
+func (s *filebrowserServiceStorage) CreateFolder(ctx context.Context, parentPath string, folderName string) error {
+	// The current filebrowser service doesn't support create folder
+	return fmt.Errorf("create folder not supported by filebrowser service - use FileBrowser with token or add create folder endpoint to filebrowser service")
+}
+
+// MoveObject moves a file or folder to a new location in filebrowser service storage
+// Note: The current filebrowser service doesn't support move via API
+func (s *filebrowserServiceStorage) MoveObject(ctx context.Context, sourcePath string, destinationPath string) error {
+	// The current filebrowser service doesn't support move
+	return fmt.Errorf("move not supported by filebrowser service - use FileBrowser with token or add move endpoint to filebrowser service")
+}

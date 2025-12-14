@@ -67,6 +67,9 @@ type StorageServiceInterface interface {
 	GetPresignedURL(ctx context.Context, objectName string, expiry time.Duration) (string, error)
 	DeleteObject(ctx context.Context, objectName string) error
 	ObjectExists(ctx context.Context, objectName string) (bool, error)
+	RenameObject(ctx context.Context, oldPath string, newName string) error
+	CreateFolder(ctx context.Context, parentPath string, folderName string) error
+	MoveObject(ctx context.Context, sourcePath string, destinationPath string) error
 }
 
 // StorageObject represents a file or folder in storage

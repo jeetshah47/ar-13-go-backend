@@ -357,6 +357,10 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			storage.GET(constants.StorageGetFileURL, handler.Storage.GetFileURL)
 			storage.GET(constants.StorageDownload, handler.Storage.DownloadFile)
 			storage.POST(constants.StorageUpload, handler.Storage.UploadFile)
+			storage.PUT(constants.StorageRename, handler.Storage.RenameFile)
+			storage.DELETE(constants.StorageDelete, handler.Storage.DeleteFile)
+			storage.POST(constants.StorageCreateFolder, handler.Storage.CreateFolder)
+			storage.PUT(constants.StorageMove, handler.Storage.MoveFile)
 		}
 
 		// NAS routes

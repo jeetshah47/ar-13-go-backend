@@ -225,3 +225,110 @@ func (s *storageService) ObjectExists(ctx context.Context, objectName string) (b
 	return true, nil
 }
 
+// RenameObject renames a file or folder in MinIO storage
+// MinIO doesn't have a direct rename, so we copy and delete
+func (s *storageService) RenameObject(ctx context.Context, oldPath string, newName string) error {
+	if s.client == nil {
+		return fmt.Errorf("storage service not initialized")
+	}
+
+	oldPath = strings.TrimPrefix(oldPath, "/")
+	
+	// Build new path
+	dir := filepath.Dir(oldPath)
+	var newPath string
+	if dir == "." || dir == "" {
+		newPath = newName
+	} else {
+		newPath = filepath.Join(dir, newName)
+	}
+	newPath = strings.TrimPrefix(newPath, "/")
+
+	// Copy object
+	src := minio.CopySrcOptions{
+		Bucket: s.config.MinIOBucket,
+		Object: oldPath,
+	}
+	dst := minio.CopyDestOptions{
+		Bucket: s.config.MinIOBucket,
+		Object: newPath,
+	}
+
+	_, err := s.client.CopyObject(ctx, dst, src)
+	if err != nil {
+		return fmt.Errorf("failed to copy object for rename: %w", err)
+	}
+
+	// Delete old object
+	err = s.client.RemoveObject(ctx, s.config.MinIOBucket, oldPath, minio.RemoveObjectOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete old object after rename: %w", err)
+	}
+
+	return nil
+}
+
+// CreateFolder creates a new folder in MinIO storage
+// In MinIO/S3, folders are created implicitly when files are uploaded
+// We create an empty object with a trailing slash to represent a folder
+func (s *storageService) CreateFolder(ctx context.Context, parentPath string, folderName string) error {
+	if s.client == nil {
+		return fmt.Errorf("storage service not initialized")
+	}
+
+	// Validate folder name
+	if strings.Contains(folderName, "/") || strings.Contains(folderName, "\\") {
+		return fmt.Errorf("folder name cannot contain path separators")
+	}
+
+	// Build folder path
+	parentPath = strings.TrimPrefix(parentPath, "/")
+	if parentPath != "" && !strings.HasSuffix(parentPath, "/") {
+		parentPath = parentPath + "/"
+	}
+	folderPath := parentPath + folderName + "/"
+	folderPath = strings.TrimPrefix(folderPath, "/")
+
+	// Create empty object to represent folder
+	_, err := s.client.PutObject(ctx, s.config.MinIOBucket, folderPath, strings.NewReader(""), 0, minio.PutObjectOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create folder: %w", err)
+	}
+
+	return nil
+}
+
+// MoveObject moves a file or folder to a new location in MinIO storage
+// MinIO doesn't have a direct move, so we copy and delete
+func (s *storageService) MoveObject(ctx context.Context, sourcePath string, destinationPath string) error {
+	if s.client == nil {
+		return fmt.Errorf("storage service not initialized")
+	}
+
+	sourcePath = strings.TrimPrefix(sourcePath, "/")
+	destinationPath = strings.TrimPrefix(destinationPath, "/")
+
+	// Copy object
+	src := minio.CopySrcOptions{
+		Bucket: s.config.MinIOBucket,
+		Object: sourcePath,
+	}
+	dst := minio.CopyDestOptions{
+		Bucket: s.config.MinIOBucket,
+		Object: destinationPath,
+	}
+
+	_, err := s.client.CopyObject(ctx, dst, src)
+	if err != nil {
+		return fmt.Errorf("failed to copy object for move: %w", err)
+	}
+
+	// Delete source object
+	err = s.client.RemoveObject(ctx, s.config.MinIOBucket, sourcePath, minio.RemoveObjectOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete source object after move: %w", err)
+	}
+
+	return nil
+}
+
