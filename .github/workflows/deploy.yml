@@ -15,20 +15,85 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Check for .env file
+      - name: Copy .env from NAS location
         working-directory: docker
         run: |
-          if [ ! -f .env ]; then
-            echo "❌ ERROR: .env file not found in docker/ directory"
-            echo ""
-            echo "Please create a .env file with your environment variables."
-            echo "You can:"
-            echo "  1. Copy env.template to .env: cp docker/env.template docker/.env"
-            echo "  2. Edit .env and fill in your actual values"
-            echo "  3. See docker/ENV_SETUP.md for detailed instructions"
-            exit 1
+          if [ -f /share/Container/github-runner/.env ]; then
+            echo "📋 Copying .env from /share/Container/github-runner/.env"
+            cp /share/Container/github-runner/.env .env
+            echo "✅ .env file copied from NAS location"
+          else
+            echo "⚠️  .env file not found at /share/Container/github-runner/.env"
+            echo "📝 Will create .env from GitHub secrets in next step"
           fi
-          echo "✅ .env file found"
+
+      - name: Write env from secrets
+        working-directory: docker
+        run: |
+          # Only write from secrets if .env file doesn't exist
+          if [ ! -f .env ]; then
+          cat <<EOF > .env
+          # Environment variables from GitHub Secrets
+          # Server Configuration
+          PORT=${PORT:-3000}
+          NODE_ENV=${NODE_ENV:-production}
+          
+          # MongoDB Configuration (REQUIRED)
+          MONGODB_URI=${{ secrets.MONGODB_URI }}
+          MONGODB_DATABASE=${{ secrets.MONGODB_DATABASE || 'ar13_backend' }}
+          
+          # JWT Configuration (REQUIRED)
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRATION_HOURS=${{ secrets.JWT_EXPIRATION_HOURS || '24' }}
+          REFRESH_EXPIRATION_DAYS=${{ secrets.REFRESH_EXPIRATION_DAYS || '30' }}
+          
+          # Redis Configuration
+          REDIS_ADDR=${{ secrets.REDIS_ADDR || 'redis:6379' }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          REDIS_DB=${{ secrets.REDIS_DB || '0' }}
+          REDIS_PORT=${{ secrets.REDIS_PORT || '6379' }}
+          
+          # Email Configuration
+          EMAIL_HOST=${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT=${{ secrets.EMAIL_PORT || '587' }}
+          EMAIL_USER=${{ secrets.EMAIL_USER }}
+          EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+          EMAIL_FROM_NAME=${{ secrets.EMAIL_FROM_NAME || 'AR-13 System' }}
+          
+          # Frontend Configuration
+          FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:3000' }}
+          
+          # Google OAuth Configuration
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          
+          # MinIO/NAS Storage Configuration
+          MINIO_ENDPOINT=${{ secrets.MINIO_ENDPOINT }}
+          MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
+          MINIO_BUCKET=${{ secrets.MINIO_BUCKET || 'ar-13-uploads' }}
+          MINIO_USE_SSL=${{ secrets.MINIO_USE_SSL || 'false' }}
+          MINIO_INSECURE_SSL=${{ secrets.MINIO_INSECURE_SSL || 'false' }}
+          
+          # FileBrowser Configuration
+          FILEBROWSER_ENABLED=${{ secrets.FILEBROWSER_ENABLED || 'false' }}
+          FILEBROWSER_URL=${{ secrets.FILEBROWSER_URL || 'http://localhost:8080' }}
+          FILEBROWSER_TOKEN=${{ secrets.FILEBROWSER_TOKEN }}
+          FILEBROWSER_SERVICE_URL=${{ secrets.FILEBROWSER_SERVICE_URL || 'http://localhost:8082' }}
+          
+          # QNAP NAS Integration
+          QNAP_NAS_IP=${{ secrets.QNAP_NAS_IP }}
+          QNAP_API_PORT=${{ secrets.QNAP_API_PORT || '8080' }}
+          QNAP_SERVICE_USER=${{ secrets.QNAP_SERVICE_USER }}
+          QNAP_SERVICE_PASSWORD=${{ secrets.QNAP_SERVICE_PASSWORD }}
+          QNAP_SHARE_NAME=${{ secrets.QNAP_SHARE_NAME || 'studio-work' }}
+          QNAP_SESSION_TIMEOUT=${{ secrets.QNAP_SESSION_TIMEOUT || '30' }}
+          EOF
+            echo "✅ Environment variables written to .env file from GitHub secrets"
+          else
+            echo "ℹ️  .env file already exists, skipping secrets write"
+          fi
 
       - name: Stop existing containers
         working-directory: docker
