@@ -14,6 +14,10 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
 
       - name: Copy .env from NAS location
         working-directory: docker
@@ -103,7 +107,18 @@ jobs:
       - name: Build and start containers
         working-directory: docker
         run: |
-          docker compose -f docker-compose.nas.yml build --no-cache
+          # Try with legacy builder first (often fixes Alpine issues on NAS)
+          echo "🔨 Building with legacy Docker builder..."
+          DOCKER_BUILDKIT=0 docker compose -f docker-compose.nas.yml build --no-cache || {
+            echo "⚠️  Legacy builder failed, trying Debian-based Dockerfile..."
+            # Create a temporary docker-compose file with Debian Dockerfile
+            cp docker-compose.nas.yml docker-compose.nas.debian.yml
+            sed -i 's|dockerfile: docker/Dockerfile|dockerfile: docker/Dockerfile.debian|g' docker-compose.nas.debian.yml
+            DOCKER_BUILDKIT=0 docker compose -f docker-compose.nas.debian.yml build --no-cache
+            # Use the Debian version for deployment
+            docker compose -f docker-compose.nas.debian.yml up -d
+            exit 0
+          }
           docker compose -f docker-compose.nas.yml up -d
 
       - name: Verify deployment

@@ -1,11 +1,13 @@
-# Multi-stage build for AR-13 Go Backend Server
-# This Dockerfile builds the server from source and creates a minimal production image
+# Multi-stage build for AR-13 Go Backend Server (Debian-based)
+# Alternative Dockerfile using Debian for better NAS compatibility
 
 # Build stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23-bullseye AS builder
 
 # Install build dependencies
-RUN apk add --no-cache git
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /build
@@ -33,17 +35,17 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     ./cmd/server/main.go
 
 # Runtime stage
-FROM alpine:3.18
+FROM debian:bullseye-slim
 
 # Install ca-certificates for HTTPS support and curl for health check
-# Using separate RUN commands to avoid device node issues
-RUN apk update
-RUN apk add --no-cache ca-certificates
-RUN apk add --no-cache curl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
+RUN groupadd -g 1000 appuser && \
+    useradd -u 1000 -g appuser -s /bin/bash -m appuser
 
 # Create necessary directories
 RUN mkdir -p /app/upload && \
@@ -73,3 +75,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 # Run the server
 CMD ["./server"]
+
