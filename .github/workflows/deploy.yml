@@ -1,0 +1,20 @@
+name: NAS CI Test
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: self-hosted
+
+    steps:
+      - name: Who am I?
+        run: |
+          whoami
+          uname -a
+          pwd
+
+      - name: Disk check
+        run: |
+          df -h
