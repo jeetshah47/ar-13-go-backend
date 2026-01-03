@@ -15,6 +15,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Check for .env file
+        working-directory: docker
+        run: |
+          if [ ! -f .env ]; then
+            echo "❌ ERROR: .env file not found in docker/ directory"
+            echo ""
+            echo "Please create a .env file with your environment variables."
+            echo "You can:"
+            echo "  1. Copy env.template to .env: cp docker/env.template docker/.env"
+            echo "  2. Edit .env and fill in your actual values"
+            echo "  3. See docker/ENV_SETUP.md for detailed instructions"
+            exit 1
+          fi
+          echo "✅ .env file found"
+
       - name: Stop existing containers
         working-directory: docker
         run: |
