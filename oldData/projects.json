@@ -1,0 +1,255 @@
+[
+    {
+        "name": ".@upload_cache",
+        "path": "/.@upload_cache",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-24T12:24:54.769970141Z"
+    },
+    {
+        "name": ".DS_Store",
+        "path": "/.DS_Store",
+        "isFolder": false,
+        "size": 24580,
+        "modified": "2025-11-17T10:16:35.731417359Z",
+        "mimeType": "application/octet-stream"
+    },
+    {
+        "name": ".minio-certs",
+        "path": "/.minio-certs",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-21T12:59:34.689998763Z"
+    },
+    {
+        "name": ".minio-config",
+        "path": "/.minio-config",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-21T12:59:19.149998773Z"
+    },
+    {
+        "name": ".minio.sys",
+        "path": "/.minio.sys",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-21T12:59:35.499998763Z"
+    },
+    {
+        "name": ".streams",
+        "path": "/.streams",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-12-04T13:39:09.35998496Z"
+    },
+    {
+        "name": "2008-Babubhai Bokhiria's Mansion",
+        "path": "/2008-Babubhai Bokhiria's Mansion",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2026-01-02T09:08:20.85997717Z"
+    },
+    {
+        "name": "2108-Rajshakha Resorts",
+        "path": "/2108-Rajshakha Resorts",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2024-07-10T09:25:24.62997656Z"
+    },
+    {
+        "name": "2209-Darshan keshwala",
+        "path": "/2209-Darshan keshwala",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-10-28T11:55:30.419985387Z"
+    },
+    {
+        "name": "2302-Devang Bhutiya",
+        "path": "/2302-Devang Bhutiya",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-08T13:20:27.919968154Z"
+    },
+    {
+        "name": "2309-Aspi Patel",
+        "path": "/2309-Aspi Patel",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-12-09T11:52:02.779971316Z"
+    },
+    {
+        "name": "2309-Bharat Patel",
+        "path": "/2309-Bharat Patel",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2026-01-01T07:58:07.269979682Z"
+    },
+    {
+        "name": "2405-Aspi Patel at Sasan",
+        "path": "/2405-Aspi Patel at Sasan",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2024-06-18T10:11:55.849974896Z"
+    },
+    {
+        "name": "2409-Lothiya Farmhouse",
+        "path": "/2409-Lothiya Farmhouse",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-01-11T05:38:28.659984676Z"
+    },
+    {
+        "name": "2410-Opal Green",
+        "path": "/2410-Opal Green",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-10-11T04:58:37.249986101Z"
+    },
+    {
+        "name": "2411-Home Stay",
+        "path": "/2411-Home Stay",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-08-11T05:20:07.649985332Z"
+    },
+    {
+        "name": "2503-Nagarjun Modhvadia",
+        "path": "/2503-Nagarjun Modhvadia",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-10-08T07:11:12.25998136Z"
+    },
+    {
+        "name": "2507-Sierra 801",
+        "path": "/2507-Sierra 801",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-07-18T07:58:35.439979665Z"
+    },
+    {
+        "name": "2507-Sierra 802",
+        "path": "/2507-Sierra 802",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-08-07T06:12:32.549983458Z"
+    },
+    {
+        "name": "2508- Sainik School",
+        "path": "/2508- Sainik School",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-19T10:44:59.739973714Z"
+    },
+    {
+        "name": "2509- Sahara",
+        "path": "/2509- Sahara",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-10-15T11:33:34.319971976Z"
+    },
+    {
+        "name": "2510- Amulfed Dairy",
+        "path": "/2510- Amulfed Dairy",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-10-30T09:10:13.619977103Z"
+    },
+    {
+        "name": "2512-Rutvik Vyas",
+        "path": "/2512-Rutvik Vyas",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-12-05T10:46:36.619973656Z"
+    },
+    {
+        "name": "@Recycle",
+        "path": "/@Recycle",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2026-01-02T09:40:02.679976037Z"
+    },
+    {
+        "name": "AR13 STANDARDS",
+        "path": "/AR13 STANDARDS",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-12-17T14:52:28.599964863Z"
+    },
+    {
+        "name": "ASHIRWAD",
+        "path": "/ASHIRWAD",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-20T05:16:14.919985471Z"
+    },
+    {
+        "name": "CHINA_2507",
+        "path": "/CHINA_2507",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-07-22T10:26:46.039974366Z"
+    },
+    {
+        "name": "DEAD OR MAYBE",
+        "path": "/DEAD OR MAYBE",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-12-25T09:31:08.43999874Z"
+    },
+    {
+        "name": "MADHAI",
+        "path": "/MADHAI",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2026-01-01T10:19:59.789974608Z"
+    },
+    {
+        "name": "NEW BHOJDE",
+        "path": "/NEW BHOJDE",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-07-04T11:48:56.809971427Z"
+    },
+    {
+        "name": "ar-13-uploads",
+        "path": "/ar-13-uploads",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-12-19T11:40:39.689971723Z"
+    },
+    {
+        "name": "bali",
+        "path": "/bali",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-01-24T10:42:01.97997382Z"
+    },
+    {
+        "name": "catalogues",
+        "path": "/catalogues",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-15T05:37:24.699984714Z"
+    },
+    {
+        "name": "minio-certs",
+        "path": "/minio-certs",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-21T12:53:51.309998968Z"
+    },
+    {
+        "name": "minio-config",
+        "path": "/minio-config",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-12-10T12:30:14.20996995Z"
+    },
+    {
+        "name": "minio-data",
+        "path": "/minio-data",
+        "isFolder": true,
+        "size": 4096,
+        "modified": "2025-11-21T12:53:51.799998968Z"
+    }
+]

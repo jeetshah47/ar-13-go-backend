@@ -25,7 +25,6 @@ type TaskService struct {
 	activityLogSvc     ActivityLogServiceInterface
 	websocketService   WebSocketServiceInterface
 	notificationSvc    *NotificationService
-	timeTrackingSvc    *TimeTrackingService
 }
 
 // NewTaskService creates a new task service with dependency injection
@@ -76,11 +75,6 @@ func (s *TaskService) SetWebSocketService(websocketService WebSocketServiceInter
 // SetNotificationService sets the notification service for storing notifications
 func (s *TaskService) SetNotificationService(notificationSvc *NotificationService) {
 	s.notificationSvc = notificationSvc
-}
-
-// SetTimeTrackingService sets the time tracking service
-func (s *TaskService) SetTimeTrackingService(timeTrackingSvc *TimeTrackingService) {
-	s.timeTrackingSvc = timeTrackingSvc
 }
 
 // populateActivityLogUsers populates user details for activity logs
@@ -686,21 +680,11 @@ func (s *TaskService) UpdateDescription(ctx context.Context, projectID, taskID, 
 	return nil
 }
 
-// HasTaskBeenStarted checks if a task has been started (has any time tracking session, active or inactive)
+// HasTaskBeenStarted checks if a task has been started
+// Note: This method is kept for backward compatibility but always returns false
+// since time tracking has been removed
 func (s *TaskService) HasTaskBeenStarted(ctx context.Context, projectID, taskID string) (bool, error) {
-	if s.timeTrackingSvc == nil {
-		return false, nil
-	}
-
-	// Get all sessions for this task (including inactive ones)
-	timeTrackingRepo := repos.NewTimeTrackingRepo()
-	sessions, err := timeTrackingRepo.GetByTask(ctx, projectID, taskID)
-	if err != nil {
-		return false, err
-	}
-
-	// Check if any session exists for this task (active, paused, or inactive)
-	return len(sessions) > 0, nil
+	return false, nil
 }
 
 // UpdateStatus updates task status

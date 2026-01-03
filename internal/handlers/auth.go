@@ -15,7 +15,6 @@ import (
 type AuthHandler struct {
 	authService       *services.AuthService
 	permissionService *services.PermissionService
-	timeTrackingSvc   *services.TimeTrackingService
 }
 
 // NewAuthHandler creates a new auth handler
@@ -24,11 +23,6 @@ func NewAuthHandler(cfg *config.Config) *AuthHandler {
 		authService:       services.NewAuthService(cfg),
 		permissionService: services.NewPermissionServiceWithDefaults(),
 	}
-}
-
-// SetTimeTrackingService sets the time tracking service
-func (h *AuthHandler) SetTimeTrackingService(timeTrackingSvc *services.TimeTrackingService) {
-	h.timeTrackingSvc = timeTrackingSvc
 }
 
 // Register handles user registration
@@ -67,6 +61,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 // Logout handles user logout
+// IMPORTANT: Token verification happens first to ensure user session remains valid
+// throughout the logout process, especially during time tracking session stops.
 func (h *AuthHandler) Logout(c *gin.Context) {
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
@@ -75,7 +71,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
-	if err := h.authService.Logout(c.Request.Context(), token, h.timeTrackingSvc); err != nil {
+	if err := h.authService.Logout(c.Request.Context(), token); err != nil {
 		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Failed to logout"})
 		return
 	}

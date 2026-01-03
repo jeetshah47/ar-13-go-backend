@@ -1,9 +1,11 @@
 package services
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -156,6 +158,78 @@ func (c *FileBrowserServiceClient) GetFileDownloadURL(filePath string) string {
 		filePath = "/" + filePath
 	}
 	return fmt.Sprintf("%s/api/download?path=%s", c.baseURL, url.QueryEscape(filePath))
+}
+
+// UploadFile uploads a file to the filebrowser service
+// jwtToken: JWT token for authentication (from Authorization header of the original request)
+// targetPath: Target directory path (e.g., "/folder")
+// filename: Name of the file to upload
+// fileData: Reader containing the file data
+// fileSize: Size of the file in bytes
+func (c *FileBrowserServiceClient) UploadFile(targetPath string, filename string, fileData io.Reader, fileSize int64, jwtToken string) error {
+	// Normalize target path
+	if targetPath == "" {
+		targetPath = "/"
+	}
+	if targetPath != "/" {
+		targetPath = strings.Trim(targetPath, "/")
+		targetPath = "/" + targetPath
+	}
+
+	// Build API URL with path query parameter
+	apiURL := fmt.Sprintf("%s/api/upload?path=%s", c.baseURL, url.QueryEscape(targetPath))
+
+	// Create multipart form
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Create form file field
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		return fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	// Copy file data to form
+	if _, err := io.Copy(part, fileData); err != nil {
+		return fmt.Errorf("failed to copy file data: %w", err)
+	}
+
+	// Close writer to finalize multipart form
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest("POST", apiURL, body)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add JWT token in Authorization header
+	if jwtToken != "" {
+		cleanToken := strings.TrimSpace(jwtToken)
+		req.Header.Set("Authorization", "Bearer "+cleanToken)
+	} else {
+		fmt.Printf("[FileBrowserClient] Warning: JWT token is empty for upload request to %s\n", apiURL)
+	}
+
+	// Set content type with boundary
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// Execute request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("upload failed with status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
 }
 
 // CheckHealth checks if the filebrowser service is healthy

@@ -164,19 +164,6 @@ type UserAccountLinkRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
-// TimeTrackingRepository defines the interface for time tracking session operations
-type TimeTrackingRepository interface {
-	Add(ctx context.Context, session *models.TimeTrackingSession) error
-	GetByID(ctx context.Context, sessionID string) (*models.TimeTrackingSession, error)
-	GetActiveByTaskAndUser(ctx context.Context, projectID, taskID, userID string) (*models.TimeTrackingSession, error)
-	GetAllActive(ctx context.Context) ([]models.TimeTrackingSession, error)
-	GetAllActiveByUser(ctx context.Context, userID string) ([]models.TimeTrackingSession, error)
-	GetByTask(ctx context.Context, projectID, taskID string) ([]models.TimeTrackingSession, error)
-	Update(ctx context.Context, session *models.TimeTrackingSession) error
-	StopSession(ctx context.Context, sessionID string) error
-	UpdateActivity(ctx context.Context, sessionID string, lastActive time.Time) error
-	UpdateTotalMinutes(ctx context.Context, sessionID string, totalMinutes int) error
-}
 
 // Verify that concrete types implement interfaces at compile time
 var (
@@ -189,5 +176,4 @@ var (
 	_ InfoPortalRepository       = (*InfoPortalRepo)(nil)
 	_ ProjectDetailsRepository   = (*ProjectDetailsRepo)(nil)
 	_ UserAccountLinkRepository  = (*UserAccountLinkRepo)(nil)
-	_ TimeTrackingRepository     = (*TimeTrackingRepo)(nil)
 )

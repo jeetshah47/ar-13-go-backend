@@ -91,15 +91,66 @@ func (s *filebrowserServiceStorage) ListObjects(ctx context.Context, prefix stri
 }
 
 // UploadFile uploads a file to filebrowser storage
-// Note: The current filebrowser service doesn't support uploads via API
-// This would need to be implemented in the filebrowser service or handled differently
 func (s *filebrowserServiceStorage) UploadFile(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) error {
-	// The current filebrowser service doesn't support uploads
-	// You would need to either:
-	// 1. Add upload endpoint to the filebrowser service
-	// 2. Use direct file system access
-	// 3. Fall back to MinIO for uploads
-	return fmt.Errorf("upload not supported by filebrowser service - use MinIO or add upload endpoint to filebrowser service")
+	if s.client == nil {
+		return fmt.Errorf("storage service not initialized")
+	}
+
+	// Normalize object name - use string operations instead of filepath.Clean()
+	// to preserve forward slashes (filebrowser service expects forward slashes)
+	objectName = strings.TrimSpace(objectName)
+	if objectName == "" {
+		return fmt.Errorf("object name cannot be empty")
+	}
+
+	// Replace backslashes with forward slashes (Windows compatibility)
+	objectName = strings.ReplaceAll(objectName, "\\", "/")
+
+	// Remove duplicate slashes
+	for strings.Contains(objectName, "//") {
+		objectName = strings.ReplaceAll(objectName, "//", "/")
+	}
+
+	// Extract directory path and filename
+	// objectName format: "/path/to/file.txt" or "path/to/file.txt"
+	var targetPath string
+	var filename string
+
+	if strings.HasPrefix(objectName, "/") {
+		// Remove leading slash for processing
+		objectName = strings.TrimPrefix(objectName, "/")
+	}
+
+	// Split into directory and filename
+	parts := strings.Split(objectName, "/")
+	if len(parts) == 1 {
+		// File in root directory
+		targetPath = "/"
+		filename = parts[0]
+	} else {
+		// File in subdirectory
+		filename = parts[len(parts)-1]
+		targetPath = "/" + strings.Join(parts[:len(parts)-1], "/")
+	}
+
+	// Validate filename
+	if filename == "" || filename == "." || filename == ".." {
+		return fmt.Errorf("invalid filename: %s", filename)
+	}
+
+	// Extract JWT token from context
+	jwtToken := middleware.GetJWTTokenFromContext(ctx)
+	if jwtToken == "" {
+		// Fallback: try to get from context value directly (in case middleware didn't set it)
+		if tokenVal := ctx.Value(middleware.JWTTokenKey); tokenVal != nil {
+			if tokenStr, ok := tokenVal.(string); ok {
+				jwtToken = tokenStr
+			}
+		}
+	}
+
+	// Upload file using the client
+	return s.client.UploadFile(targetPath, filename, reader, size, jwtToken)
 }
 
 // GetPresignedURL generates a URL for accessing a file
@@ -109,10 +160,42 @@ func (s *filebrowserServiceStorage) GetPresignedURL(ctx context.Context, objectN
 		return "", fmt.Errorf("storage service not initialized")
 	}
 
-	// Normalize object name
-	objectName = filepath.Clean(objectName)
-	if !strings.HasPrefix(objectName, "/") {
-		objectName = "/" + objectName
+	// Normalize object name - use string operations instead of filepath.Clean()
+	// to preserve forward slashes (filebrowser service expects forward slashes)
+	objectName = strings.TrimSpace(objectName)
+	if objectName == "" {
+		return "", fmt.Errorf("path cannot be empty")
+	}
+
+	// Replace backslashes with forward slashes (Windows compatibility)
+	objectName = strings.ReplaceAll(objectName, "\\", "/")
+
+	// Remove duplicate slashes
+	for strings.Contains(objectName, "//") {
+		objectName = strings.ReplaceAll(objectName, "//", "/")
+	}
+
+	// Remove . and .. path components
+	parts := strings.Split(objectName, "/")
+	var cleanParts []string
+	for _, part := range parts {
+		if part == "" || part == "." {
+			continue
+		}
+		if part == ".." {
+			if len(cleanParts) > 0 {
+				cleanParts = cleanParts[:len(cleanParts)-1]
+			}
+			continue
+		}
+		cleanParts = append(cleanParts, part)
+	}
+
+	// Reconstruct path - always start with /
+	if len(cleanParts) == 0 {
+		objectName = "/"
+	} else {
+		objectName = "/" + strings.Join(cleanParts, "/")
 	}
 
 	return s.client.GetFileDownloadURL(objectName), nil
@@ -153,18 +236,18 @@ func (s *filebrowserServiceStorage) ObjectExists(ctx context.Context, objectName
 	if err != nil {
 		// Check if it's a "not found" error (404 status or error message contains not_found/not found)
 		errStr := strings.ToLower(err.Error())
-		if strings.Contains(errStr, "404") || 
-		   strings.Contains(errStr, "not found") || 
-		   strings.Contains(errStr, "not_found") ||
-		   strings.Contains(errStr, "does not exist") {
+		if strings.Contains(errStr, "404") ||
+			strings.Contains(errStr, "not found") ||
+			strings.Contains(errStr, "not_found") ||
+			strings.Contains(errStr, "does not exist") {
 			return false, nil
 		}
 		// For authentication errors (401), return the error so it can be handled properly
-		if strings.Contains(errStr, "401") || 
-		   strings.Contains(errStr, "unauthorized") ||
-		   strings.Contains(errStr, "invalid token") ||
-		   strings.Contains(errStr, "token required") ||
-		   strings.Contains(errStr, "authorization header required") {
+		if strings.Contains(errStr, "401") ||
+			strings.Contains(errStr, "unauthorized") ||
+			strings.Contains(errStr, "invalid token") ||
+			strings.Contains(errStr, "token required") ||
+			strings.Contains(errStr, "authorization header required") {
 			return false, fmt.Errorf("authentication failed with filebrowser service: %w", err)
 		}
 		return false, err

@@ -61,13 +61,14 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(middleware.CORS())
 	router.Use(middleware.AuditLogMiddleware()) // Log all API requests to database
-	router.Use(middleware.MetricsMiddleware()) // Track metrics for all requests
+	router.Use(middleware.MetricsMiddleware())  // Track metrics for all requests
 
 	// Serve static files
 	router.Static("/uploads", "./upload")
 
 	// Initialize handlers
 	handler := handlers.NewHandler(cfg)
+
 
 	// Setup routes
 	setupRoutes(router, handler, cfg)
@@ -96,6 +97,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
+
 
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -203,10 +205,6 @@ func setupRoutes(router *gin.Engine, handler *handlers.Handler, cfg *config.Conf
 			tasks.PUT("/update-time-spent/:projectId/:taskId/:timeSpentIndex", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateTimeSpent)
 			tasks.DELETE("/remove-time-spent/:projectId/:taskId/:timeSpentIndex", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.RemoveTimeSpent)
 			tasks.GET("/time-spent/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.GetTimeSpent)
-			tasks.POST("/start-tracking/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.StartTimeTracking)
-			tasks.POST("/stop-tracking/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.StopTimeTracking)
-			tasks.POST("/update-activity/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.UpdateActivity)
-			tasks.GET("/tracking-status/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.GetTrackingStatus)
 			tasks.POST("/add-file-attachment/:projectId/:taskId", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.AddFileAttachment)
 			tasks.DELETE("/remove-file-attachment/:projectId/:taskId/:fileAttachmentIndex", middleware.RequireTaskAccess(), middleware.RequirePermission("tasks:write"), handler.Task.RemoveFileAttachment)
 			tasks.GET("/file-attachments/:projectId/:taskId", middleware.RequireTaskAccess(), handler.Task.GetFileAttachments)

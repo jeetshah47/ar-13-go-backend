@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/ar-13-go-backend/internal/config"
@@ -107,7 +106,7 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*Logi
 }
 
 // Logout logs out a user
-func (s *AuthService) Logout(ctx context.Context, tokenString string, timeTrackingSvc *TimeTrackingService) error {
+func (s *AuthService) Logout(ctx context.Context, tokenString string) error {
 	// Verify token to get user info
 	claims, err := jwt.VerifyToken(tokenString)
 	if err != nil {
@@ -115,14 +114,6 @@ func (s *AuthService) Logout(ctx context.Context, tokenString string, timeTracki
 	}
 
 	userID := claims.UserID
-
-	// Stop all active time tracking sessions for the user
-	if timeTrackingSvc != nil {
-		if err := timeTrackingSvc.StopAllUserSessions(ctx, userID); err != nil {
-			// Log error but don't fail logout
-			log.Printf("Failed to stop time tracking sessions on logout: %v", err)
-		}
-	}
 
 	// Create logout notification (non-blocking)
 	go func() {

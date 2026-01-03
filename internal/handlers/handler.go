@@ -4,7 +4,6 @@ import (
 	"log"
 
 	"github.com/ar-13-go-backend/internal/config"
-	"github.com/ar-13-go-backend/internal/repos"
 	"github.com/ar-13-go-backend/internal/services"
 )
 
@@ -90,15 +89,6 @@ func NewHandler(cfg *config.Config) *Handler {
 		}
 	}
 
-	// Initialize time tracking service
-	timeTrackingService := services.NewTimeTrackingService(
-		repos.NewTimeTrackingRepo(),
-		repos.NewTaskRepo(),
-	)
-
-	// Set time tracking service on task service
-	taskService.SetTimeTrackingService(timeTrackingService)
-
 	// Create handlers with dependency injection
 	projectHandler := NewProjectHandlerWithDefaults()
 	// Set notification and websocket services for project service
@@ -112,7 +102,6 @@ func NewHandler(cfg *config.Config) *Handler {
 	taskHandler.SetWebSocketService(websocketHandler.GetWebSocketService())
 	taskHandler.SetNotificationService(notificationService)
 	taskHandler.SetStorageService(storageService)
-	taskHandler.SetTimeTrackingService(timeTrackingService)
 
 	// Set notification and websocket services for calendar service
 	calendarHandler := NewCalendarHandlerWithDefaults(cfg)
@@ -130,7 +119,6 @@ func NewHandler(cfg *config.Config) *Handler {
 	activityLogReplyHandler.RegisterWebSocketHandlers(websocketHandler.GetWebSocketService())
 
 	authHandler := NewAuthHandler(cfg)
-	authHandler.SetTimeTrackingService(timeTrackingService)
 
 	// Set notification and websocket services for user service
 	userHandler := NewUserHandlerWithDefaults(cfg)

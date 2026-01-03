@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ar-13-go-backend/internal/config"
 	"github.com/ar-13-go-backend/internal/models"
 	"github.com/ar-13-go-backend/internal/test"
 	"github.com/ar-13-go-backend/pkg/jwt"

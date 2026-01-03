@@ -90,17 +90,17 @@ func TestVacationHandler_CreateRequest(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		requestBody    models.VacationRequest
+		requestBody    models.LeaveRequest
 		setupContext   func(*gin.Context)
 		expectedStatus int
 		expectError    bool
 	}{
 		{
 			name: "valid vacation request",
-			requestBody: models.VacationRequest{
-				Type:      "annual",
-				StartDate: startDate,
-				EndDate:   endDate,
+			requestBody: models.LeaveRequest{
+				RequestType: models.LeaveRequestTypeVacation,
+				StartDate:   startDate,
+				EndDate:     &endDate,
 			},
 			setupContext: func(c *gin.Context) {
 				c.Set("userID", "user123")
@@ -110,10 +110,10 @@ func TestVacationHandler_CreateRequest(t *testing.T) {
 		},
 		{
 			name: "vacation request without user ID",
-			requestBody: models.VacationRequest{
-				Type:      "annual",
-				StartDate: startDate,
-				EndDate:   endDate,
+			requestBody: models.LeaveRequest{
+				RequestType: models.LeaveRequestTypeVacation,
+				StartDate:   startDate,
+				EndDate:     &endDate,
 			},
 			setupContext: func(c *gin.Context) {
 				// Don't set userID
@@ -123,7 +123,7 @@ func TestVacationHandler_CreateRequest(t *testing.T) {
 		},
 		{
 			name:           "empty vacation request",
-			requestBody:    models.VacationRequest{},
+			requestBody:    models.LeaveRequest{},
 			setupContext:   func(c *gin.Context) { c.Set("userID", "user123") },
 			expectedStatus: http.StatusCreated,
 			expectError:    false,

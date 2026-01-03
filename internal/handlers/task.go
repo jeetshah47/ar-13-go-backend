@@ -24,10 +24,9 @@ import (
 type TaskHandler struct {
 	taskService          *services.TaskService
 	authorizationService *services.AuthorizationService
-	websocketService    *websocket.WebSocketService
+	websocketService     *websocket.WebSocketService
 	notificationService  *services.NotificationService
 	storageService       services.StorageServiceInterface
-	timeTrackingService *services.TimeTrackingService
 	cfg                  *config.Config
 }
 
@@ -66,11 +65,6 @@ func (h *TaskHandler) SetNotificationService(notificationService *services.Notif
 // SetStorageService sets the storage service
 func (h *TaskHandler) SetStorageService(storageService services.StorageServiceInterface) {
 	h.storageService = storageService
-}
-
-// SetTimeTrackingService sets the time tracking service
-func (h *TaskHandler) SetTimeTrackingService(timeTrackingService *services.TimeTrackingService) {
-	h.timeTrackingService = timeTrackingService
 }
 
 // GetAll gets all tasks for a project with user details in assignTo field
@@ -676,195 +670,6 @@ func (h *TaskHandler) GetTimeSpent(c *gin.Context) {
 	c.JSON(constants.StatusOK, gin.H{"timeSpent": timeSpent})
 }
 
-// StartTimeTracking starts time tracking for a task
-func (h *TaskHandler) StartTimeTracking(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == "" {
-		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
-		return
-	}
-
-	projectID := c.Param("projectId")
-	taskID := c.Param("taskId")
-
-	if h.timeTrackingService == nil {
-		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
-		return
-	}
-
-	// Check authorization
-	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.timeTrackingService.StartTracking(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(constants.StatusOK, gin.H{"message": "Time tracking started"})
-}
-
-// StopTimeTracking stops time tracking for a task
-func (h *TaskHandler) StopTimeTracking(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == "" {
-		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
-		return
-	}
-
-	projectID := c.Param("projectId")
-	taskID := c.Param("taskId")
-
-	if h.timeTrackingService == nil {
-		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
-		return
-	}
-
-	// Check authorization
-	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.timeTrackingService.StopTracking(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(constants.StatusOK, gin.H{"message": "Time tracking stopped"})
-}
-
-// UpdateActivity updates user activity for time tracking
-func (h *TaskHandler) UpdateActivity(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == "" {
-		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
-		return
-	}
-
-	projectID := c.Param("projectId")
-	taskID := c.Param("taskId")
-
-	if h.timeTrackingService == nil {
-		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
-		return
-	}
-
-	// Check authorization
-	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.timeTrackingService.UpdateActivity(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(constants.StatusOK, gin.H{"message": "Activity updated"})
-}
-
-// PauseTimeTracking pauses time tracking for a task
-func (h *TaskHandler) PauseTimeTracking(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == "" {
-		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
-		return
-	}
-
-	projectID := c.Param("projectId")
-	taskID := c.Param("taskId")
-
-	if h.timeTrackingService == nil {
-		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
-		return
-	}
-
-	// Check authorization
-	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.timeTrackingService.PauseTracking(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(constants.StatusOK, gin.H{"message": "Time tracking paused"})
-}
-
-// ResumeTimeTracking resumes time tracking for a task
-func (h *TaskHandler) ResumeTimeTracking(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == "" {
-		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
-		return
-	}
-
-	projectID := c.Param("projectId")
-	taskID := c.Param("taskId")
-
-	if h.timeTrackingService == nil {
-		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
-		return
-	}
-
-	// Check authorization
-	if err := h.authorizationService.CanModifyTask(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusForbidden, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.timeTrackingService.ResumeTracking(c.Request.Context(), projectID, taskID, userID); err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(constants.StatusOK, gin.H{"message": "Time tracking resumed"})
-}
-
-// GetTrackingStatus gets the current tracking status for a task
-func (h *TaskHandler) GetTrackingStatus(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == "" {
-		c.JSON(constants.StatusUnauthorized, gin.H{"error": constants.MsgUserNotAuthenticated})
-		return
-	}
-
-	projectID := c.Param("projectId")
-	taskID := c.Param("taskId")
-
-	if h.timeTrackingService == nil {
-		c.JSON(constants.StatusInternalServerError, gin.H{"error": "Time tracking service not available"})
-		return
-	}
-
-	session, err := h.timeTrackingService.GetActiveSession(c.Request.Context(), projectID, taskID, userID)
-	if err != nil {
-		c.JSON(constants.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if session == nil {
-		c.JSON(constants.StatusOK, gin.H{"isTracking": false, "isPaused": false, "session": nil})
-		return
-	}
-
-	c.JSON(constants.StatusOK, gin.H{
-		"isTracking": true,
-		"isPaused":  session.IsPaused,
-		"session": gin.H{
-			"id":           session.ID,
-			"startTime":    session.StartTime,
-			"lastActive":   session.LastActive,
-			"totalMinutes": session.TotalMinutes,
-		},
-	})
-}
-
 // AddFileAttachment adds file attachment
 func (h *TaskHandler) AddFileAttachment(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
@@ -1166,4 +971,3 @@ func (h *TaskHandler) GetStatuses(c *gin.Context) {
 		"total":    len(statuses),
 	})
 }
-
