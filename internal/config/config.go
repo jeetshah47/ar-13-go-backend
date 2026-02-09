@@ -68,6 +68,7 @@ type Config struct {
 	QNAPServicePassword string // Service account password
 	QNAPShareName       string // Share name (e.g., "studio-work")
 	QNAPSessionTimeout  int    // Session timeout in minutes (default: 30)
+	NASBasePath         string // Base path for direct filesystem access (when backend is on NAS, e.g., "/share/studio-work")
 }
 
 var AppConfig *Config
@@ -133,6 +134,7 @@ func LoadConfig() (*Config, error) {
 		QNAPServicePassword: getEnv("QNAP_SERVICE_PASSWORD", ""),
 		QNAPShareName:       getEnv("QNAP_SHARE_NAME", "studio-work"),
 		QNAPSessionTimeout:  getEnvAsInt("QNAP_SESSION_TIMEOUT", 30),
+		NASBasePath:         getEnv("NAS_BASE_PATH", ""),
 	}
 
 	AppConfig = config

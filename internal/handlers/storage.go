@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -33,8 +35,16 @@ func NewStorageHandler(storageService services.StorageServiceInterface, cfg *con
 // GET /api/storage/files?path=/folder/subfolder
 func (h *StorageHandler) ListFiles(c *gin.Context) {
 	if !h.storageService.IsInitialized() {
+		errorMsg := "Storage service is not initialized."
+		if h.cfg != nil && h.cfg.NASBasePath == "" {
+			errorMsg += " Please configure NAS_BASE_PATH for direct filesystem access."
+		} else if h.cfg != nil && h.cfg.NASBasePath != "" {
+			errorMsg += fmt.Sprintf(" NAS_BASE_PATH is set to '%s' but storage initialization failed. Please check the path exists and is accessible.", h.cfg.NASBasePath)
+		} else {
+			errorMsg += " Please configure storage settings (NAS_BASE_PATH or MinIO)."
+		}
 		c.JSON(constants.StatusServiceUnavailable, gin.H{
-			"error": "Storage service is not initialized. Please configure MINIO_ENDPOINT and other MinIO settings.",
+			"error": errorMsg,
 		})
 		return
 	}
@@ -120,6 +130,74 @@ func (h *StorageHandler) DownloadFile(c *gin.Context) {
 	downloadURL, err := h.storageService.GetPresignedURL(c.Request.Context(), path, expiry)
 	if err != nil {
 		c.JSON(constants.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if this is NAS direct filesystem storage (returns a path, not a URL)
+	// NAS direct filesystem storage returns a path like "/folder/file.pdf" instead of a URL
+	isNASDirectFS := !strings.HasPrefix(downloadURL, "http://") && !strings.HasPrefix(downloadURL, "https://")
+	if isNASDirectFS && h.cfg != nil && h.cfg.NASBasePath != "" {
+		// Read file directly from filesystem
+		localPath := filepath.Join(h.cfg.NASBasePath, strings.TrimPrefix(path, "/"))
+		localPath = filepath.Clean(localPath)
+
+		// Open file
+		file, fileErr := os.Open(localPath)
+		if fileErr != nil {
+			if os.IsNotExist(fileErr) {
+				c.JSON(constants.StatusNotFound, gin.H{"error": "File not found"})
+				return
+			}
+			c.JSON(constants.StatusInternalServerError, gin.H{"error": "Failed to open file: " + fileErr.Error()})
+			return
+		}
+		defer file.Close()
+
+		// Get file info
+		fileInfo, statErr := file.Stat()
+		if statErr != nil {
+			c.JSON(constants.StatusInternalServerError, gin.H{"error": "Failed to stat file: " + statErr.Error()})
+			return
+		}
+
+		// Get filename from path
+		filename := filepath.Base(path)
+		if filename == "" || filename == "." || filename == "/" {
+			filename = "download"
+		}
+
+		// Detect content type
+		contentType := "application/octet-stream"
+		ext := filepath.Ext(filename)
+		if ext != "" {
+			// Try to detect from extension
+			switch strings.ToLower(ext) {
+			case ".pdf":
+				contentType = "application/pdf"
+			case ".jpg", ".jpeg":
+				contentType = "image/jpeg"
+			case ".png":
+				contentType = "image/png"
+			case ".txt":
+				contentType = "text/plain"
+			case ".json":
+				contentType = "application/json"
+			case ".zip":
+				contentType = "application/zip"
+			}
+		}
+
+		// Set headers
+		c.Header("Content-Type", contentType)
+		c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+		c.Header("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
+
+		// Stream the file
+		_, copyErr := io.Copy(c.Writer, file)
+		if copyErr != nil {
+			// Error writing response, but we can't send JSON error at this point
+			return
+		}
 		return
 	}
 

@@ -1,0 +1,30 @@
+services:
+  server:
+    image: alpine:latest
+    container_name: ar-13-server
+    restart: unless-stopped
+    
+    # Use ar13_service user (UID:GID from: getent passwd ar13_service)
+    user: "${BACKEND_USER_UID:-1017}:${BACKEND_USER_GID:-100}"
+
+    working_dir: /app
+
+    # Load environment variables from .env file
+    env_file:
+      - .env
+    # Essential environment variables (with defaults if not in .env)
+    # Mount your binary + data folder
+    volumes:
+      # Folder that contains the server binary (adjust path as needed)
+      - /share/Public/ar13_backend/bin:/app:ro
+      # Upload folder (use absolute path)
+      - /share/Public/ar13_backend/upload:/app/upload
+      # NAS data folder (if using direct filesystem access)
+      - "/share/studio work:/data"
+
+    # Run the binary
+    command: ["./server"]
+
+    # Expose the port from container → NAS
+    ports:
+      - "${PORT:-3000}:3000"

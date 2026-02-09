@@ -43,49 +43,39 @@ func NewHandler(cfg *config.Config) *Handler {
 	taskService.SetWebSocketService(websocketHandler.GetWebSocketService())
 	taskService.SetNotificationService(notificationService)
 
-	// Initialize storage service (FileBrowser Service, FileBrowser, or MinIO)
+	// Initialize storage service
+	// Priority: NAS Direct Filesystem (primary) > MinIO (fallback only if explicitly configured)
 	var storageService services.StorageServiceInterface
 
-	// Priority: FileBrowser Service > FileBrowser > MinIO
-	if cfg.FileBrowserServiceURL != "" {
-		// Use new filebrowser service (with JWT authentication)
-		storageService = services.NewFileBrowserServiceStorage(cfg.FileBrowserServiceURL)
+	// Primary: NAS Direct Filesystem (when backend is deployed on NAS)
+	if cfg.NASBasePath != "" {
+		storageService = services.NewNASDirectFilesystemStorage(cfg)
 		if err := storageService.Initialize(); err != nil {
-			log.Printf("Warning: Failed to initialize filebrowser service: %v. Trying fallback...", err)
-			log.Printf("FileBrowser Service config - URL: %s", cfg.FileBrowserServiceURL)
-			// Fall through to next option
+			log.Printf("Error: Failed to initialize NAS direct filesystem storage: %v", err)
+			log.Printf("NAS Direct Filesystem config - Base Path: %s", cfg.NASBasePath)
+			log.Printf("Please ensure NAS_BASE_PATH is set correctly and the path exists and is accessible")
+			// Don't fall through - fail if NAS_BASE_PATH is set but initialization fails
 			storageService = nil
 		} else {
-			log.Printf("FileBrowser service initialized successfully at %s", cfg.FileBrowserServiceURL)
+			log.Printf("NAS direct filesystem storage initialized successfully - Base Path: %s", cfg.NASBasePath)
 		}
 	}
 
-	// Fallback to old FileBrowser if new service failed or not configured
-	if storageService == nil && cfg.FileBrowserEnabled {
-		// Use old FileBrowser if enabled
-		if cfg.FileBrowserToken == "" {
-			log.Printf("Warning: FILEBROWSER_ENABLED is true but FILEBROWSER_TOKEN is not set. Trying MinIO...")
-		} else {
-			storageService = services.NewFileBrowserStorageService(cfg.FileBrowserURL, cfg.FileBrowserToken)
-			if err := storageService.Initialize(); err != nil {
-				log.Printf("Warning: Failed to initialize FileBrowser storage service: %v. Trying MinIO...", err)
-				log.Printf("FileBrowser config - URL: %s", cfg.FileBrowserURL)
-				storageService = nil
-			} else {
-				log.Printf("FileBrowser storage service initialized successfully at %s", cfg.FileBrowserURL)
-			}
-		}
-	}
-
-	// Fallback to MinIO if filebrowser services failed or not configured
+	// Fallback to MinIO only if NAS_BASE_PATH is not set AND MinIO is explicitly configured
 	if storageService == nil {
-		// Use MinIO (default)
-		storageService = services.NewStorageService(cfg)
-		if err := storageService.Initialize(); err != nil {
-			log.Printf("Warning: Failed to initialize MinIO storage service: %v. File storage features will be disabled.", err)
-			log.Printf("MinIO config - Endpoint: %s, Bucket: %s, UseSSL: %v", cfg.MinIOEndpoint, cfg.MinIOBucket, cfg.MinIOUseSSL)
+		if cfg.MinIOEndpoint != "" && cfg.MinIOBucket != "" {
+			// Use MinIO only if explicitly configured
+			storageService = services.NewStorageService(cfg)
+			if err := storageService.Initialize(); err != nil {
+				log.Printf("Error: Failed to initialize MinIO storage service: %v. File storage features will be disabled.", err)
+				log.Printf("MinIO config - Endpoint: %s, Bucket: %s, UseSSL: %v", cfg.MinIOEndpoint, cfg.MinIOBucket, cfg.MinIOUseSSL)
+			} else {
+				log.Printf("MinIO storage service initialized successfully - Endpoint: %s, Bucket: %s", cfg.MinIOEndpoint, cfg.MinIOBucket)
+			}
 		} else {
-			log.Printf("MinIO storage service initialized successfully - Endpoint: %s, Bucket: %s", cfg.MinIOEndpoint, cfg.MinIOBucket)
+			// Neither NAS_BASE_PATH nor MinIO is configured
+			log.Printf("Warning: No storage service configured. Please set NAS_BASE_PATH for direct filesystem access.")
+			log.Printf("File storage features will be disabled.")
 		}
 	}
 
